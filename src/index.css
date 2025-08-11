@@ -38,6 +38,13 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
+    /* Brand & motion tokens */
+    --brand-start: 264 84% 60%;
+    --brand-end: 200 94% 56%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
+    --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.25);
+    --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -91,6 +98,13 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Brand & motion tokens (dark) */
+    --brand-start: 264 84% 70%;
+    --brand-end: 200 94% 64%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
+    --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.35);
+    --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 

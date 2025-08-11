@@ -84,11 +84,22 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				float: {
+					'0%,100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-4px)' }
+				},
+				aurora: {
+					'0%': { backgroundPosition: '0% 50%' },
+					'50%': { backgroundPosition: '100% 50%' },
+					'100%': { backgroundPosition: '0% 50%' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				float: 'float 6s var(--transition-smooth) infinite',
+				aurora: 'aurora 12s ease-in-out infinite'
 			}
 		}
 	},
