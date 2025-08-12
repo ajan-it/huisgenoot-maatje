@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,36 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { toast } from "@/hooks/use-toast";
-
+import { supabase } from "@/integrations/supabase/client";
 const SetupWizard = () => {
   const [householdName, setHouseholdName] = useState("Ons huishouden");
   const [people, setPeople] = useState([
     { first_name: "Ouder 1", role: "adult", weekly_time_budget: 300, contact: "", disliked: [] as string[] },
     { first_name: "Ouder 2", role: "adult", weekly_time_budget: 300, contact: "", disliked: [] as string[] },
   ]);
+
+  // Local-first: laad en bewaar concept in localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("setupDraft");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.householdName) setHouseholdName(parsed.householdName);
+        if (Array.isArray(parsed.people)) setPeople(parsed.people);
+      }
+    } catch (e) {
+      console.warn("Kon setupDraft niet laden", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const draft = { householdName, people };
+    try {
+      localStorage.setItem("setupDraft", JSON.stringify(draft));
+    } catch (e) {
+      console.warn("Kon setupDraft niet opslaan", e);
+    }
+  }, [householdName, people]);
 
   const toggleDisliked = (idx: number, taskName: string) => {
     setPeople((prev) => {
@@ -29,9 +52,50 @@ const SetupWizard = () => {
 
   const saveAndContinue = () => {
     console.log("WIZARD_SNAPSHOT", { householdName, people });
-    toast({ title: "Voorlopig opgeslagen", description: "Je kunt later altijd aanpassen." });
+    toast({ title: "Voorlopig opgeslagen", description: "Je concept is lokaal opgeslagen." });
   };
 
+  const persistToSupabase = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({ title: "Account nodig", description: "Log in om je instellingen op te slaan.", });
+      window.location.href = "/auth?next=" + encodeURIComponent("/setup?action=persist");
+      return;
+    }
+
+    // 1) Maak household
+    const { data: hh, error: hhErr } = await (supabase as any)
+      .from("households")
+      .insert([{ created_by: session.user.id, postcode: null, settings: { name: householdName } }])
+      .select("id")
+      .maybeSingle();
+
+    if (hhErr || !hh) {
+      toast({ title: "Opslaan mislukt", description: hhErr?.message ?? "Onbekende fout" });
+      return;
+    }
+
+    // 2) Voeg personen toe
+    const peopleRows = people.map((p: any) => ({
+      household_id: hh.id,
+      first_name: p.first_name,
+      role: p.role,
+      weekly_time_budget: Number(p.weekly_time_budget) || 0,
+      disliked_tasks: Array.isArray(p.disliked) ? p.disliked : [],
+      no_go_tasks: [],
+      contact: p.contact ? { raw: p.contact } : null,
+      locale: 'nl',
+    }));
+
+    const { error: pplErr } = await (supabase as any).from("people").insert(peopleRows);
+    if (pplErr) {
+      toast({ title: "Opslaan mislukt", description: pplErr.message });
+      return;
+    }
+
+    localStorage.removeItem("setupDraft");
+    toast({ title: "Opgeslagen", description: "Je huishouden is opgeslagen in je account." });
+  };
   return (
     <main className="min-h-screen bg-background">
       <Helmet>
@@ -102,6 +166,7 @@ const SetupWizard = () => {
             <div className="sm:col-span-2 flex items-center gap-3">
               <Button variant="secondary" onClick={addPerson}>Persoon toevoegen</Button>
               <Button variant="hero" onClick={saveAndContinue}>Opslaan en verder</Button>
+              <Button onClick={persistToSupabase}>Opslaan in account</Button>
             </div>
           </CardContent>
         </Card>

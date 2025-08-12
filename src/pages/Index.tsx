@@ -26,6 +26,9 @@ const Index = () => {
                 <a href="/privacy">
                   <Button variant="outline" size="lg">Privacy</Button>
                 </a>
+                <a href="/auth">
+                  <Button variant="secondary" size="lg">Inloggen</Button>
+                </a>
               </div>
               <ul className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                 <li>• Nederlands als standaard</li>
