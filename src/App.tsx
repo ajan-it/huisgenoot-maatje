@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SetupWizard from "./pages/SetupWizard";
@@ -23,11 +23,21 @@ const App = () => (
       <LanguageToggle />
       <BrowserRouter>
         <Routes>
+          {/* success page (static) */}
+          <Route path="/setup/done" element={<SetupDone />} />
+
+          {/* plan page */}
+          <Route path="/plan/:planId" element={<PlanView />} />
+
+          {/* wizard steps 1–8 only */}
           <Route path="/" element={<Index />} />
           <Route path="/setup" element={<Navigate to="/setup/1" replace />} />
-          <Route path="/setup/:step" element={<SetupFlow />} />
+          <Route path="/setup/:step" element={<SetupFlowGuard />} />
+
+          {/* misc */}
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/auth" element={<Auth />} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -37,3 +47,12 @@ const App = () => (
 );
 
 export default App;
+
+function SetupFlowGuard() {
+  const { step } = useParams();
+  const n = Number(step);
+  if (!Number.isFinite(n) || n < 1 || n > 8) {
+    return <Navigate to="/setup/1" replace />;
+  }
+  return <SetupFlow />;
+}
