@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import SetupWizard from "./pages/SetupWizard";
 import Privacy from "./pages/Privacy";
 import Auth from "./pages/Auth";
+import LanguageToggle from "@/components/LanguageToggle";
 
 const queryClient = new QueryClient();
 
@@ -16,6 +17,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <LanguageToggle />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
