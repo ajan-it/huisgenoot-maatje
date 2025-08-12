@@ -68,7 +68,7 @@ const SetupWizard = () => {
     // 1) Maak household
     const { data: hh, error: hhErr } = await (supabase as any)
       .from("households")
-      .insert([{ created_by: session.user.id, postcode: null, settings: { name: householdName } }])
+      .insert([{ postcode: null, settings: { name: householdName } }])
       .select("id")
       .maybeSingle();
 

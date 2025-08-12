@@ -14,16 +14,414 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      blackout_slots: {
+        Row: {
+          created_at: string
+          days: Database["public"]["Enums"]["weekday"][]
+          description: string | null
+          end: string
+          id: string
+          label: string
+          person_id: string
+          start: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days: Database["public"]["Enums"]["weekday"][]
+          description?: string | null
+          end: string
+          id?: string
+          label: string
+          person_id: string
+          start: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days?: Database["public"]["Enums"]["weekday"][]
+          description?: string | null
+          end?: string
+          id?: string
+          label?: string
+          person_id?: string
+          start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blackout_slots_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blackout_templates: {
+        Row: {
+          created_at: string
+          days: Database["public"]["Enums"]["weekday"][]
+          description: string | null
+          end: string
+          id: string
+          label: string
+          start: string
+        }
+        Insert: {
+          created_at?: string
+          days: Database["public"]["Enums"]["weekday"][]
+          description?: string | null
+          end: string
+          id?: string
+          label: string
+          start: string
+        }
+        Update: {
+          created_at?: string
+          days?: Database["public"]["Enums"]["weekday"][]
+          description?: string | null
+          end?: string
+          id?: string
+          label?: string
+          start?: string
+        }
+        Relationships: []
+      }
+      household_members: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_members_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      households: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          postcode: string | null
+          settings: Json
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          postcode?: string | null
+          settings?: Json
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          postcode?: string | null
+          settings?: Json
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      occurrences: {
+        Row: {
+          assigned_person: string | null
+          created_at: string
+          date: string
+          id: string
+          plan_id: string
+          rationale: Json | null
+          status: Database["public"]["Enums"]["occurrence_status"]
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_person?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          plan_id: string
+          rationale?: Json | null
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_person?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          plan_id?: string
+          rationale?: Json | null
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occurrences_assigned_person_fkey"
+            columns: ["assigned_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "occurrences_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "occurrences_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      people: {
+        Row: {
+          contact: Json | null
+          created_at: string
+          disliked_tasks: string[]
+          first_name: string
+          household_id: string
+          id: string
+          locale: Database["public"]["Enums"]["locale"]
+          no_go_tasks: string[]
+          role: Database["public"]["Enums"]["role_type"]
+          updated_at: string
+          weekly_time_budget: number
+        }
+        Insert: {
+          contact?: Json | null
+          created_at?: string
+          disliked_tasks?: string[]
+          first_name: string
+          household_id: string
+          id?: string
+          locale?: Database["public"]["Enums"]["locale"]
+          no_go_tasks?: string[]
+          role: Database["public"]["Enums"]["role_type"]
+          updated_at?: string
+          weekly_time_budget?: number
+        }
+        Update: {
+          contact?: Json | null
+          created_at?: string
+          disliked_tasks?: string[]
+          first_name?: string
+          household_id?: string
+          id?: string
+          locale?: Database["public"]["Enums"]["locale"]
+          no_go_tasks?: string[]
+          role?: Database["public"]["Enums"]["role_type"]
+          updated_at?: string
+          weekly_time_budget?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          fairness_score: number | null
+          household_id: string
+          id: string
+          status: Database["public"]["Enums"]["plan_status"]
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          fairness_score?: number | null
+          household_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["plan_status"]
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          fairness_score?: number | null
+          household_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["plan_status"]
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_holidays: {
+        Row: {
+          country: string
+          date: string
+          id: string
+          label: string
+        }
+        Insert: {
+          country?: string
+          date: string
+          id?: string
+          label: string
+        }
+        Update: {
+          country?: string
+          date?: string
+          id?: string
+          label?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["category_type"]
+          created_at: string
+          default_duration: number
+          difficulty: number
+          frequency: Database["public"]["Enums"]["frequency_type"]
+          household_id: string | null
+          id: string
+          is_template: boolean
+          name: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          default_duration: number
+          difficulty: number
+          frequency: Database["public"]["Enums"]["frequency_type"]
+          household_id?: string | null
+          id?: string
+          is_template?: boolean
+          name: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          default_duration?: number
+          difficulty?: number
+          frequency?: Database["public"]["Enums"]["frequency_type"]
+          household_id?: string | null
+          id?: string
+          is_template?: boolean
+          name?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waste_schedules: {
+        Row: {
+          id: string
+          municipality: string | null
+          pickup_day: Database["public"]["Enums"]["weekday"]
+          postcode_prefix: string | null
+          waste_type: string
+        }
+        Insert: {
+          id?: string
+          municipality?: string | null
+          pickup_day: Database["public"]["Enums"]["weekday"]
+          postcode_prefix?: string | null
+          waste_type: string
+        }
+        Update: {
+          id?: string
+          municipality?: string | null
+          pickup_day?: Database["public"]["Enums"]["weekday"]
+          postcode_prefix?: string | null
+          waste_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_household_member: {
+        Args: { _household_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      category_type:
+        | "kitchen"
+        | "bathroom"
+        | "cleaning"
+        | "admin"
+        | "childcare"
+        | "errands"
+        | "maintenance"
+        | "selfcare"
+        | "social"
+        | "garden"
+      frequency_type: "daily" | "weekly" | "monthly"
+      locale: "nl" | "en"
+      occurrence_status: "scheduled" | "done" | "moved" | "backlog"
+      plan_status: "draft" | "confirmed" | "sent"
+      role_type: "adult" | "child"
+      weekday: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +548,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      category_type: [
+        "kitchen",
+        "bathroom",
+        "cleaning",
+        "admin",
+        "childcare",
+        "errands",
+        "maintenance",
+        "selfcare",
+        "social",
+        "garden",
+      ],
+      frequency_type: ["daily", "weekly", "monthly"],
+      locale: ["nl", "en"],
+      occurrence_status: ["scheduled", "done", "moved", "backlog"],
+      plan_status: ["draft", "confirmed", "sent"],
+      role_type: ["adult", "child"],
+      weekday: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    },
   },
 } as const
