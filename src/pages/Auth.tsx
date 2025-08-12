@@ -89,6 +89,9 @@ const Auth = () => {
                 {loading ? t('common.loading') : t('auth.signup')}
               </Button>
             )}
+            <Button variant="secondary" className="w-full" onClick={() => navigate("/")}>
+              {t('common.backHome')}
+            </Button>
             <div className="text-sm text-muted-foreground text-center">
               {mode === "login" ? (
                 <button className="underline" onClick={() => setMode("signup")}>{t('auth.noAccount')}</button>

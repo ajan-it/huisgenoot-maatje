@@ -1,34 +1,103 @@
 import { Helmet } from "react-helmet-async";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const PlanView = () => {
   const { planId } = useParams();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { lang } = useI18n();
   const L = lang === "en";
 
+  const [plan, setPlan] = useState<any | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lastPlanResponse");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.plan_id === planId) setPlan(parsed);
+    } catch {}
+  }, [planId]);
+
+  const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
+
   return (
-    <main className="container py-8 space-y-4">
+    <main className="container py-8 space-y-6">
       <Helmet>
-        <title>{L ? `Week plan | ${planId}` : `Weekplan | ${planId}`}</title>
+        <title>{title}</title>
         <meta name="description" content={L ? "View the generated weekly plan." : "Bekijk het gegenereerde weekplan."} />
         <link rel="canonical" href={`/plan/${planId}`} />
       </Helmet>
+
+      {params.get("invite") === "1" && (
+        <Alert>
+          <AlertTitle>{L ? "You were invited" : "Je bent uitgenodigd"}</AlertTitle>
+          <AlertDescription>
+            {L ? "This is a shared week plan link. You can review the plan below." : "Dit is een gedeelde weekplan‑link. Hieronder kun je het plan bekijken."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">{L ? "Week plan" : "Weekplan"}</h1>
         <p className="text-muted-foreground">{L ? "Plan ID" : "Plan-ID"}: {planId}</p>
       </header>
 
-      <section className="space-y-3">
-        <p className="text-sm text-muted-foreground">{L ? "This page is coming soon. For now you can return to start or run the wizard again." : "Deze pagina komt binnenkort. Voor nu kun je terug naar de start of de wizard opnieuw doorlopen."}</p>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
-          <Button variant="secondary" onClick={() => navigate("/setup/1")}>{L ? "Open wizard" : "Wizard openen"}</Button>
-        </div>
-      </section>
+      {plan ? (
+        <section className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                {L ? "Overview" : "Overzicht"}
+                <Badge variant="secondary">{L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <div>
+                {L ? "Tasks" : "Taken"}: {plan.occurrences ?? 0}
+              </div>
+              <div>
+                {L ? "Week start" : "Week start"}: {new Date(plan.week_start).toLocaleDateString(L ? "en-GB" : "nl-NL", { year: "numeric", month: "long", day: "numeric" })}
+              </div>
+              <p>
+                {L
+                  ? "Detailed scheduling will appear here when connected to the planner backend."
+                  : "Gedetailleerde planning verschijnt hier zodra de planner‑backend is gekoppeld."}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
+            <Button variant="secondary" onClick={() => navigate("/setup/1")}>{L ? "Run wizard again" : "Wizard opnieuw"}</Button>
+          </div>
+        </section>
+      ) : (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>{L ? "Plan not found" : "Plan niet gevonden"}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-muted-foreground">
+              <p>
+                {L
+                  ? "We couldn't find this plan on this device. Create a new plan with the wizard."
+                  : "We konden dit plan niet vinden op dit apparaat. Maak een nieuw plan via de wizard."}
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={() => navigate("/setup/1")}>{L ? "Start wizard" : "Start wizard"}</Button>
+                <Button variant="secondary" onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </main>
   );
 };
