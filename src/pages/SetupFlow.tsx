@@ -9,7 +9,7 @@ import { useSetupDraft } from "@/hooks/use-setup-draft";
 import { useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/i18n/I18nProvider";
-import { SEED_TASKS } from "@/data/seeds";
+import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { PLAN_WEBHOOK_URL, PLAN_WEBHOOK_SECRET, TIMEZONE } from "@/config";
 
 const TOTAL_STEPS = 8;
@@ -75,6 +75,13 @@ export default function SetupFlow() {
         return;
       }
     }
+    if (step === 3) {
+      const missing = draft.people.filter((p) => p.role === "adult").some((p) => p.weekly_time_budget === undefined || p.weekly_time_budget === null);
+      if (missing) {
+        toast({ title: "Minuten per week ontbreekt", description: "Vul het wekelijkse tijdsbudget in voor alle volwassenen." });
+        return;
+      }
+    }
     if (step === 8 && !privacyAccepted) {
       toast({ title: "Accepteer privacyverklaring", description: "Vink de privacyverklaring aan om door te gaan." });
       return;
@@ -98,6 +105,14 @@ export default function SetupFlow() {
   };
   const isValidE164 = (s?: string) => !!s && /^\+[1-9]\d{7,14}$/.test(s);
 
+  const allTags = useMemo(() => Array.from(new Set(SEED_TASKS.flatMap((t) => t.tags || []))), []);
+  const categories = useMemo(() => ["all", ...Array.from(new Set(SEED_TASKS.map((t) => t.category)))], []);
+  const dayKeys: ("Mon"|"Tue"|"Wed"|"Thu"|"Fri"|"Sat"|"Sun")[] = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const dayLabels: Record<typeof dayKeys[number], string> = { Mon: "Ma", Tue: "Di", Wed: "Wo", Thu: "Do", Fri: "Vr", Sat: "Za", Sun: "Zo" };
+
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskCategory, setTaskCategory] = useState<string>("all");
+
   const applyToddlerPreset = () => {
     const mapIds = ["t1","t2","t5","t6","t4","t7","t8","t9","t10","t15","t16","t17","t18","t3","t11","t12","t13","t19","t22","t23"];
     setDraft((d) => {
@@ -116,7 +131,6 @@ export default function SetupFlow() {
       return { ...d, tasks: nextTasks };
     });
   };
-
   const nextMondayISO = () => {
     const now = new Date();
     const day = now.getDay(); // 0 Sun..6 Sat
