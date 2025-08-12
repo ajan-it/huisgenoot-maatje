@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 const SetupWizard = () => {
-  const { t, lang } = useI18n();
+  const { t: translate, lang } = useI18n();
   const [householdName, setHouseholdName] = useState("Ons huishouden");
   const [people, setPeople] = useState([
     { first_name: "Ouder 1", role: "adult", weekly_time_budget: 300, contact: "", disliked: [] as string[] },
@@ -54,13 +54,13 @@ const SetupWizard = () => {
 
   const saveAndContinue = () => {
     console.log("WIZARD_SNAPSHOT", { householdName, people });
-    toast({ title: t('setup.toastSavedLocalTitle'), description: t('setup.toastSavedLocalDesc') });
+    toast({ title: translate('setup.toastSavedLocalTitle'), description: translate('setup.toastSavedLocalDesc') });
   };
 
   const persistToSupabase = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      toast({ title: t('setup.toastNeedAccountTitle'), description: t('setup.toastNeedAccountDesc'), });
+      toast({ title: translate('setup.toastNeedAccountTitle'), description: translate('setup.toastNeedAccountDesc'), });
       window.location.href = "/auth?next=" + encodeURIComponent("/setup?action=persist");
       return;
     }
@@ -73,7 +73,7 @@ const SetupWizard = () => {
       .maybeSingle();
 
     if (hhErr || !hh) {
-      toast({ title: t('setup.toastErrorTitle'), description: hhErr?.message ?? "Onbekende fout" });
+      toast({ title: translate('setup.toastErrorTitle'), description: hhErr?.message ?? "Onbekende fout" });
       return;
     }
 
@@ -91,73 +91,73 @@ const SetupWizard = () => {
 
     const { error: pplErr } = await (supabase as any).from("people").insert(peopleRows);
     if (pplErr) {
-      toast({ title: t('setup.toastErrorTitle'), description: pplErr.message });
+      toast({ title: translate('setup.toastErrorTitle'), description: pplErr.message });
       return;
     }
 
     localStorage.removeItem("setupDraft");
-    toast({ title: t('setup.toastSavedRemoteTitle'), description: t('setup.toastSavedRemoteDesc') });
+    toast({ title: translate('setup.toastSavedRemoteTitle'), description: translate('setup.toastSavedRemoteDesc') });
   };
   return (
     <main className="min-h-screen bg-background">
       <Helmet>
-        <title>{t('setup.title')}</title>
-        <meta name="description" content={t('setup.metaDescription')} />
+        <title>{translate('setup.title')}</title>
+        <meta name="description" content={translate('setup.metaDescription')} />
         <link rel="canonical" href="/setup" />
       </Helmet>
       <section className="container py-10 space-y-6">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold">{t('setup.header')}</h1>
-          <p className="text-muted-foreground">{t('setup.subtext')}</p>
+          <h1 className="text-3xl font-bold">{translate('setup.header')}</h1>
+          <p className="text-muted-foreground">{translate('setup.subtext')}</p>
         </header>
 
         <Card>
           <CardHeader>
-            <CardTitle>{t('setup.household')}</CardTitle>
+            <CardTitle>{translate('setup.household')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Label htmlFor="hh-name">{t('setup.householdName')}</Label>
+              <Label htmlFor="hh-name">{translate('setup.householdName')}</Label>
               <Input id="hh-name" value={householdName} onChange={(e) => setHouseholdName(e.target.value)} />
             </div>
 
             {people.map((p, idx) => (
               <div key={idx} className="col-span-1 border rounded-lg p-4 space-y-3">
                 <div className="space-y-2">
-                  <Label>{t('setup.firstName')}</Label>
+                  <Label>{translate('setup.firstName')}</Label>
                   <Input value={p.first_name} onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, first_name: e.target.value } : pp))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('setup.role')}</Label>
+                  <Label>{translate('setup.role')}</Label>
                   <select
                     className="w-full h-10 rounded-md border bg-background"
                     value={p.role}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, role: e.target.value } : pp))}
                   >
-                    <option value="adult">{t('setup.roleAdult')}</option>
-                    <option value="child">{t('setup.roleChild')}</option>
+                    <option value="adult">{translate('setup.roleAdult')}</option>
+                    <option value="child">{translate('setup.roleChild')}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('setup.minutesPerWeek')}</Label>
+                  <Label>{translate('setup.minutesPerWeek')}</Label>
                   <Input type="number" value={p.weekly_time_budget}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, weekly_time_budget: Number(e.target.value) } : pp))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('setup.contact')}</Label>
+                  <Label>{translate('setup.contact')}</Label>
                   <Input value={p.contact}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, contact: e.target.value } : pp))}
-                    placeholder={t('setup.contactPlaceholder')}
+                    placeholder={translate('setup.contactPlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('setup.dislikedTasks')}</Label>
+                  <Label>{translate('setup.dislikedTasks')}</Label>
                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto">
                     {SEED_TASKS.slice(0, 12).map((task) => (
                       <label key={task.id} className="inline-flex items-center gap-2 text-sm">
                         <Checkbox checked={p.disliked.includes(task.name)} onCheckedChange={() => toggleDisliked(idx, task.name)} />
-                        <span>{t(`setup.taskLabels.${task.id}`)}</span>
+                        <span>{translate(`setup.taskLabels.${task.id}`)}</span>
                       </label>
                     ))}
                   </div>
@@ -166,21 +166,21 @@ const SetupWizard = () => {
             ))}
 
             <div className="sm:col-span-2 flex items-center gap-3">
-              <Button variant="secondary" onClick={addPerson}>{t('setup.addPerson')}</Button>
-              <Button variant="hero" onClick={saveAndContinue}>{t('setup.saveAndContinue')}</Button>
-              <Button onClick={persistToSupabase}>{t('setup.saveToAccount')}</Button>
+              <Button variant="secondary" onClick={addPerson}>{translate('setup.addPerson')}</Button>
+              <Button variant="hero" onClick={saveAndContinue}>{translate('setup.saveAndContinue')}</Button>
+              <Button onClick={persistToSupabase}>{translate('setup.saveToAccount')}</Button>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>{t('setup.blackoutsTitle')}</CardTitle>
+            <CardTitle>{translate('setup.blackoutsTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {SEED_BLACKOUTS.map((b, i) => (
               <div key={i} className="text-sm text-muted-foreground">
-                {t(`setup.blackoutsList.${i}`)}: {b.start}–{b.end}
+                {translate(`setup.blackoutsList.${i}`)}: {b.start}–{b.end}
               </div>
             ))}
           </CardContent>
