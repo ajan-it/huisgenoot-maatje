@@ -294,6 +294,7 @@ export default function SetupFlow() {
                         type="email"
                         value={p.email || ""}
                         onChange={(e) => updatePerson(p.id, { email: e.target.value })}
+                        onBlur={(e) => updatePerson(p.id, { email: normalizeEmail(e.currentTarget.value) || undefined })}
                       />
                     </div>
 
@@ -303,7 +304,10 @@ export default function SetupFlow() {
                         type="tel"
                         value={p.phone || ""}
                         onChange={(e) => updatePerson(p.id, { phone: e.target.value })}
+                        onBlur={(e) => updatePerson(p.id, { phone: formatDutchPhone(e.currentTarget.value) })}
+                        aria-describedby={`phone-hint-${p.id}`}
                       />
+                      <p id={`phone-hint-${p.id}`} className="text-xs text-muted-foreground">Nederlandse nummers beginnen met +31 of 06.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -318,13 +322,25 @@ export default function SetupFlow() {
                       </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`consent-${p.id}`}
-                        checked={!!p.notify_opt_in}
-                        onCheckedChange={(v) => updatePerson(p.id, { notify_opt_in: Boolean(v) })}
-                      />
-                      <Label htmlFor={`consent-${p.id}`}>{t("setupFlow.household.consentLabel")}</Label>
+                    <div className="space-y-3 sm:col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`consent-email-${p.id}`}
+                          checked={!!p.notify_email_opt_in}
+                          onCheckedChange={(v) => toggleEmailConsent(p.id, Boolean(v))}
+                          disabled={!p.email}
+                        />
+                        <Label htmlFor={`consent-email-${p.id}`}>E-mailmeldingen toestaan</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`consent-sms-${p.id}`}
+                          checked={!!p.notify_sms_opt_in}
+                          onCheckedChange={(v) => toggleSmsConsent(p.id, Boolean(v))}
+                          disabled={!isValidE164(p.phone)}
+                        />
+                        <Label htmlFor={`consent-sms-${p.id}`}>WhatsApp/SMS toestaan</Label>
+                      </div>
                     </div>
 
                     <div className="sm:col-span-2 flex gap-3">
@@ -354,7 +370,54 @@ export default function SetupFlow() {
           </Card>
         )}
 
-        {step >= 3 && step <= 8 && (
+        {step === 5 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
+                <Button variant="secondary" onClick={applyToddlerPreset}>Aanbevolen selectie</Button>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={onNext}>
+                  {t("setupFlow.household.next")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 8 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Personen: {draft.people.length} • Volwassenen: {adultsCount} • Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="privacy" checked={privacyAccepted} onCheckedChange={(v) => setPrivacyAccepted(Boolean(v))} />
+                  <Label htmlFor="privacy">Ik ga akkoord met de <a href="/privacy" className="underline">privacyverklaring</a>.</Label>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={generatePlan} disabled={!privacyAccepted}>
+                  Genereer weekplan
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step >= 3 && step <= 7 && step !== 5 && (
           <Card>
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
@@ -367,13 +430,14 @@ export default function SetupFlow() {
                 <Button variant="outline" onClick={onBack}>
                   {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={onNext} disabled={step === 8}>
+                <Button onClick={onNext}>
                   {t("setupFlow.household.next")}
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
+
       </section>
     </main>
   );
