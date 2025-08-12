@@ -38,7 +38,7 @@ const SetupDone = () => {
   const plan = useLastPlan();
   const navigate = useNavigate();
   const h1Ref = useRef<HTMLHeadingElement>(null);
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const L = lang === "en";
 
   useEffect(() => {
@@ -83,8 +83,8 @@ const SetupDone = () => {
       `DTSTAMP:${dtStamp}`,
       `DTSTART;TZID=Europe/Amsterdam:${start}`,
       `DTEND;TZID=Europe/Amsterdam:${end}`,
-      "SUMMARY:Weekplan huishoudtaken",
-      "DESCRIPTION:Automatisch gegenereerd weekplan",
+      `SUMMARY:${t('done.icsSummary')}`,
+      `DESCRIPTION:${t('done.icsDescription')}`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
@@ -103,7 +103,7 @@ const SetupDone = () => {
     const link = `${location.origin}/plan/${planId}?invite=1`;
     try {
       await navigator.clipboard.writeText(link);
-      toast({ title: "Uitnodiging gekopieerd", description: "Stuur de link naar je partner." });
+      toast({ title: t('done.inviteCopiedTitle'), description: t('done.inviteCopiedDesc') });
       track("invite_sent", { channel: "link" });
     } catch {}
   };
@@ -119,8 +119,8 @@ const SetupDone = () => {
   return (
     <main>
       <Helmet>
-        <title>Weekplan aangemaakt | Huishouden</title>
-        <meta name="description" content="Je weekplan is aangemaakt. Bekijk details en volgende stappen." />
+        <title>{t('done.metaTitle')}</title>
+        <meta name="description" content={t('done.metaDescription')} />
         <link rel="canonical" href="/setup/done" />
       </Helmet>
 
@@ -128,91 +128,91 @@ const SetupDone = () => {
         {!plan ? (
           <Card>
             <CardHeader>
-              <CardTitle>Geen plan gevonden</CardTitle>
+              <CardTitle>{t('done.noPlanTitle')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-muted-foreground">Begin bij stap 1 om een nieuw weekplan te maken.</p>
+              <p className="text-muted-foreground">{t('done.noPlanDesc')}</p>
               <div className="flex gap-3">
-                <Button onClick={() => navigate("/setup/1")}>Start wizard</Button>
-                <Button variant="secondary" onClick={() => navigate("/")}>Terug naar start</Button>
+                <Button onClick={() => navigate("/setup/1")}>{t('done.startWizard')}</Button>
+                <Button variant="secondary" onClick={() => navigate("/")}>{t('done.backHome')}</Button>
               </div>
             </CardContent>
           </Card>
         ) : (
           <article className="space-y-4">
             <header className="space-y-2">
-              <h1 ref={h1Ref} tabIndex={-1} className="text-3xl font-bold outline-none">Weekplan aangemaakt 🎉</h1>
-              <p className="text-muted-foreground" aria-live="polite">Je plan voor week vanaf {formatDate(weekStartStr!)} is klaar.</p>
+              <h1 ref={h1Ref} tabIndex={-1} className="text-3xl font-bold outline-none">{t('done.h1')}</h1>
+              <p className="text-muted-foreground" aria-live="polite">{t('done.successPrefix')} {new Date(weekStartStr!).toLocaleDateString(L ? 'en-GB' : 'nl-NL', { year: 'numeric', month: 'long', day: 'numeric' })} {t('done.successSuffix')}</p>
             </header>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-3">
-                  Planoverzicht
-                  <Badge variant="secondary" aria-label={`Eerlijkheid ${fairness} uit 100`}>Eerlijkheid: {fairness}/100</Badge>
+                  {t('done.overview')}
+                  <Badge variant="secondary" aria-label={L ? `Fairness ${fairness} out of 100` : `Eerlijkheid ${fairness} uit 100`}>{L ? 'Fairness' : 'Eerlijkheid'}: {fairness}/100</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm text-muted-foreground">
-                  Eerlijkheid: {fairness}/100 · Taken: {occurrences} · Plan-ID: {planId} · Week start: {formatDate(weekStartStr!)}
+                  {t('done.fairnessLabel')}: {fairness}/100 · {t('done.tasksLabel')}: {occurrences} · {t('done.planIdLabel')}: {planId} · {t('done.weekStartLabel')}: {new Date(weekStartStr!).toLocaleDateString(L ? 'en-GB' : 'nl-NL', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => { track("done_cta_clicked", { cta_id: "open_plan" }); navigate(`/plan/${planId}`); }}>Open weekplan</Button>
+                  <Button onClick={() => { track("done_cta_clicked", { cta_id: "open_plan" }); navigate(`/plan/${planId}`); }}>{t('done.openPlan')}</Button>
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="secondary" onClick={() => track("done_cta_clicked", { cta_id: "invite" })}>Partner uitnodigen</Button>
+                      <Button variant="secondary" onClick={() => track("done_cta_clicked", { cta_id: "invite" })}>{t('done.invitePartner')}</Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Partner uitnodigen</DialogTitle>
+                        <DialogTitle>{t('done.invitePartner')}</DialogTitle>
                       </DialogHeader>
-                      <p className="text-sm text-muted-foreground">Kopieer de uitnodigingslink en deel deze met je partner. Toestemming voor meldingen kun je instellen bij de personen.</p>
+                      <p className="text-sm text-muted-foreground">{t('done.inviteCopiedDesc')}</p>
                       <div className="flex gap-2">
-                        <Button onClick={copyInvite}>Kopieer uitnodigingslink</Button>
+                        <Button onClick={copyInvite}>{t('done.inviteCopiedTitle')}</Button>
                       </div>
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="secondary" onClick={() => { track("done_cta_clicked", { cta_id: "notifications" }); navigate("/setup/2"); }}>Meldingen instellen</Button>
+                  <Button variant="secondary" onClick={() => { track("done_cta_clicked", { cta_id: "notifications" }); navigate("/setup/2"); }}>{t('done.notifications')}</Button>
 
-                  <Button variant="secondary" onClick={downloadIcs}>Toevoegen aan agenda</Button>
+                  <Button variant="secondary" onClick={downloadIcs}>{t('done.addToCalendar')}</Button>
 
                   <a href={googleCalUrl} target="_blank" rel="noreferrer" onClick={() => track("done_cta_clicked", { cta_id: "calendar_gcal" })}>
-                    <Button variant="outline">Open in Google Calendar</Button>
+                    <Button variant="outline">{t('done.openGcal')}</Button>
                   </a>
 
                   <Button variant="outline" onClick={() => { window.print(); track("done_cta_clicked", { cta_id: "print" }); }}>Print / Download</Button>
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" onClick={() => track("done_cta_clicked", { cta_id: "why_fair" })}>Waarom deze verdeling?</Button>
+                      <Button variant="outline" onClick={() => track("done_cta_clicked", { cta_id: "why_fair" })}>{t('done.whyThis')}</Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Over eerlijkheid</DialogTitle>
+                        <DialogTitle>{t('done.whyTitle')}</DialogTitle>
                       </DialogHeader>
-                      <p className="text-sm text-muted-foreground">De eerlijkheidsscore vergelijkt de werkbelasting per volwassene met de ingestelde tijdsbudgetten en taakvoorkeuren. Het doel is een gebalanceerde verdeling die ook praktisch uitvoerbaar is.</p>
+                      <p className="text-sm text-muted-foreground">{t('done.whyBody')}</p>
                     </DialogContent>
                   </Dialog>
                 </div>
 
                 <div className="pt-2 flex flex-wrap gap-3">
-                  <Button variant="ghost" onClick={() => { track("done_cta_clicked", { cta_id: "back_home" }); navigate("/"); }}>Terug naar start</Button>
+                  <Button variant="ghost" onClick={() => { track("done_cta_clicked", { cta_id: "back_home" }); navigate("/"); }}>{t('done.backHome')}</Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" onClick={() => track("done_cta_clicked", { cta_id: "restart" })}>Opnieuw beginnen</Button>
+                      <Button variant="destructive" onClick={() => track("done_cta_clicked", { cta_id: "restart" })}>{t('done.restart')}</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Weet je het zeker?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('done.restartConfirmTitle')}</AlertDialogTitle>
                       </AlertDialogHeader>
-                      <p className="text-sm text-muted-foreground">Dit verwijdert je concept en het laatst aangemaakte plan van dit apparaat.</p>
+                      <p className="text-sm text-muted-foreground">{t('done.restartConfirmBody')}</p>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                        <AlertDialogAction onClick={restart}>Ja, verwijder en opnieuw beginnen</AlertDialogAction>
+                        <AlertDialogCancel>{t('done.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={restart}>{t('done.restartConfirmAction')}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

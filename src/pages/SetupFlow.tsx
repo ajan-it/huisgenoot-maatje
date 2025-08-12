@@ -198,7 +198,7 @@ export default function SetupFlow() {
         "lastPlanResponse",
         JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
       );
-      toast({ title: "Weekplan aangemaakt", description: `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
+      toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${fake.plan_id} • tasks: ${fake.occurrences} • fairness: ${fake.fairness}` : `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
       track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
       track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
       setGenerating(false);
@@ -230,7 +230,7 @@ export default function SetupFlow() {
           "lastPlanResponse",
           JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
         );
-        toast({ title: "Weekplan aangemaakt", description: `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
+        toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
         track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
         track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
         setGenerating(false);
