@@ -106,8 +106,9 @@ export default function SetupFlow() {
   const isValidE164 = (s?: string) => !!s && /^\+[1-9]\d{7,14}$/.test(s);
 
   const allTags = useMemo(() => Array.from(new Set(SEED_TASKS.flatMap((t) => t.tags || []))), []);
-  const categories = useMemo(() => ["all", ...Array.from(new Set(SEED_TASKS.map((t) => t.category)))], []);
+  const categories = useMemo(() => ["all", ...Array.from(new Set(SEED_TASKS.map((t) => t.category)))] , []);
   const dayKeys: ("Mon"|"Tue"|"Wed"|"Thu"|"Fri"|"Sat"|"Sun")[] = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const weekdayKeys: ("Mon"|"Tue"|"Wed"|"Thu"|"Fri")[] = ["Mon","Tue","Wed","Thu","Fri"];
   const dayLabels: Record<typeof dayKeys[number], string> = { Mon: "Ma", Tue: "Di", Wed: "Wo", Thu: "Do", Fri: "Vr", Sat: "Za", Sun: "Zo" };
 
   const [taskSearch, setTaskSearch] = useState("");
@@ -390,10 +391,46 @@ export default function SetupFlow() {
               <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
                 <div className="text-sm text-muted-foreground">Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
-                <Button variant="secondary" onClick={applyToddlerPreset}>Aanbevolen selectie</Button>
+                <div className="flex gap-2">
+                  <Input placeholder="Zoeken" value={taskSearch} onChange={(e) => setTaskSearch(e.target.value)} className="w-40" />
+                  <select className="h-10 rounded-md border bg-background" value={taskCategory} onChange={(e) => setTaskCategory(e.target.value)}>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <Button variant="secondary" onClick={applyToddlerPreset}>Aanbevolen selectie</Button>
+                </div>
               </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                {SEED_TASKS.filter((t) => (taskCategory === "all" || t.category === taskCategory) && t.name.toLowerCase().includes(taskSearch.toLowerCase())).map((t) => {
+                  const sel = draft.tasks.find((x) => x.id === t.id);
+                  const active = !!sel?.active;
+                  return (
+                    <label key={t.id} className="flex items-center justify-between border rounded-md p-2 text-sm">
+                      <div>
+                        <div className="font-medium">{t.name}</div>
+                        <div className="text-muted-foreground">{t.category} • {t.frequency} • {t.default_duration}m</div>
+                      </div>
+                      <Checkbox
+                        checked={active}
+                        onCheckedChange={(v) =>
+                          setDraft((d) => {
+                            const idx = d.tasks.findIndex((x) => x.id === t.id);
+                            const next = [...d.tasks];
+                            if (idx >= 0) next[idx] = { ...next[idx], active: Boolean(v) };
+                            else next.push({ id: t.id, active: Boolean(v) });
+                            return { ...d, tasks: next };
+                          })
+                        }
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+
               <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" onClick={onBack}>
                   {t("setupFlow.household.back")}
@@ -431,15 +468,121 @@ export default function SetupFlow() {
           </Card>
         )}
 
-        {step >= 3 && step <= 7 && step !== 5 && (
+        {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                {t("setupFlow.placeholder")}
-              </p>
+            <CardContent className="space-y-6">
+              {draft.people.filter((p) => p.role === "adult").map((p) => (
+                <div key={p.id} className="border rounded-lg p-4 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor={`min-week-${p.id}`}>Minuten per week</Label>
+                      <Input
+                        id={`min-week-${p.id}`}
+                        type="number"
+                        min={0}
+                        max={600}
+                        placeholder="90"
+                        value={p.weekly_time_budget ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value === "" ? undefined : Math.max(0, Math.min(600, Number(e.target.value)));
+                          updatePerson(p.id, { weekly_time_budget: v as any });
+                        }}
+                        onBlur={(e) => {
+                          if (e.currentTarget.value === "") updatePerson(p.id, { weekly_time_budget: 90 });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`cap-weeknight-${p.id}`}>Max per doordeweekse avond (min)</Label>
+                      <Input
+                        id={`cap-weeknight-${p.id}`}
+                        type="number"
+                        min={0}
+                        max={300}
+                        placeholder="30"
+                        value={p.weeknight_cap ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value === "" ? undefined : Math.max(0, Math.min(300, Number(e.target.value)));
+                          updatePerson(p.id, { weeknight_cap: v as any });
+                        }}
+                        onBlur={(e) => {
+                          if (e.currentTarget.value === "") updatePerson(p.id, { weeknight_cap: 30 });
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Niet-leuk (tags)</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {allTags.map((tag) => {
+                        const active = (p.disliked_tags || []).includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            className={`px-3 py-1 rounded-full border text-sm ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
+                            onClick={() =>
+                              setDraft((d) => ({
+                                ...d,
+                                people: d.people.map((pp) =>
+                                  pp.id === p.id
+                                    ? {
+                                        ...pp,
+                                        disliked_tags: active
+                                          ? (pp.disliked_tags || []).filter((t) => t !== tag)
+                                          : [...(pp.disliked_tags || []), tag],
+                                      }
+                                    : pp
+                                ),
+                              }))
+                            }
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>No-go taken</Label>
+                    <div className="grid sm:grid-cols-2 gap-2 mt-2 max-h-64 overflow-auto pr-1">
+                      {SEED_TASKS.map((t) => {
+                        const checked = (p.no_go_tasks || []).includes(t.id);
+                        return (
+                          <label key={t.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  people: d.people.map((pp) =>
+                                    pp.id === p.id
+                                      ? {
+                                          ...pp,
+                                          no_go_tasks: e.target.checked
+                                            ? [...(pp.no_go_tasks || []), t.id]
+                                            : (pp.no_go_tasks || []).filter((x) => x !== t.id),
+                                        }
+                                      : pp
+                                  ),
+                                }))
+                              }
+                            />
+                            <span>{t.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
               <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" onClick={onBack}>
                   {t("setupFlow.household.back")}
@@ -451,6 +594,508 @@ export default function SetupFlow() {
             </CardContent>
           </Card>
         )}
+
+        {step === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Presets</Label>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {SEED_BLACKOUTS.map((b, i) => (
+                    <div key={i} className="flex items-center justify-between border rounded-md p-2">
+                      <div className="text-sm">
+                        <div className="font-medium">{b.label}</div>
+                        <div className="text-muted-foreground">{b.days.map((d) => dayLabels[d]).join(", ")} • {b.start}–{b.end}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setDraft((d) => {
+                            const adultId = d.people.find((pp) => pp.role === "adult")?.id || d.people[0]?.id;
+                            if (!adultId) return d;
+                            const newItem = {
+                              id: Math.random().toString(36).slice(2, 10),
+                              person_id: adultId,
+                              days: b.days,
+                              start: b.start,
+                              end: b.end,
+                              label: b.label,
+                            } as any;
+                            return { ...d, blackouts: [...d.blackouts, newItem] };
+                          })
+                        }
+                      >
+                        Toevoegen
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    setDraft((d) => {
+                      const personId = d.people[0]?.id;
+                      if (!personId) return d;
+                      const newItem = { id: Math.random().toString(36).slice(2,10), person_id: personId, days: ["Mon" as const], start: "09:00", end: "10:00" };
+                      return { ...d, blackouts: [...d.blackouts, newItem as any] };
+                    })
+                  }
+                >
+                  Nieuwe blackout
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Afspraken</Label>
+                {draft.blackouts.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nog geen blackouts toegevoegd.</p>
+                )}
+                {draft.blackouts.map((b) => {
+                  const person = draft.people.find((pp) => pp.id === b.person_id);
+                  const overlap = draft.blackouts.some((o) => {
+                    if (o.id === b.id || o.person_id !== b.person_id) return false;
+                    const shareDay = o.days.some((d) => b.days.includes(d));
+                    if (!shareDay) return false;
+                    return !(o.end <= b.start || b.end <= o.start);
+                  });
+                  return (
+                    <div key={b.id} className="border rounded-md p-3 space-y-3">
+                      <div className="grid sm:grid-cols-4 gap-3 items-end">
+                        <div>
+                          <Label>Persoon</Label>
+                          <select
+                            className="h-10 w-full rounded-md border bg-background"
+                            value={b.person_id}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                blackouts: d.blackouts.map((x) => (x.id === b.id ? { ...x, person_id: e.target.value } : x)),
+                              }))
+                            }
+                          >
+                            {draft.people.map((pp) => (
+                              <option key={pp.id} value={pp.id}>{pp.first_name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Label>Dagen</Label>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {dayKeys.map((dk) => {
+                              const active = b.days.includes(dk);
+                              return (
+                                <button
+                                  key={dk}
+                                  type="button"
+                                  className={`px-3 py-1 rounded-full border text-sm ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
+                                  onClick={() =>
+                                    setDraft((d) => ({
+                                      ...d,
+                                      blackouts: d.blackouts.map((x) =>
+                                        x.id === b.id
+                                          ? { ...x, days: active ? x.days.filter((d0) => d0 !== dk) : [...x.days, dk] }
+                                          : x
+                                      ),
+                                    }))
+                                  }
+                                >
+                                  {dayLabels[dk]}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Start</Label>
+                          <Input
+                            type="time"
+                            value={b.start}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                blackouts: d.blackouts.map((x) => (x.id === b.id ? { ...x, start: e.target.value } : x)),
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Einde</Label>
+                          <Input
+                            type="time"
+                            value={b.end}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                blackouts: d.blackouts.map((x) => (x.id === b.id ? { ...x, end: e.target.value } : x)),
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-4 gap-3 items-end">
+                        <div className="sm:col-span-3">
+                          <Label>Notitie</Label>
+                          <Input
+                            value={b.note || ""}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                blackouts: d.blackouts.map((x) => (x.id === b.id ? { ...x, note: e.target.value } : x)),
+                              }))
+                            }
+                          />
+                          {overlap && <p className="text-xs text-destructive mt-1">Conflict: overlappende tijden op dezelfde dag.</p>}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              setDraft((d) => {
+                                const adults = d.people.filter((pp) => pp.role === "adult");
+                                const newItems = adults
+                                  .filter((a) => a.id !== b.person_id)
+                                  .map((a) => ({ ...b, id: Math.random().toString(36).slice(2, 10), person_id: a.id }));
+                                return { ...d, blackouts: [...d.blackouts, ...newItems] };
+                              })
+                            }
+                          >
+                            Kopieer naar beide volwassenen
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => setDraft((d) => ({ ...d, blackouts: d.blackouts.filter((x) => x.id !== b.id) }))}
+                          >
+                            Verwijderen
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="text-sm text-muted-foreground">
+                  Samenvatting: {draft.people.map((pp) => `${pp.first_name}: ${draft.blackouts.filter((b) => b.person_id === pp.id).length}`).join(" • ")}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={onNext}>
+                  {t("setupFlow.household.next")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 6 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant={draft.household.settings?.lighten_weekdays ? "secondary" : "outline"} onClick={() => setHousehold({ settings: { ...draft.household.settings, lighten_weekdays: !draft.household.settings?.lighten_weekdays } })}>
+                  Houd doordeweeks licht
+                </Button>
+                <Button variant={draft.household.settings?.kids_weekends_only ? "secondary" : "outline"} onClick={() => setHousehold({ settings: { ...draft.household.settings, kids_weekends_only: !draft.household.settings?.kids_weekends_only } })}>
+                  Kids alleen in weekend
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="p-2">Taak</th>
+                      <th className="p-2">Frequentie</th>
+                      <th className="p-2">Duur (min)</th>
+                      <th className="p-2">Moeilijkheid</th>
+                      <th className="p-2">Tags</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.tasks.filter((x) => x.active).map((x) => {
+                      const seed = SEED_TASKS.find((t) => t.id === x.id);
+                      if (!seed) return null;
+                      const freq = x.frequency || seed.frequency;
+                      const dur = x.default_duration ?? seed.default_duration;
+                      const diff = x.difficulty || seed.difficulty;
+                      const tags = Array.from(new Set([...(seed.tags || []), ...(x.tags || [])]));
+                      const invalid = !dur || dur <= 0;
+                      return (
+                        <tr key={x.id} className="border-t">
+                          <td className="p-2">{seed.name}</td>
+                          <td className="p-2">
+                            <select
+                              className="h-9 rounded-md border bg-background"
+                              value={freq}
+                              onChange={(e) =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  tasks: d.tasks.map((tt) => (tt.id === x.id ? { ...tt, frequency: e.target.value as any } : tt)),
+                                }))
+                              }
+                            >
+                              <option value="daily">daily</option>
+                              <option value="weekly">weekly</option>
+                              <option value="monthly">monthly</option>
+                            </select>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              type="number"
+                              className={invalid ? "border-destructive" : ""}
+                              value={dur}
+                              onChange={(e) =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  tasks: d.tasks.map((tt) =>
+                                    tt.id === x.id ? { ...tt, default_duration: Math.max(1, Number(e.target.value || 0)) } : tt
+                                  ),
+                                }))
+                              }
+                            />
+                            {invalid && <p className="text-xs text-destructive">Ongeldige duur</p>}
+                          </td>
+                          <td className="p-2">
+                            <select
+                              className="h-9 rounded-md border bg-background"
+                              value={diff}
+                              onChange={(e) =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  tasks: d.tasks.map((tt) => (tt.id === x.id ? { ...tt, difficulty: Number(e.target.value) as any } : tt)),
+                                }))
+                              }
+                            >
+                              <option value={1}>1</option>
+                              <option value={2}>2</option>
+                              <option value={3}>3</option>
+                            </select>
+                          </td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-2">
+                              {tags.map((tag) => {
+                                const active = (x.tags || seed.tags || []).includes(tag);
+                                return (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    className={`px-3 py-1 rounded-full border ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
+                                    onClick={() =>
+                                      setDraft((d) => ({
+                                        ...d,
+                                        tasks: d.tasks.map((tt) =>
+                                          tt.id === x.id
+                                            ? {
+                                                ...tt,
+                                                tags: active
+                                                  ? (tt.tags || []).filter((t0) => t0 !== tag)
+                                                  : [...(tt.tags || []), tag],
+                                              }
+                                            : tt
+                                        ),
+                                      }))
+                                    }
+                                  >
+                                    {tag}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={onNext}>
+                  {t("setupFlow.household.next")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 7 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Postcode</Label>
+                  <Input
+                    value={draft.household.postcode || ""}
+                    onChange={(e) => setHousehold({ postcode: e.target.value })}
+                    onBlur={(e) => {
+                      const raw = e.currentTarget.value.toUpperCase().replace(/\s+/g, "");
+                      const formatted = raw.length >= 6 ? `${raw.slice(0, 4)} ${raw.slice(4, 6)}` : raw;
+                      setHousehold({ postcode: formatted });
+                      const ok = /^\d{4}\s?[A-Z]{2}$/.test(formatted);
+                      if (!ok && formatted) toast({ title: "Ongeldige postcode", description: "Gebruik het formaat 1234 AB" });
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Huisnummer</Label>
+                  <Input value={draft.household.house_no || ""} onChange={(e) => setHousehold({ house_no: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Afval schema</Label>
+                <div className="space-y-2">
+                  {(draft.local_context?.waste_days || []).map((w, idx) => (
+                    <div key={idx} className="grid sm:grid-cols-3 gap-2 items-center">
+                      <select
+                        className="h-10 rounded-md border bg-background"
+                        value={w.type}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            local_context: {
+                              ...d.local_context,
+                              waste_days: (d.local_context?.waste_days || []).map((x, i) => (i === idx ? { ...x, type: e.target.value } : x)),
+                            },
+                          }))
+                        }
+                      >
+                        {['GFT','PMD','Rest','Papier'].map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="h-10 rounded-md border bg-background"
+                        value={w.day}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            local_context: {
+                              ...d.local_context,
+                              waste_days: (d.local_context?.waste_days || []).map((x, i) => (i === idx ? { ...x, day: e.target.value } : x)),
+                            },
+                          }))
+                        }
+                      >
+                        {dayKeys.map((dk) => (
+                          <option key={dk} value={dk}>{dayLabels[dk]}</option>
+                        ))}
+                      </select>
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            local_context: { ...d.local_context, waste_days: (d.local_context?.waste_days || []).filter((_, i) => i !== idx) },
+                          }))
+                        }
+                      >
+                        Verwijderen
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        local_context: { ...d.local_context, waste_days: [...(d.local_context?.waste_days || []), { type: 'GFT', day: 'Mon' }] },
+                      }))
+                    }
+                  >
+                    Rij toevoegen
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>School / opvang (optioneel)</Label>
+                <div className="grid sm:grid-cols-3 gap-2 items-end">
+                  <div>
+                    <Label>Brengtijd</Label>
+                    <Input
+                      type="time"
+                      value={draft.local_context?.school_times?.dropoff || ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, local_context: { ...d.local_context, school_times: { ...(d.local_context?.school_times || {}), dropoff: e.target.value } } }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Ophaaltijd</Label>
+                    <Input
+                      type="time"
+                      value={draft.local_context?.school_times?.pickup || ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, local_context: { ...d.local_context, school_times: { ...(d.local_context?.school_times || {}), pickup: e.target.value } } }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Dagen</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {weekdayKeys.map((dk) => {
+                        const currentDays = (draft.local_context?.school_times?.days || []);
+                        const active = currentDays.includes(dk as (typeof weekdayKeys)[number]);
+                        return (
+                          <button
+                            key={dk}
+                            type="button"
+                            className={`px-3 py-1 rounded-full border text-sm ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
+                            onClick={() =>
+                              setDraft((d) => {
+                                const existing = (d.local_context?.school_times?.days || []) as (typeof weekdayKeys)[number][];
+                                const nextDays = active
+                                  ? (existing.filter((x) => x !== dk) as (typeof weekdayKeys)[number][])
+                                  : ([...existing, dk] as (typeof weekdayKeys)[number][]);
+                                return {
+                                  ...d,
+                                  local_context: {
+                                    ...d.local_context,
+                                    school_times: {
+                                      ...(d.local_context?.school_times || {}),
+                                      days: nextDays,
+                                    },
+                                  },
+                                };
+                              })
+                            }
+                          >
+                            {dayLabels[dk]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={onNext}>
+                  {t("setupFlow.household.next")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
       </section>
     </main>
