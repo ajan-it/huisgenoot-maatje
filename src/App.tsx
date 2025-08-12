@@ -10,6 +10,8 @@ import Privacy from "./pages/Privacy";
 import Auth from "./pages/Auth";
 import LanguageToggle from "@/components/LanguageToggle";
 import SetupFlow from "./pages/SetupFlow";
+import SetupDone from "./pages/SetupDone";
+import PlanView from "./pages/PlanView";
 
 const queryClient = new QueryClient();
 

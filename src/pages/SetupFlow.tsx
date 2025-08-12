@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { PLAN_WEBHOOK_URL, PLAN_WEBHOOK_SECRET, TIMEZONE } from "@/config";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { track } from "@/lib/analytics";
 
 const TOTAL_STEPS = 8;
 
@@ -52,6 +54,9 @@ export default function SetupFlow() {
   const { t, lang } = useI18n();
   const steps = (t("setupFlow.steps") as unknown as string[]) || [];
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const lastPayloadRef = useRef<any>(null);
 
   const title = useMemo(() => `${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`, [step, t, steps]);
 
@@ -176,13 +181,28 @@ export default function SetupFlow() {
       },
     };
 
+    lastPayloadRef.current = payload;
+    setGenerating(true);
+    setErrorMsg(null);
+    const started = performance.now();
+
     if (import.meta.env.DEV && !PLAN_WEBHOOK_URL) {
       console.log("[DEV] Webhook payload", payload);
       const key = "webhook_log";
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       prev.unshift({ ts: new Date().toISOString(), payload });
       localStorage.setItem(key, JSON.stringify(prev.slice(0, 20)));
-      toast({ title: "Dev: payload gelogd", description: "Bekijk console of localStorage → webhook_log" });
+
+      const fake = { plan_id: `DEV-${Math.random().toString(36).slice(2, 8)}`, occurrences: 42, fairness: 86 };
+      localStorage.setItem(
+        "lastPlanResponse",
+        JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
+      );
+      toast({ title: "Weekplan aangemaakt", description: `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
+      track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
+      track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
+      setGenerating(false);
+      navigate("/setup/done");
       return;
     }
 
@@ -190,41 +210,53 @@ export default function SetupFlow() {
       const body = JSON.stringify(payload);
       const timestamp = new Date().toISOString();
       const signature = PLAN_WEBHOOK_SECRET ? await hmacSha256Hex(PLAN_WEBHOOK_SECRET, body) : "";
-      const res = await fetch(PLAN_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Plan-Secret": PLAN_WEBHOOK_SECRET || "",
-          "X-Plan-Signature": signature ? `sha256=${signature}` : "",
-          "X-Plan-Timestamp": timestamp,
-        },
-        body,
-      });
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-Plan-Secret": PLAN_WEBHOOK_SECRET || "",
+        "X-Plan-Signature": signature ? `sha256=${signature}` : "",
+        "X-Plan-Timestamp": timestamp,
+        "Idempotency-Key": payload.idempotency_key,
+      };
+
+      const res = await fetch(PLAN_WEBHOOK_URL, { method: "POST", headers, body });
+
+      const handleOk = async (response: Response) => {
+        let data: any = {};
+        try { data = await response.json(); } catch {}
+        const plan_id = data.plan_id || `${household_id}-${week_start}`;
+        const occurrences = data.occurrences ?? 0;
+        const fairness = data.fairness ?? 0;
+        localStorage.setItem(
+          "lastPlanResponse",
+          JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
+        );
+        toast({ title: "Weekplan aangemaakt", description: `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
+        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
+        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
+        setGenerating(false);
+        navigate("/setup/done");
+      };
+
       if (res.status >= 500) {
         await new Promise((r) => setTimeout(r, 300 + Math.random() * 500));
-        const res2 = await fetch(PLAN_WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Plan-Secret": PLAN_WEBHOOK_SECRET || "",
-            "X-Plan-Signature": signature ? `sha256=${signature}` : "",
-            "X-Plan-Timestamp": new Date().toISOString(),
-          },
-          body,
-        });
-        if (!res2.ok) throw new Error(`Webhook error ${res2.status}`);
-        const data = await res2.json();
-        toast({ title: "Weekplan aangemaakt", description: `Plan ${data.plan_id} • taken: ${data.occurrences} • fairness: ${data.fairness}` });
-        return;
+        const res2 = await fetch(PLAN_WEBHOOK_URL, { method: "POST", headers: { ...headers, "X-Plan-Timestamp": new Date().toISOString() }, body });
+        if (res2.ok || res2.status === 409) return handleOk(res2);
+        throw new Error(`Webhook error ${res2.status}`);
       }
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Webhook error ${res.status}`);
+
+      if (res.ok || res.status === 409) {
+        return handleOk(res);
       }
-      const data = await res.json();
-      toast({ title: "Weekplan aangemaakt", description: `Plan ${data.plan_id} • taken: ${data.occurrences} • fairness: ${data.fairness}` });
+
+      const text = await res.text();
+      setErrorMsg(text || `Webhook error ${res.status}`);
+      track("webhook_fail", { duration_ms: Math.round(performance.now() - started), error_code: res.status });
+      setGenerating(false);
     } catch (e: any) {
-      toast({ title: "Kon plan niet aanmaken", description: e?.message || "Er ging iets mis" });
+      const msg = e?.message || "Er ging iets mis";
+      setErrorMsg(msg);
+      track("webhook_fail", { duration_ms: Math.round(performance.now() - started), error_code: "exception" });
+      setGenerating(false);
     }
   };
 
@@ -456,12 +488,34 @@ export default function SetupFlow() {
                   <Label htmlFor="privacy">Ik ga akkoord met de <a href="/privacy" className="underline">privacyverklaring</a>.</Label>
                 </div>
               </div>
+
+              {errorMsg && (
+                <Alert variant="destructive">
+                  <AlertTitle>Kon plan niet aanmaken</AlertTitle>
+                  <AlertDescription>{errorMsg}</AlertDescription>
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="secondary" onClick={generatePlan} disabled={generating}>Opnieuw proberen</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(JSON.stringify(lastPayloadRef.current, null, 2));
+                          toast({ title: "Payload gekopieerd", description: "Plak deze in je bericht aan support." });
+                        } catch {}
+                      }}
+                    >
+                      Payload kopiëren
+                    </Button>
+                  </div>
+                </Alert>
+              )}
+
               <div className="flex items-center justify-between pt-2">
-                <Button variant="outline" onClick={onBack}>
+                <Button variant="outline" onClick={onBack} disabled={generating}>
                   {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={generatePlan} disabled={!privacyAccepted}>
-                  Genereer weekplan
+                <Button onClick={generatePlan} disabled={!privacyAccepted || generating}>
+                  {generating ? "Bezig..." : "Genereer weekplan"}
                 </Button>
               </div>
             </CardContent>
