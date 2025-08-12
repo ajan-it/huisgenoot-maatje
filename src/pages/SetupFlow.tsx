@@ -76,19 +76,19 @@ export default function SetupFlow() {
       const names = draft.people.map((p) => (p.first_name || "").trim().toLowerCase()).filter(Boolean);
       const dupExists = names.some((n, i) => names.indexOf(n) !== i);
       if (dupExists) {
-        toast({ title: "Dubbele voornamen", description: "Gebruik unieke voornamen per persoon voor duidelijkheid." });
+        toast({ title: lang === "en" ? "Duplicate first names" : "Dubbele voornamen", description: lang === "en" ? "Use unique first names per person for clarity." : "Gebruik unieke voornamen per persoon voor duidelijkheid." });
         return;
       }
     }
     if (step === 3) {
       const missing = draft.people.filter((p) => p.role === "adult").some((p) => p.weekly_time_budget === undefined || p.weekly_time_budget === null);
       if (missing) {
-        toast({ title: "Minuten per week ontbreekt", description: "Vul het wekelijkse tijdsbudget in voor alle volwassenen." });
+        toast({ title: lang === "en" ? "Minutes per week missing" : "Minuten per week ontbreekt", description: lang === "en" ? "Enter the weekly time budget for all adults." : "Vul het wekelijkse tijdsbudget in voor alle volwassenen." });
         return;
       }
     }
     if (step === 8 && !privacyAccepted) {
-      toast({ title: "Accepteer privacyverklaring", description: "Vink de privacyverklaring aan om door te gaan." });
+      toast({ title: lang === "en" ? "Accept privacy policy" : "Accepteer privacyverklaring", description: lang === "en" ? "Tick the privacy policy to continue." : "Vink de privacyverklaring aan om door te gaan." });
       return;
     }
     go(step + 1);
@@ -354,7 +354,7 @@ export default function SetupFlow() {
                         onBlur={(e) => updatePerson(p.id, { phone: formatDutchPhone(e.currentTarget.value) })}
                         aria-describedby={`phone-hint-${p.id}`}
                       />
-                      <p id={`phone-hint-${p.id}`} className="text-xs text-muted-foreground">Nederlandse nummers beginnen met +31 of 06.</p>
+                      <p id={`phone-hint-${p.id}`} className="text-xs text-muted-foreground">{lang === "en" ? "Dutch numbers start with +31 or 06." : "Nederlandse nummers beginnen met +31 of 06."}</p>
                     </div>
 
                     <div className="space-y-2">

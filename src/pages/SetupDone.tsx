@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
-
+import { useI18n } from "@/i18n/I18nProvider";
 function useLastPlan() {
   const [plan, setPlan] = useState<null | any>(null);
   useEffect(() => {
@@ -38,6 +38,8 @@ const SetupDone = () => {
   const plan = useLastPlan();
   const navigate = useNavigate();
   const h1Ref = useRef<HTMLHeadingElement>(null);
+  const { lang } = useI18n();
+  const L = lang === "en";
 
   useEffect(() => {
     h1Ref.current?.focus();
@@ -56,9 +58,9 @@ const SetupDone = () => {
     const end = `${toYmd(endDate.toISOString().slice(0,10))}T235900`;
     const params = new URLSearchParams({
       action: "TEMPLATE",
-      text: "Weekplan huishoudtaken",
+      text: L ? "Household chores week plan" : "Weekplan huishoudtaken",
       dates: `${start}/${end}`,
-      details: "Automatisch gegenereerd weekplan",
+      details: L ? "Automatically generated weekly plan" : "Automatisch gegenereerd weekplan",
     });
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   }, [weekStartStr]);
