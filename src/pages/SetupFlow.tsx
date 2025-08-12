@@ -8,27 +8,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
 import { useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n/I18nProvider";
 
-const STEPS = [
-  "Welkom",
-  "Huishouden",
-  "Tijd & voorkeuren",
-  "Blokkades",
-  "Taken kiezen",
-  "Taken afstellen",
-  "Adres & lokaal",
-  "Samenvatting",
-];
+const TOTAL_STEPS = 8;
 
 const useStep = () => {
   const params = useParams();
-  const step = Math.max(1, Math.min(STEPS.length, Number(params.step) || 1));
+  const step = Math.max(1, Math.min(TOTAL_STEPS, Number(params.step) || 1));
   return step;
 };
 
-const StepIndicator = ({ step }: { step: number }) => (
-  <nav aria-label="Wizard stappen" className="flex flex-wrap gap-2">
-    {STEPS.map((label, i) => {
+const StepIndicator = ({ step, labels }: { step: number; labels: string[] }) => (
+  <nav aria-label="Wizard steps" className="flex flex-wrap gap-2">
+    {labels.map((label, i) => {
       const idx = i + 1;
       const active = idx === step;
       const done = idx < step;
@@ -55,20 +47,22 @@ export default function SetupFlow() {
   const step = useStep();
   const navigate = useNavigate();
   const { draft, setHousehold, addPerson, updatePerson, removePerson, adultsCount } = useSetupDraft();
+  const { t } = useI18n();
+  const steps = (t("setupFlow.steps") as unknown as string[]) || [];
 
-  const title = useMemo(() => `Setup • ${STEPS[step - 1]}`, [step]);
+  const title = useMemo(() => `${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`, [step, t, steps]);
 
-  const go = (next: number) => navigate(`/setup/${Math.max(1, Math.min(STEPS.length, next))}`);
+  const go = (next: number) => navigate(`/setup/${Math.max(1, Math.min(TOTAL_STEPS, next))}`);
 
   const onNext = () => {
     // Per-step minimale validatie
     if (step === 2) {
       if (adultsCount < 1) {
-        toast({ title: "Minimaal 1 volwassene", description: "Voeg ten minste één volwassene toe om door te gaan." });
+        toast({ title: t("setupFlow.validation.minOneAdultTitle"), description: t("setupFlow.validation.minOneAdultDesc") });
         return;
       }
       if (!draft.household.name || draft.household.name.trim().length === 0) {
-        toast({ title: "Huishoudnaam ontbreekt", description: "Vul een naam in voor je huishouden." });
+        toast({ title: t("setupFlow.validation.householdNameMissingTitle"), description: t("setupFlow.validation.householdNameMissingDesc") });
         return;
       }
     }
@@ -81,34 +75,34 @@ export default function SetupFlow() {
     <main className="min-h-screen bg-background">
       <Helmet>
         <title>{title}</title>
-        <meta name="description" content={`Setup stap ${step}: ${STEPS[step - 1]}`} />
+        <meta name="description" content={`${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`} />
         <link rel="canonical" href={`/setup/${step}`} />
       </Helmet>
 
       <section className="container py-8 space-y-6">
         <header className="space-y-3">
-          <h1 className="text-3xl font-bold">Eerlijk weekplan — setup</h1>
-          <StepIndicator step={step} />
+          <h1 className="text-3xl font-bold">{steps[step - 1]}</h1>
+          <StepIndicator step={step} labels={steps} />
         </header>
 
         {step === 1 && (
           <Card>
             <CardHeader>
-              <CardTitle>Welkom</CardTitle>
+              <CardTitle>{t("setupFlow.welcome.title")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Eerlijk weekplan voor je huishouden — minder gedoe, minder discussie.
+                {t("setupFlow.welcome.headline")}
               </p>
               <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                <li>Automatische verdeling op basis van tijd en voorkeuren</li>
-                <li>Duidelijke herinneringen</li>
-                <li>Nederlands & GDPR‑proof</li>
+                {((t("setupFlow.welcome.bullets") as unknown) as string[]).map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
               </ul>
               <div className="flex gap-3">
-                <Button onClick={() => go(2)}>Start nu zonder account</Button>
+                <Button onClick={() => go(2)}>{t("setupFlow.welcome.start")}</Button>
               </div>
-              <p className="text-xs text-muted-foreground">We vragen alleen wat nodig is. Je data blijft lokaal op dit apparaat tijdens het testen.</p>
+              <p className="text-xs text-muted-foreground">{t("setupFlow.welcome.gdprHint")}</p>
             </CardContent>
           </Card>
         )}
@@ -116,11 +110,11 @@ export default function SetupFlow() {
         {step === 2 && (
           <Card>
             <CardHeader>
-              <CardTitle>Huishouden (personen & rollen)</CardTitle>
+              <CardTitle>{t("setupFlow.household.pageTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label htmlFor="hh-name">Naam huishouden</Label>
+                <Label htmlFor="hh-name">{t("setupFlow.household.householdName")}</Label>
                 <Input
                   id="hh-name"
                   value={draft.household.name}
@@ -132,7 +126,7 @@ export default function SetupFlow() {
                 {draft.people.map((p) => (
                   <div key={p.id} className="border rounded-lg p-4 grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Voornaam</Label>
+                      <Label>{t("setupFlow.household.firstName")}</Label>
                       <Input
                         value={p.first_name}
                         onChange={(e) => updatePerson(p.id, { first_name: e.target.value })}
@@ -140,39 +134,37 @@ export default function SetupFlow() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Rol</Label>
+                      <Label>{t("setupFlow.household.role")}</Label>
                       <select
                         className="h-10 w-full rounded-md border bg-background"
                         value={p.role}
                         onChange={(e) => updatePerson(p.id, { role: e.target.value as any })}
                       >
-                        <option value="adult">Volwassene</option>
-                        <option value="child">Kind</option>
+                        <option value="adult">{t("setupFlow.household.roleAdult")}</option>
+                        <option value="child">{t("setupFlow.household.roleChild")}</option>
                       </select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>E‑mail (optioneel)</Label>
+                      <Label>{t("setupFlow.household.email")}</Label>
                       <Input
                         type="email"
                         value={p.email || ""}
                         onChange={(e) => updatePerson(p.id, { email: e.target.value })}
-                        placeholder="naam@voorbeeld.nl"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Mobiel (optioneel)</Label>
+                      <Label>{t("setupFlow.household.phone")}</Label>
                       <Input
                         type="tel"
                         value={p.phone || ""}
                         onChange={(e) => updatePerson(p.id, { phone: e.target.value })}
-                        placeholder="+31 6 12 34 56 78"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Taal</Label>
+                      <Label>{t("setupFlow.household.language")}</Label>
                       <select
                         className="h-10 w-full rounded-md border bg-background"
                         value={p.locale}
@@ -189,31 +181,31 @@ export default function SetupFlow() {
                         checked={!!p.notify_opt_in}
                         onCheckedChange={(v) => updatePerson(p.id, { notify_opt_in: Boolean(v) })}
                       />
-                      <Label htmlFor={`consent-${p.id}`}>Mag notificaties sturen (GDPR‑toestemming)</Label>
+                      <Label htmlFor={`consent-${p.id}`}>{t("setupFlow.household.consentLabel")}</Label>
                     </div>
 
                     <div className="sm:col-span-2 flex gap-3">
                       <Button variant="secondary" onClick={() => updatePerson(p.id, { role: p.role })} disabled>
-                        Opslaan
+                        {t("common.save")}
                       </Button>
                       <Button variant="destructive" onClick={() => removePerson(p.id)}>
-                        Verwijder
+                        {t("setupFlow.household.delete")}
                       </Button>
                     </div>
                   </div>
                 ))}
 
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => addPerson("adult")}>+ Volwassene</Button>
-                  <Button variant="secondary" onClick={() => addPerson("child")}>+ Kind</Button>
+                  <Button variant="secondary" onClick={() => addPerson("adult")}>{t("setupFlow.household.addAdult")}</Button>
+                  <Button variant="secondary" onClick={() => addPerson("child")}>{t("setupFlow.household.addChild")}</Button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button variant="outline" onClick={onBack} disabled={false}>
-                  Terug
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={onNext}>Volgende</Button>
+                <Button onClick={onNext}>{t("setupFlow.household.next")}</Button>
               </div>
             </CardContent>
           </Card>
@@ -222,18 +214,18 @@ export default function SetupFlow() {
         {step >= 3 && step <= 8 && (
           <Card>
             <CardHeader>
-              <CardTitle>{STEPS[step - 1]}</CardTitle>
+              <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Deze stap is nog in opbouw voor lokale tests. Navigatie en conceptopslag werken al.
+                {t("setupFlow.placeholder")}
               </p>
               <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" onClick={onBack}>
-                  Terug
+                  {t("setupFlow.household.back")}
                 </Button>
                 <Button onClick={onNext} disabled={step === 8}>
-                  Volgende
+                  {t("setupFlow.household.next")}
                 </Button>
               </div>
             </CardContent>
