@@ -154,10 +154,10 @@ const SetupWizard = () => {
                 <div className="space-y-2">
                   <Label>{t('setup.dislikedTasks')}</Label>
                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto">
-                    {SEED_TASKS.slice(0, 12).map((t) => (
-                      <label key={t.id} className="inline-flex items-center gap-2 text-sm">
-                        <Checkbox checked={p.disliked.includes(t.name)} onCheckedChange={() => toggleDisliked(idx, t.name)} />
-                        <span>{t.name}</span>
+                    {SEED_TASKS.slice(0, 12).map((task) => (
+                      <label key={task.id} className="inline-flex items-center gap-2 text-sm">
+                        <Checkbox checked={p.disliked.includes(task.name)} onCheckedChange={() => toggleDisliked(idx, task.name)} />
+                        <span>{t(`setup.taskLabels.${task.id}`)}</span>
                       </label>
                     ))}
                   </div>
@@ -180,7 +180,7 @@ const SetupWizard = () => {
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {SEED_BLACKOUTS.map((b, i) => (
               <div key={i} className="text-sm text-muted-foreground">
-                {b.label}: {b.start}–{b.end}
+                {t(`setup.blackoutsList.${i}`)}: {b.start}–{b.end}
               </div>
             ))}
           </CardContent>
