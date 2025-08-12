@@ -100,14 +100,13 @@ const Auth = () => {
               <div className="text-xs text-muted-foreground text-center">
                 {t('auth.testingTip')}
               </div>
-            </div>
-            <div className="text-center">
-              <Link to="/" className="underline text-sm">{t('common.backHome')}</Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+              <div className="text-center">
+                <Link to="/" className="underline text-sm">{t('common.backHome')}</Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
   );
 };
 
