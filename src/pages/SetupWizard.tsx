@@ -66,14 +66,25 @@ const SetupWizard = () => {
     }
 
     // 1) Maak household
-    const { data: hh, error: hhErr } = await (supabase as any)
+    const { error: hhErr } = await (supabase as any)
       .from("households")
-      .insert([{ postcode: null, settings: { name: householdName } }])
+      .insert([{ postcode: null, settings: { name: householdName } }], { returning: "minimal" });
+
+    if (hhErr) {
+      toast({ title: translate('setup.toastErrorTitle'), description: hhErr.message });
+      return;
+    }
+
+    // fetch created household id (select requires membership added by trigger)
+    const { data: hh, error: selErr } = await (supabase as any)
+      .from("households")
       .select("id")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    if (hhErr || !hh) {
-      toast({ title: translate('setup.toastErrorTitle'), description: hhErr?.message ?? "Onbekende fout" });
+    if (selErr || !hh) {
+      toast({ title: translate('setup.toastErrorTitle'), description: selErr?.message ?? "Kon huishouden niet ophalen" });
       return;
     }
 
