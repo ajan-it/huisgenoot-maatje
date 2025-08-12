@@ -24,6 +24,10 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("lang", l);
   };
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const t = useMemo(() => {
     return (key: string) => {
       const dict = dictionaries[lang] || dictionaries.nl;

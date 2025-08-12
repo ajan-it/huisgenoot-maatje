@@ -74,8 +74,10 @@ export const dictionaries = {
       confirmEmail: "Bevestig je e-mail",
       checkInbox: "Check je inbox om je account te activeren.",
     },
+    notFound: {
+      oops: "Oeps! Pagina niet gevonden",
+    },
     privacy: {
-      title: "Privacybeleid – Eerlijke huishoudplanner",
       metaDescription:
         "Privacybeleid: we gebruiken gegevens alleen om klussen in te plannen en herinneringen te sturen. GDPR-conform, EU-datacenters.",
       heading: "Privacybeleid",
@@ -166,8 +168,10 @@ export const dictionaries = {
       confirmEmail: "Confirm your email",
       checkInbox: "Check your inbox to activate your account.",
     },
+    notFound: {
+      oops: "Oops! Page not found",
+    },
     privacy: {
-      title: "Privacy Policy – Fair household planner",
       metaDescription:
         "Privacy policy: we only use data to schedule chores and send reminders. GDPR-compliant, EU data centers.",
       heading: "Privacy Policy",

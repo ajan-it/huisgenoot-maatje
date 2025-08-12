@@ -8,7 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n/I18nProvider";
 const SetupWizard = () => {
+  const { t, lang } = useI18n();
   const [householdName, setHouseholdName] = useState("Ons huishouden");
   const [people, setPeople] = useState([
     { first_name: "Ouder 1", role: "adult", weekly_time_budget: 300, contact: "", disliked: [] as string[] },
@@ -52,13 +54,13 @@ const SetupWizard = () => {
 
   const saveAndContinue = () => {
     console.log("WIZARD_SNAPSHOT", { householdName, people });
-    toast({ title: "Voorlopig opgeslagen", description: "Je concept is lokaal opgeslagen." });
+    toast({ title: t('setup.toastSavedLocalTitle'), description: t('setup.toastSavedLocalDesc') });
   };
 
   const persistToSupabase = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      toast({ title: "Account nodig", description: "Log in om je instellingen op te slaan.", });
+      toast({ title: t('setup.toastNeedAccountTitle'), description: t('setup.toastNeedAccountDesc'), });
       window.location.href = "/auth?next=" + encodeURIComponent("/setup?action=persist");
       return;
     }
@@ -71,7 +73,7 @@ const SetupWizard = () => {
       .maybeSingle();
 
     if (hhErr || !hh) {
-      toast({ title: "Opslaan mislukt", description: hhErr?.message ?? "Onbekende fout" });
+      toast({ title: t('setup.toastErrorTitle'), description: hhErr?.message ?? "Onbekende fout" });
       return;
     }
 
@@ -84,73 +86,73 @@ const SetupWizard = () => {
       disliked_tasks: Array.isArray(p.disliked) ? p.disliked : [],
       no_go_tasks: [],
       contact: p.contact ? { raw: p.contact } : null,
-      locale: 'nl',
+      locale: lang,
     }));
 
     const { error: pplErr } = await (supabase as any).from("people").insert(peopleRows);
     if (pplErr) {
-      toast({ title: "Opslaan mislukt", description: pplErr.message });
+      toast({ title: t('setup.toastErrorTitle'), description: pplErr.message });
       return;
     }
 
     localStorage.removeItem("setupDraft");
-    toast({ title: "Opgeslagen", description: "Je huishouden is opgeslagen in je account." });
+    toast({ title: t('setup.toastSavedRemoteTitle'), description: t('setup.toastSavedRemoteDesc') });
   };
   return (
     <main className="min-h-screen bg-background">
       <Helmet>
-        <title>Setup wizard – Eerlijke huishoudplanner</title>
-        <meta name="description" content="Stel je huishouden in: bewoners, tijdsbudgetten, voorkeuren en blokkades. Nederlands als standaard." />
+        <title>{t('setup.title')}</title>
+        <meta name="description" content={t('setup.metaDescription')} />
         <link rel="canonical" href="/setup" />
       </Helmet>
       <section className="container py-10 space-y-6">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold">Snel van start</h1>
-          <p className="text-muted-foreground">Stap 1: Huishouden en voorkeuren instellen. Geen account nodig.</p>
+          <h1 className="text-3xl font-bold">{t('setup.header')}</h1>
+          <p className="text-muted-foreground">{t('setup.subtext')}</p>
         </header>
 
         <Card>
           <CardHeader>
-            <CardTitle>Huishouden</CardTitle>
+            <CardTitle>{t('setup.household')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Label htmlFor="hh-name">Naam huishouden</Label>
+              <Label htmlFor="hh-name">{t('setup.householdName')}</Label>
               <Input id="hh-name" value={householdName} onChange={(e) => setHouseholdName(e.target.value)} />
             </div>
 
             {people.map((p, idx) => (
               <div key={idx} className="col-span-1 border rounded-lg p-4 space-y-3">
                 <div className="space-y-2">
-                  <Label>Voornaam</Label>
+                  <Label>{t('setup.firstName')}</Label>
                   <Input value={p.first_name} onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, first_name: e.target.value } : pp))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Rol</Label>
+                  <Label>{t('setup.role')}</Label>
                   <select
                     className="w-full h-10 rounded-md border bg-background"
                     value={p.role}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, role: e.target.value } : pp))}
                   >
-                    <option value="adult">Volwassene</option>
-                    <option value="child">Kind</option>
+                    <option value="adult">{t('setup.roleAdult')}</option>
+                    <option value="child">{t('setup.roleChild')}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Minuten per week</Label>
+                  <Label>{t('setup.minutesPerWeek')}</Label>
                   <Input type="number" value={p.weekly_time_budget}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, weekly_time_budget: Number(e.target.value) } : pp))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Contact (e-mail of telefoon)</Label>
+                  <Label>{t('setup.contact')}</Label>
                   <Input value={p.contact}
                     onChange={(e) => setPeople((ps) => ps.map((pp, i) => i === idx ? { ...pp, contact: e.target.value } : pp))}
-                    placeholder="voor notificaties"
+                    placeholder={t('setup.contactPlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Onprettige klussen</Label>
+                  <Label>{t('setup.dislikedTasks')}</Label>
                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto">
                     {SEED_TASKS.slice(0, 12).map((t) => (
                       <label key={t.id} className="inline-flex items-center gap-2 text-sm">
@@ -164,16 +166,16 @@ const SetupWizard = () => {
             ))}
 
             <div className="sm:col-span-2 flex items-center gap-3">
-              <Button variant="secondary" onClick={addPerson}>Persoon toevoegen</Button>
-              <Button variant="hero" onClick={saveAndContinue}>Opslaan en verder</Button>
-              <Button onClick={persistToSupabase}>Opslaan in account</Button>
+              <Button variant="secondary" onClick={addPerson}>{t('setup.addPerson')}</Button>
+              <Button variant="hero" onClick={saveAndContinue}>{t('setup.saveAndContinue')}</Button>
+              <Button onClick={persistToSupabase}>{t('setup.saveToAccount')}</Button>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Veelvoorkomende blokkades</CardTitle>
+            <CardTitle>{t('setup.blackoutsTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {SEED_BLACKOUTS.map((b, i) => (

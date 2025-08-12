@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const Auth = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const next = useMemo(() => params.get("next") || "/setup", [params]);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -35,9 +37,9 @@ const Auth = () => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      toast({ title: "Inloggen mislukt", description: error.message });
+      toast({ title: t('auth.loginFailed'), description: error.message });
     } else {
-      toast({ title: "Welkom terug", description: "Je bent ingelogd." });
+      toast({ title: t('auth.welcomeBack'), description: t('auth.signedIn') });
     }
   };
 
@@ -51,55 +53,56 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Aanmelden mislukt", description: error.message });
+      toast({ title: t('auth.signupFailed'), description: error.message });
     } else {
-      toast({ title: "Bevestig je e-mail", description: "Check je inbox om je account te activeren." });
+      toast({ title: t('auth.confirmEmail'), description: t('auth.checkInbox') });
     }
   };
 
   return (
     <main className="min-h-screen container py-12">
       <Helmet>
-        <title>Inloggen of aanmelden – Eerlijke huishoudplanner</title>
-        <meta name="description" content="Log in of maak een account aan om je huishouden en plannen op te slaan." />
+        <title>{t('auth.title')}</title>
+        <meta name="description" content={t('auth.metaDescription')} />
         <link rel="canonical" href="/auth" />
       </Helmet>
       <div className="max-w-md mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle>{mode === "login" ? "Inloggen" : "Account aanmaken"}</CardTitle>
+            <CardTitle>{mode === "login" ? t('auth.login') : t('auth.signup')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm mb-1">E-mail</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jij@voorbeeld.nl" />
+              <label className="block text-sm mb-1">{t('auth.email')}</label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
             </div>
             <div>
-              <label className="block text-sm mb-1">Wachtwoord</label>
+              <label className="block text-sm mb-1">{t('auth.password')}</label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             {mode === "login" ? (
               <Button className="w-full" onClick={handleLogin} disabled={loading}>
-                {loading ? "Bezig…" : "Inloggen"}
+                {loading ? t('common.loading') : t('auth.login')}
               </Button>
             ) : (
               <Button className="w-full" onClick={handleSignup} disabled={loading}>
-                {loading ? "Bezig…" : "Account aanmaken"}
+                {loading ? t('common.loading') : t('auth.signup')}
               </Button>
             )}
             <div className="text-sm text-muted-foreground text-center">
               {mode === "login" ? (
-                <button className="underline" onClick={() => setMode("signup")}>Nog geen account? Aanmelden</button>
+                <button className="underline" onClick={() => setMode("signup")}>{t('auth.noAccount')}</button>
               ) : (
-                <button className="underline" onClick={() => setMode("login")}>Al een account? Inloggen</button>
+                <button className="underline" onClick={() => setMode("login")}>{t('auth.haveAccount')}</button>
               )}
             </div>
-            <div className="text-xs text-muted-foreground text-center">Na inloggen ga je verder naar {next}.</div>
-            <div className="text-xs text-muted-foreground text-center">
-              Tip: tijdens testen kun je e-mailbevestiging uitschakelen in Supabase → Auth instellingen.
+              <div className="text-xs text-muted-foreground text-center">{typeof (t('auth.afterLogin') as any) === 'function' ? (t('auth.afterLogin') as any)(next) : String(t('auth.afterLogin'))}</div>
+              <div className="text-xs text-muted-foreground text-center">
+                {t('auth.testingTip')}
+              </div>
             </div>
             <div className="text-center">
-              <Link to="/" className="underline text-sm">Terug naar start</Link>
+              <Link to="/" className="underline text-sm">{t('common.backHome')}</Link>
             </div>
           </CardContent>
         </Card>

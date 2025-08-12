@@ -1,28 +1,25 @@
 import { Helmet } from "react-helmet-async";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const Privacy = () => {
+  const { t } = useI18n();
   return (
     <main className="min-h-screen container py-12">
       <Helmet>
-        <title>Privacybeleid – Eerlijke huishoudplanner</title>
-        <meta name="description" content="Privacybeleid: we gebruiken gegevens alleen om klussen in te plannen en herinneringen te sturen. GDPR-conform, EU-datacenters." />
+        <title>{t('privacy.title')}</title>
+        <meta name="description" content={t('privacy.metaDescription')} />
         <link rel="canonical" href="/privacy" />
       </Helmet>
       <article className="prose prose-neutral max-w-2xl">
-        <h1>Privacybeleid</h1>
-        <p>
-          Wij minimaliseren persoonsgegevens: alleen voornamen en contactgegevens voor herinneringen. Gegevens worden uitsluitend gebruikt om
-          huishoudtaken te plannen en herinneringen via e-mail of WhatsApp/SMS te sturen. We gebruiken geen gegevens voor reclame of profilering.
-        </p>
-        <h2>Jouw rechten</h2>
+        <h1>{t('privacy.heading')}</h1>
+        <p>{t('privacy.p1')}</p>
+        <h2>{t('privacy.rights')}</h2>
         <ul>
-          <li>Je kunt je gegevens op elk moment inzien, aanpassen of verwijderen.</li>
-          <li>Data wordt opgeslagen in EU-datacenters.</li>
-          <li>Plannen ouder dan 12 maanden worden automatisch verwijderd.</li>
+          {[0,1,2].map(i => (
+            <li key={i}>{t(`privacy.rightsList.${i}`)}</li>
+          ))}
         </ul>
-        <p>
-          Voor berichten via WhatsApp gebruiken we goedgekeurde sjablonen en vragen we expliciete toestemming. Vragen? Neem contact op via privacy@voorbeeld.nl.
-        </p>
+        <p>{t('privacy.p2')}</p>
       </article>
     </main>
   );
