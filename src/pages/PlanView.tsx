@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+import PlanSchedule from "@/components/PlanSchedule";
 
 const PlanView = () => {
   const { planId } = useParams();
@@ -50,7 +51,7 @@ const PlanView = () => {
       </header>
 
       {plan ? (
-        <section className="space-y-4">
+        <section className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -59,19 +60,39 @@ const PlanView = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div>
-                {L ? "Tasks" : "Taken"}: {plan.occurrences ?? 0}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="font-medium text-foreground">{plan.occurrences ?? 0}</div>
+                  <div className="text-xs">{L ? "Tasks" : "Taken"}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">{plan.fairness ?? 0}/100</div>
+                  <div className="text-xs">{L ? "Fairness" : "Eerlijkheid"}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">{plan.people?.length ?? 0}</div>
+                  <div className="text-xs">{L ? "People" : "Personen"}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">
+                    {new Date(plan.week_start).toLocaleDateString(L ? "en-GB" : "nl-NL", { day: "numeric", month: "short" })}
+                  </div>
+                  <div className="text-xs">{L ? "Week start" : "Week start"}</div>
+                </div>
               </div>
-              <div>
-                {L ? "Week start" : "Week start"}: {new Date(plan.week_start).toLocaleDateString(L ? "en-GB" : "nl-NL", { year: "numeric", month: "long", day: "numeric" })}
-              </div>
-              <p>
-                {L
-                  ? "Detailed scheduling will appear here when connected to the planner backend."
-                  : "Gedetailleerde planning verschijnt hier zodra de planner‑backend is gekoppeld."}
-              </p>
             </CardContent>
           </Card>
+
+          {plan.assignments && plan.assignments.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4">{L ? "Weekly Schedule" : "Weekplanning"}</h2>
+              <PlanSchedule 
+                assignments={plan.assignments} 
+                people={plan.people || []} 
+                weekStart={plan.week_start} 
+              />
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
