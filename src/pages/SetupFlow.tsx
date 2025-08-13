@@ -198,7 +198,7 @@ export default function SetupFlow() {
     setErrorMsg(null);
     const started = performance.now();
 
-    if (import.meta.env.DEV && !PLAN_WEBHOOK_URL) {
+    if (!PLAN_WEBHOOK_URL) {
       console.log("[DEV] Webhook payload", payload);
       const key = "webhook_log";
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
