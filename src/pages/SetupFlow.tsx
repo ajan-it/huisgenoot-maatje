@@ -13,6 +13,7 @@ import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { PLAN_WEBHOOK_URL, PLAN_WEBHOOK_SECRET, TIMEZONE } from "@/config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { track } from "@/lib/analytics";
+import { supabase } from "@/integrations/supabase/client";
 
 const TOTAL_STEPS = 8;
 
@@ -199,23 +200,43 @@ export default function SetupFlow() {
     const started = performance.now();
 
     if (!PLAN_WEBHOOK_URL) {
-      console.log("[DEV] Webhook payload", payload);
-      const key = "webhook_log";
-      const prev = JSON.parse(localStorage.getItem(key) || "[]");
-      prev.unshift({ ts: new Date().toISOString(), payload });
-      localStorage.setItem(key, JSON.stringify(prev.slice(0, 20)));
-
-      const fake = { plan_id: `DEV-${Math.random().toString(36).slice(2, 8)}`, occurrences: 42, fairness: 86 };
-      localStorage.setItem(
-        "lastPlanResponse",
-        JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
-      );
-      toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${fake.plan_id} • tasks: ${fake.occurrences} • fairness: ${fake.fairness}` : `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
-      track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
-      track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
-      setGenerating(false);
-      navigate("/setup/done");
-      return;
+      try {
+        const { data, error } = await supabase.functions.invoke("plan-generate", {
+          body: {
+            ...payload,
+            people: draft.people,
+            tasks: draft.tasks,
+            blackouts: draft.blackouts,
+          },
+        });
+        if (error) throw error;
+        const plan_id = (data as any)?.plan_id || `DEV-${Math.random().toString(36).slice(2, 8)}`;
+        const occurrences = (data as any)?.occurrences ?? 0;
+        const fairness = (data as any)?.fairness ?? 0;
+        localStorage.setItem(
+          "lastPlanResponse",
+          JSON.stringify({ ...(data as any), plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
+        );
+        toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
+        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
+        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
+        setGenerating(false);
+        navigate("/setup/done");
+        return;
+      } catch (err: any) {
+        console.error("plan-generate failed, using fallback", err);
+        const fake = { plan_id: `DEV-${Math.random().toString(36).slice(2, 8)}`, occurrences: 42, fairness: 86 };
+        localStorage.setItem(
+          "lastPlanResponse",
+          JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
+        );
+        toast({ title: lang === "en" ? "Plan created (fallback)" : "Weekplan aangemaakt (fallback)", description: lang === "en" ? `Plan ${fake.plan_id} • tasks: ${fake.occurrences} • fairness: ${fake.fairness}` : `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
+        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
+        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
+        setGenerating(false);
+        navigate("/setup/done");
+        return;
+      }
     }
 
     try {
