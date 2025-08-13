@@ -6,6 +6,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Full task definitions with all required properties
+const SEED_TASKS = [
+  // Keuken & maaltijden
+  { id: "t1", name: "Ontbijt voorbereiden", category: "kitchen", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["kitchen","meals"] },
+  { id: "t2", name: "Opruimen na ontbijt", category: "kitchen", default_duration: 15, difficulty: 1, frequency: "daily", tags: ["kitchen"] },
+  { id: "t3", name: "Broodtrommels klaarmaken", category: "kitchen", default_duration: 10, difficulty: 1, frequency: "daily", tags: ["kitchen","school"] },
+  { id: "t4", name: "Maaltijden plannen", category: "admin", default_duration: 25, difficulty: 2, frequency: "weekly", tags: ["planning"] },
+  { id: "t5", name: "Diner bereiden", category: "kitchen", default_duration: 45, difficulty: 2, frequency: "daily", tags: ["meals"] },
+  { id: "t6", name: "Gezinsdiner & opruimen", category: "kitchen", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["meals"] },
+  // Was & kleding
+  { id: "t7", name: "Was starten", category: "cleaning", default_duration: 10, difficulty: 1, frequency: "weekly", tags: ["laundry"] },
+  { id: "t8", name: "In droger / ophangen", category: "cleaning", default_duration: 10, difficulty: 1, frequency: "weekly", tags: ["laundry"] },
+  { id: "t9", name: "Wassen vouwen & opruimen", category: "cleaning", default_duration: 25, difficulty: 2, frequency: "weekly", tags: ["laundry"] },
+  { id: "t10", name: "Bedden verschonen", category: "cleaning", default_duration: 30, difficulty: 2, frequency: "weekly", tags: ["bedroom"] },
+  // Schoonmaken & huishouden
+  { id: "t11", name: "Slaapkamers opruimen & stofzuigen", category: "cleaning", default_duration: 30, difficulty: 2, frequency: "weekly", tags: ["cleaning"] },
+  { id: "t12", name: "Wekelijkse schoonmaak (badkamer, dweilen)", category: "cleaning", default_duration: 60, difficulty: 3, frequency: "weekly", tags: ["bathroom","floors"] },
+  { id: "t13", name: "15-minuten reset (opruimen)", category: "cleaning", default_duration: 15, difficulty: 1, frequency: "weekly", tags: ["declutter"] },
+  { id: "t14", name: "Koelkast/keuken diepteren", category: "kitchen", default_duration: 45, difficulty: 3, frequency: "monthly", tags: ["deepclean"] },
+  // Kinderzorg & routine
+  { id: "t15", name: "Dagopvang brengen (ochtend)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"] },
+  { id: "t16", name: "Dagopvang ophalen (middag)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"] },
+  { id: "t17", name: "Baddertijd", category: "childcare", default_duration: 25, difficulty: 1, frequency: "daily", tags: ["routine"] },
+  { id: "t18", name: "Voorlezen / bedtijd", category: "childcare", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["routine"] },
+  // Boodschappen & klusjes
+  { id: "t19", name: "Boodschappen doen", category: "errands", default_duration: 40, difficulty: 2, frequency: "weekly", tags: ["shopping"] },
+  { id: "t20", name: "Apotheek", category: "errands", default_duration: 20, difficulty: 1, frequency: "monthly", tags: ["errands"] },
+  // Beheer
+  { id: "t21", name: "Rekeningen betalen", category: "admin", default_duration: 20, difficulty: 2, frequency: "monthly", tags: ["finance"] },
+  { id: "t22", name: "Afval & recycling buiten zetten (GFT/PMD/rest)", category: "cleaning", default_duration: 10, difficulty: 1, frequency: "weekly", tags: ["waste"] },
+  { id: "t23", name: "Vaatwasser uitruimen / afdrogen", category: "kitchen", default_duration: 10, difficulty: 1, frequency: "daily", tags: ["dishes"] },
+  // Sociaal & zelfzorg
+  { id: "t24", name: "Koppeltijd / self-care", category: "selfcare", default_duration: 60, difficulty: 1, frequency: "weekly", tags: ["selfcare"] },
+];
+
 function generateTaskAssignments(tasks: any[], people: any[], weekStart: string): any[] {
   const assignments: any[] = [];
   const startDate = new Date(weekStart);
@@ -83,11 +118,13 @@ serve(async (req) => {
     console.log("Raw people:", people.length, people);
     console.log("Raw tasks:", tasks.length, tasks);
 
-    // More lenient filtering - if no explicit active field, assume active
-    const activeTasks = tasks.filter((t: any) => t && (t.active !== false && t.active !== 0));
+    // Get active task IDs and map to full task definitions
+    const activeTaskIds = tasks.filter((t: any) => t && (t.active !== false && t.active !== 0)).map((t: any) => t.id);
+    const fullActiveTasks = SEED_TASKS.filter(task => activeTaskIds.includes(task.id));
     const adults = people.filter((p: any) => p && (p.role === "adult" || !p.role));
     
-    console.log("Filtered activeTasks:", activeTasks.length, activeTasks);
+    console.log("Active task IDs:", activeTaskIds.length, activeTaskIds);
+    console.log("Full active tasks:", fullActiveTasks.length, fullActiveTasks);
     console.log("Filtered adults:", adults.length, adults);
     
     // Calculate fairness score
@@ -101,7 +138,7 @@ serve(async (req) => {
     }
 
     // Generate task assignments
-    const assignments = generateTaskAssignments(activeTasks, adults, week_start);
+    const assignments = generateTaskAssignments(fullActiveTasks, adults, week_start);
     const occurrences = assignments.length;
 
     const plan_id = input?.idempotency_key || `${household_id}-${week_start}`;
@@ -114,7 +151,7 @@ serve(async (req) => {
       timezone,
       assignments,
       people: adults,
-      tasks: activeTasks
+      tasks: activeTaskIds.map(id => ({ id, active: true }))
     };
 
     return new Response(JSON.stringify(data), {
