@@ -20,10 +20,15 @@ const PlanView = () => {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("lastPlanResponse");
+      console.log("Raw localStorage data:", raw);
       if (!raw) return;
       const parsed = JSON.parse(raw);
+      console.log("Parsed plan data:", parsed);
+      console.log("Plan assignments:", parsed?.assignments);
       if (parsed?.plan_id === planId) setPlan(parsed);
-    } catch {}
+    } catch (error) {
+      console.error("Error loading plan:", error);
+    }
   }, [planId]);
 
   const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
