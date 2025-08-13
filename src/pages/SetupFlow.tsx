@@ -60,6 +60,18 @@ export default function SetupFlow() {
 
   const title = useMemo(() => `${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`, [step, t, steps]);
 
+  const lastPlanId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("lastPlanResponse");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.plan_id || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+
   const go = (next: number) => navigate(`/setup/${Math.max(1, Math.min(TOTAL_STEPS, next))}`);
 
   const onNext = () => {
@@ -271,7 +283,17 @@ export default function SetupFlow() {
 
       <section className="container py-8 space-y-6">
         <header className="space-y-3">
-          <h1 className="text-3xl font-bold">{steps[step - 1]}</h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-3xl font-bold">{steps[step - 1]}</h1>
+            <div className="flex flex-wrap gap-2">
+              {lastPlanId && (
+                <Button variant="secondary" onClick={() => navigate(`/plan/${lastPlanId}`)}>
+                  {t('setupFlow.actions.openPlan')}
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => navigate("/")}>{t('setupFlow.actions.exitSetup')}</Button>
+            </div>
+          </div>
           <StepIndicator step={step} labels={steps} />
         </header>
 

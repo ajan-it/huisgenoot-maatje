@@ -93,6 +93,10 @@ export const dictionaries = {
         "Samenvatting",
       ],
       meta: { titlePrefix: "Setup • " },
+      actions: {
+        exitSetup: "Setup verlaten",
+        openPlan: "Open weekplan",
+      },
       welcome: {
         title: "Welkom",
         headline: "Eerlijk weekplan voor je huishouden — minder gedoe, minder discussie.",
@@ -296,6 +300,10 @@ export const dictionaries = {
         "Summary",
       ],
       meta: { titlePrefix: "Setup • " },
+      actions: {
+        exitSetup: "Exit setup",
+        openPlan: "Open week plan",
+      },
       welcome: {
         title: "Welcome",
         headline: "Fair weekly plan for your household — less hassle, fewer arguments.",

@@ -12,7 +12,17 @@ const Auth = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const next = useMemo(() => params.get("next") || "/setup", [params]);
+  const defaultNext = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("lastPlanResponse");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p?.plan_id) return `/plan/${p.plan_id}`;
+      }
+    } catch {}
+    return "/setup";
+  }, []);
+  const next = useMemo(() => params.get("next") || defaultNext, [params, defaultNext]);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
