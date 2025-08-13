@@ -71,6 +71,7 @@ serve(async (req) => {
 
   try {
     const input = await req.json().catch(() => ({}));
+    console.log("Input received:", JSON.stringify(input, null, 2));
 
     const week_start = input?.week_start || new Date().toISOString().slice(0, 10);
     const household_id = input?.household_id || "HH_LOCAL";
@@ -78,10 +79,16 @@ serve(async (req) => {
 
     const people = Array.isArray(input?.people) ? input.people : [];
     const tasks = Array.isArray(input?.tasks) ? input.tasks : [];
+    
+    console.log("Raw people:", people.length, people);
+    console.log("Raw tasks:", tasks.length, tasks);
 
     // More lenient filtering - if no explicit active field, assume active
     const activeTasks = tasks.filter((t: any) => t && (t.active !== false && t.active !== 0));
     const adults = people.filter((p: any) => p && (p.role === "adult" || !p.role));
+    
+    console.log("Filtered activeTasks:", activeTasks.length, activeTasks);
+    console.log("Filtered adults:", adults.length, adults);
     
     // Calculate fairness score
     let fairness = 85;
