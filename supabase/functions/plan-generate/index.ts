@@ -79,8 +79,9 @@ serve(async (req) => {
     const people = Array.isArray(input?.people) ? input.people : [];
     const tasks = Array.isArray(input?.tasks) ? input.tasks : [];
 
-    const activeTasks = tasks.filter((t: any) => t && (t.active === true || t.active === 1));
-    const adults = people.filter((p: any) => p?.role === "adult");
+    // More lenient filtering - if no explicit active field, assume active
+    const activeTasks = tasks.filter((t: any) => t && (t.active !== false && t.active !== 0));
+    const adults = people.filter((p: any) => p && (p.role === "adult" || !p.role));
     
     // Calculate fairness score
     let fairness = 85;
