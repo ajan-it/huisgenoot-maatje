@@ -593,6 +593,164 @@ function generateTaskAssignments(tasks: any[], people: any[], weekStart: string,
   return assignments.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Rebalance function to improve fairness with minimal changes
+function generateRebalancePreview(tasks: any[], people: any[], currentAssignments: any[], weekStart: string, idempotencyKey: string): { assignments: any[], preview: any } {
+  const adults: Adult[] = people.filter((p: any) => p && (p.role === "adult" || !p.role));
+  if (adults.length < 2) {
+    return { assignments: currentAssignments, preview: null };
+  }
+
+  // Calculate current fairness and loads
+  const currentLoads: { [key: string]: number } = {};
+  const currentAssignmentsByPerson: { [key: string]: any[] } = {};
+  
+  adults.forEach(adult => {
+    currentLoads[adult.id] = 0;
+    currentAssignmentsByPerson[adult.id] = [];
+  });
+
+  currentAssignments.forEach(assignment => {
+    if (assignment.assigned_person_id && assignment.status === 'scheduled') {
+      const task = tasks.find(t => t.id === assignment.task_id);
+      const difficulty = task?.difficulty || 1;
+      const units = assignment.task_duration * DIFFICULTY_WEIGHTS[difficulty];
+      currentLoads[assignment.assigned_person_id] += units;
+      currentAssignmentsByPerson[assignment.assigned_person_id].push(assignment);
+    }
+  });
+
+  // Find potential swaps that improve fairness
+  const changes: any[] = [];
+  let bestAssignments = [...currentAssignments];
+  let bestImprovement = 0;
+
+  // Try swapping assignments between adults
+  for (let i = 0; i < adults.length; i++) {
+    for (let j = i + 1; j < adults.length; j++) {
+      const adultA = adults[i];
+      const adultB = adults[j];
+      
+      const assignmentsA = currentAssignmentsByPerson[adultA.id] || [];
+      const assignmentsB = currentAssignmentsByPerson[adultB.id] || [];
+      
+      // Try swapping each assignment from A with each from B
+      for (const assignmentA of assignmentsA) {
+        for (const assignmentB of assignmentsB) {
+          // Calculate fairness improvement
+          const taskA = tasks.find(t => t.id === assignmentA.task_id);
+          const taskB = tasks.find(t => t.id === assignmentB.task_id);
+          
+          if (!taskA || !taskB) continue;
+
+          const unitsA = assignmentA.task_duration * DIFFICULTY_WEIGHTS[taskA.difficulty || 1];
+          const unitsB = assignmentB.task_duration * DIFFICULTY_WEIGHTS[taskB.difficulty || 1];
+          
+          // Calculate new loads after swap
+          const newLoadA = currentLoads[adultA.id] - unitsA + unitsB;
+          const newLoadB = currentLoads[adultB.id] - unitsB + unitsA;
+          
+          // Calculate fairness improvement (simplified)
+          const totalBudget = adults.reduce((sum, a) => sum + a.weekly_time_budget, 0);
+          const totalLoad = Object.values(currentLoads).reduce((sum, load) => sum + load, 0);
+          
+          const currentDeviationA = Math.abs((currentLoads[adultA.id] / totalLoad) - (adultA.weekly_time_budget / totalBudget));
+          const currentDeviationB = Math.abs((currentLoads[adultB.id] / totalLoad) - (adultB.weekly_time_budget / totalBudget));
+          
+          const newDeviationA = Math.abs((newLoadA / totalLoad) - (adultA.weekly_time_budget / totalBudget));
+          const newDeviationB = Math.abs((newLoadB / totalLoad) - (adultB.weekly_time_budget / totalBudget));
+          
+          const improvement = (currentDeviationA + currentDeviationB) - (newDeviationA + newDeviationB);
+          
+          // If this swap improves fairness significantly
+          if (improvement > 0.03 && improvement > bestImprovement) {
+            bestImprovement = improvement;
+            
+            // Create new assignments with the swap
+            bestAssignments = currentAssignments.map(assignment => {
+              if (assignment.id === assignmentA.id) {
+                return { ...assignment, assigned_person_id: adultB.id, assigned_person_name: adultB.first_name };
+              }
+              if (assignment.id === assignmentB.id) {
+                return { ...assignment, assigned_person_id: adultA.id, assigned_person_name: adultA.first_name };
+              }
+              return assignment;
+            });
+            
+            changes.splice(0, changes.length); // Clear previous changes
+            changes.push({
+              type: 'swap',
+              fromPerson: adultA.first_name,
+              toPerson: adultB.first_name,
+              task: taskA.name,
+              date: assignmentA.date
+            });
+            changes.push({
+              type: 'swap',
+              fromPerson: adultB.first_name,
+              toPerson: adultA.first_name,
+              task: taskB.name,
+              date: assignmentB.date
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Calculate projected fairness and adult loads
+  const projectedLoads: { [key: string]: number } = {};
+  adults.forEach(adult => { projectedLoads[adult.id] = 0; });
+  
+  bestAssignments.forEach(assignment => {
+    if (assignment.assigned_person_id && assignment.status === 'scheduled') {
+      const task = tasks.find(t => t.id === assignment.task_id);
+      const difficulty = task?.difficulty || 1;
+      const units = assignment.task_duration * DIFFICULTY_WEIGHTS[difficulty];
+      projectedLoads[assignment.assigned_person_id] += units;
+    }
+  });
+
+  const totalBudget = adults.reduce((sum, a) => sum + a.weekly_time_budget, 0);
+  const totalCurrentLoad = Object.values(currentLoads).reduce((sum, load) => sum + load, 0);
+  const totalProjectedLoad = Object.values(projectedLoads).reduce((sum, load) => sum + load, 0);
+
+  // Calculate current and projected fairness scores
+  let currentFairness = 85;
+  let projectedFairness = 85;
+
+  if (adults.length >= 2) {
+    let currentDeviation = 0;
+    let projectedDeviation = 0;
+    
+    adults.forEach(adult => {
+      const targetShare = adult.weekly_time_budget / totalBudget;
+      const currentShare = totalCurrentLoad > 0 ? currentLoads[adult.id] / totalCurrentLoad : 0;
+      const projectedShare = totalProjectedLoad > 0 ? projectedLoads[adult.id] / totalProjectedLoad : 0;
+      
+      currentDeviation += Math.abs(currentShare - targetShare);
+      projectedDeviation += Math.abs(projectedShare - targetShare);
+    });
+    
+    currentFairness = Math.max(20, Math.min(98, Math.round(95 - (currentDeviation * 100))));
+    projectedFairness = Math.max(20, Math.min(98, Math.round(95 - (projectedDeviation * 100))));
+  }
+
+  const preview = changes.length > 0 ? {
+    currentFairness,
+    projectedFairness,
+    changes,
+    adults: adults.map(adult => ({
+      id: adult.id,
+      name: adult.first_name,
+      currentMinutes: Math.round(currentLoads[adult.id] || 0),
+      projectedMinutes: Math.round(projectedLoads[adult.id] || 0),
+      targetMinutes: adult.weekly_time_budget
+    }))
+  } : null;
+
+  return { assignments: bestAssignments, preview };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -602,6 +760,8 @@ serve(async (req) => {
     const input = await req.json().catch(() => ({}));
     console.log("Input received:", JSON.stringify(input, null, 2));
 
+    const mode = input?.mode || 'generate';
+    const currentAssignments = input?.current_assignments || [];
     const week_start = input?.week_start || new Date().toISOString().slice(0, 10);
     const household_id = input?.household_id || "HH_LOCAL";
     const timezone = input?.timezone || "Europe/Amsterdam";
@@ -623,8 +783,16 @@ serve(async (req) => {
     
     const plan_id = input?.idempotency_key || `${household_id}-${week_start}`;
 
-    // Generate task assignments with fairness allocation engine
-    const assignments = generateTaskAssignments(fullActiveTasks, adults, week_start, plan_id);
+    // Generate task assignments or rebalance existing ones
+    let assignments, rebalancePreview = null;
+    
+    if (mode === 'rebalance_soft' && currentAssignments.length > 0) {
+      const rebalanceResult = generateRebalancePreview(fullActiveTasks, adults, currentAssignments, week_start, plan_id);
+      assignments = rebalanceResult.assignments;
+      rebalancePreview = rebalanceResult.preview;
+    } else {
+      assignments = generateTaskAssignments(fullActiveTasks, adults, week_start, plan_id);
+    }
     const occurrences = assignments.length;
     const backlogCount = assignments.filter(a => a.status === 'backlog').length;
 
@@ -752,7 +920,8 @@ serve(async (req) => {
       people: adults,
       tasks: activeTaskIds.map(id => ({ id, active: true })),
       backlog_count: backlogCount,
-      adult_loads
+      adult_loads,
+      ...(rebalancePreview && { rebalance_preview: rebalancePreview })
     };
 
     return new Response(JSON.stringify(data), {

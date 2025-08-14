@@ -8,6 +8,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import PlanSchedule from "@/components/PlanSchedule";
 import { FairnessDrawer } from "@/components/FairnessDrawer";
+import { RebalancePreview } from "@/components/RebalancePreview";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Sparkles } from "lucide-react";
 
 const PlanView = () => {
   const { planId } = useParams();
@@ -17,6 +21,10 @@ const PlanView = () => {
   const L = lang === "en";
 
   const [plan, setPlan] = useState<any | null>(null);
+  const [isRebalancing, setIsRebalancing] = useState(false);
+  const [showRebalancePreview, setShowRebalancePreview] = useState(false);
+  const [rebalanceData, setRebalanceData] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     try {
@@ -33,6 +41,66 @@ const PlanView = () => {
   }, [planId]);
 
   const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
+
+  const handleMakeItFairer = async () => {
+    if (!plan?.assignments || !plan?.people || !plan?.tasks) return;
+    
+    setIsRebalancing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('plan-generate', {
+        body: {
+          tasks: plan.tasks,
+          people: plan.people,
+          week_start: plan.week_start,
+          household_id: planId?.split('-')[0] || 'HH_LOCAL',
+          mode: 'rebalance_soft',
+          current_assignments: plan.assignments
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.rebalance_preview) {
+        setRebalanceData(data);
+        setShowRebalancePreview(true);
+      } else {
+        toast({
+          title: L ? "No improvements found" : "Geen verbeteringen gevonden",
+          description: L ? "The current plan is already well-balanced." : "Het huidige plan is al goed uitgebalanceerd.",
+        });
+      }
+    } catch (error) {
+      console.error('Rebalance error:', error);
+      toast({
+        title: L ? "Failed to optimize" : "Optimalisatie mislukt",
+        description: L ? "Something went wrong while trying to improve fairness." : "Er ging iets mis bij het verbeteren van de eerlijkheid.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRebalancing(false);
+    }
+  };
+
+  const handleApplyRebalance = async () => {
+    if (!rebalanceData) return;
+    
+    // Update localStorage with new plan data
+    localStorage.setItem("lastPlanResponse", JSON.stringify(rebalanceData));
+    
+    // Update the current plan state
+    setPlan(rebalanceData);
+    
+    // Show success message
+    const improvement = rebalanceData.rebalance_preview.projectedFairness - rebalanceData.rebalance_preview.currentFairness;
+    toast({
+      title: L ? "Plan optimized!" : "Plan geoptimaliseerd!",
+      description: L ? `Fairness improved by ${improvement} points.` : `Eerlijkheid verbeterd met ${improvement} punten.`,
+    });
+    
+    // Close preview
+    setShowRebalancePreview(false);
+    setRebalanceData(null);
+  };
 
   return (
     <main className="container py-8 space-y-6">
@@ -62,22 +130,46 @@ const PlanView = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
                 {L ? "Overview" : "Overzicht"}
-                <FairnessDrawer 
-                  fairness={plan.fairness ?? 0}
-                  fairnessDetails={plan.fairness_details}
-                  people={plan.people || []}
-                >
-                  <Badge 
-                    variant="secondary" 
-                    className={`cursor-pointer transition-all hover:scale-105 ${
-                      plan.fairness >= 80 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' :
-                      plan.fairness >= 60 ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' :
-                      'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                    }`}
-                  >
-                    {L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100
-                  </Badge>
-                </FairnessDrawer>
+                 <div className="flex items-center gap-2">
+                   <FairnessDrawer 
+                     fairness={plan.fairness ?? 0}
+                     fairnessDetails={plan.fairness_details}
+                     people={plan.people || []}
+                   >
+                     <Badge 
+                       variant="secondary" 
+                       className={`cursor-pointer transition-all hover:scale-105 ${
+                         plan.fairness >= 80 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' :
+                         plan.fairness >= 60 ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' :
+                         'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                       }`}
+                     >
+                       {L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100
+                     </Badge>
+                   </FairnessDrawer>
+                   
+                   {(plan.fairness ?? 0) < 85 && (
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={handleMakeItFairer}
+                       disabled={isRebalancing}
+                       className="h-7 px-3 text-xs border-primary/20 hover:bg-primary/5"
+                     >
+                       {isRebalancing ? (
+                         <>
+                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                           {L ? "Optimizing..." : "Optimaliseren..."}
+                         </>
+                       ) : (
+                         <>
+                           <Sparkles className="h-3 w-3 mr-1" />
+                           {L ? "Make it Fairer" : "Maak Eerlijker"}
+                         </>
+                       )}
+                     </Button>
+                   )}
+                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -115,12 +207,12 @@ const PlanView = () => {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
-            <Button variant="secondary" onClick={() => navigate("/setup/1")}>{L ? "Run wizard again" : "Wizard opnieuw"}</Button>
-          </div>
-        </section>
-      ) : (
+           <div className="flex flex-wrap gap-2">
+             <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
+             <Button variant="secondary" onClick={() => navigate("/setup/1")}>{L ? "Run wizard again" : "Wizard opnieuw"}</Button>
+           </div>
+         </section>
+       ) : (
         <section>
           <Card>
             <CardHeader>
@@ -138,10 +230,27 @@ const PlanView = () => {
               </div>
             </CardContent>
           </Card>
-        </section>
-      )}
-    </main>
-  );
-};
+         </section>
+       )}
+
+       {/* Rebalance Preview Dialog */}
+       {showRebalancePreview && rebalanceData?.rebalance_preview && (
+         <RebalancePreview
+           open={showRebalancePreview}
+           onOpenChange={setShowRebalancePreview}
+           currentFairness={rebalanceData.rebalance_preview.currentFairness}
+           projectedFairness={rebalanceData.rebalance_preview.projectedFairness}
+           changes={rebalanceData.rebalance_preview.changes}
+           adults={rebalanceData.rebalance_preview.adults}
+           onApply={handleApplyRebalance}
+           onCancel={() => {
+             setShowRebalancePreview(false);
+             setRebalanceData(null);
+           }}
+         />
+       )}
+     </main>
+   );
+ };
 
 export default PlanView;
