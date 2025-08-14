@@ -41,59 +41,531 @@ const SEED_TASKS = [
   { id: "t24", name: "Koppeltijd / self-care", category: "selfcare", default_duration: 60, difficulty: 1, frequency: "weekly", tags: ["selfcare"] },
 ];
 
-function generateTaskAssignments(tasks: any[], people: any[], weekStart: string): any[] {
-  const assignments: any[] = [];
-  const startDate = new Date(weekStart);
+// Fairness allocation engine constants
+const LAMBDA = 8; // Proportional fairness weight
+const DIFFICULTY_WEIGHTS = { 1: 1.0, 2: 1.2, 3: 1.5 };
+const WEEKNIGHT_CAP_DEFAULT = 30; // minutes
+const SAME_EVENING_THRESHOLD = 40; // minutes
+const SAME_DAY_TASK_LIMIT = 3;
+const MAX_OCCURRENCES = 500;
+const MAX_SWAP_ITERATIONS = 100;
+const MAX_DURATION_MS = 900;
+const EARLY_STOP_THRESHOLD = 10;
+
+// Time slot definitions
+const WEEKNIGHT_START = "18:00";
+const WEEKNIGHT_END = "21:30";
+const WEEKNIGHTS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+interface TimeSlot {
+  start: string; // HH:mm
+  end: string;   // HH:mm
+}
+
+interface Occurrence {
+  id: string;
+  task_id: string;
+  task_name: string;
+  task_duration: number;
+  task_difficulty: number;
+  task_category: string;
+  task_tags: string[];
+  date: string; // YYYY-MM-DD
+  time_slot: TimeSlot;
+  assigned_person_id?: string;
+  assigned_person_name?: string;
+  status: 'scheduled' | 'backlog';
+  rationale?: {
+    reasons: string[];
+  };
+}
+
+interface Adult {
+  id: string;
+  first_name: string;
+  weekly_time_budget: number;
+  disliked_tasks?: string[];
+  no_go_tasks?: string[];
+  blackout_slots?: any[];
+}
+
+interface Context {
+  adults: Adult[];
+  totalLoad: number;
+  load: { [adultId: string]: number };
+  targetShare: { [adultId: string]: number };
+  weeknightLoad: { [adultId: string]: number };
+  dailyTaskCount: { [adultId: string]: { [date: string]: number } };
+  eveningLoad: { [adultId: string]: { [date: string]: number } };
+}
+
+// Deterministic input stabilization
+function stabilizeInputs(tasks: any[], adults: Adult[], idempotencyKey: string) {
+  // Seed for any randomness
+  const seed = hashString(idempotencyKey);
   
-  // Get weekly tasks and create assignments
-  const weeklyTasks = tasks.filter(t => t.frequency === 'weekly');
-  const dailyTasks = tasks.filter(t => t.frequency === 'daily');
-  
-  // Assign weekly tasks randomly across the week
-  weeklyTasks.forEach((task, index) => {
-    const dayOffset = (index * 2) % 7; // Spread across week
-    const assignedDate = new Date(startDate);
-    assignedDate.setDate(assignedDate.getDate() + dayOffset);
-    
-    // Round-robin assignment to people
-    const assignedPerson = people[index % people.length];
-    
-    assignments.push({
-      id: `${task.id}-${weekStart}-${dayOffset}`,
-      task_id: task.id,
-      task_name: task.name,
-      task_duration: task.default_duration,
-      task_category: task.category,
-      date: assignedDate.toISOString().split('T')[0],
-      assigned_person_id: assignedPerson.id,
-      assigned_person_name: assignedPerson.first_name,
-      status: 'scheduled'
-    });
+  // Sort tasks deterministically
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.id !== b.id) return a.id.localeCompare(b.id);
+    if (a.category !== b.category) return a.category.localeCompare(b.category);
+    return a.name.localeCompare(b.name);
   });
   
-  // Assign daily tasks (just for workdays to keep it manageable)
-  const workDays = [1, 2, 3, 4, 5]; // Mon-Fri
-  dailyTasks.forEach((task) => {
-    workDays.forEach((dayOffset) => {
-      const assignedDate = new Date(startDate);
-      assignedDate.setDate(assignedDate.getDate() + dayOffset - 1);
+  // Sort adults deterministically
+  const sortedAdults = [...adults].sort((a, b) => a.id.localeCompare(b.id));
+  
+  return { sortedTasks, sortedAdults, seed };
+}
+
+// Simple hash function for seeding
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+// Generate time slots for tasks
+function generateTimeSlots(frequency: string): TimeSlot[] {
+  const morningSlots: TimeSlot[] = [
+    { start: "07:00", end: "07:30" },
+    { start: "07:30", end: "08:00" },
+    { start: "08:00", end: "08:30" }
+  ];
+  
+  const eveningSlots: TimeSlot[] = [
+    { start: "18:00", end: "18:30" },
+    { start: "18:30", end: "19:00" },
+    { start: "19:30", end: "20:00" },
+    { start: "20:00", end: "20:30" }
+  ];
+  
+  const weekendSlots: TimeSlot[] = [
+    { start: "09:00", end: "10:00" },
+    { start: "10:00", end: "11:00" },
+    { start: "14:00", end: "15:00" },
+    { start: "15:00", end: "16:00" }
+  ];
+  
+  // Mix slots based on frequency
+  if (frequency === "daily") {
+    return [...morningSlots, ...eveningSlots];
+  } else {
+    return [...morningSlots, ...eveningSlots, ...weekendSlots];
+  }
+}
+
+// Expand tasks to concrete occurrences
+function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
+  const startDate = new Date(weekStart);
+  const occurrences: Occurrence[] = [];
+  let occurrenceCount = 0;
+  
+  for (const task of tasks) {
+    if (occurrenceCount >= MAX_OCCURRENCES) break;
+    
+    const timeSlots = generateTimeSlots(task.frequency);
+    
+    if (task.frequency === "daily") {
+      // Generate for all 7 days
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        if (occurrenceCount >= MAX_OCCURRENCES) break;
+        
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + dayOffset);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        for (const timeSlot of timeSlots) {
+          if (occurrenceCount >= MAX_OCCURRENCES) break;
+          
+          occurrences.push({
+            id: `${task.id}-${dateStr}-${timeSlot.start}`,
+            task_id: task.id,
+            task_name: task.name,
+            task_duration: task.default_duration,
+            task_difficulty: task.difficulty,
+            task_category: task.category,
+            task_tags: task.tags || [],
+            date: dateStr,
+            time_slot: timeSlot,
+            status: 'scheduled'
+          });
+          occurrenceCount++;
+        }
+      }
+    } else if (task.frequency === "weekly") {
+      // Generate for optimal days in the week
+      const optimalDays = [1, 3, 5]; // Tue, Thu, Sat
       
-      // Alternate between people for daily tasks
-      const personIndex = dayOffset % people.length;
-      const assignedPerson = people[personIndex];
+      for (const dayOffset of optimalDays) {
+        if (occurrenceCount >= MAX_OCCURRENCES) break;
+        
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + dayOffset);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        for (const timeSlot of timeSlots) {
+          if (occurrenceCount >= MAX_OCCURRENCES) break;
+          
+          occurrences.push({
+            id: `${task.id}-${dateStr}-${timeSlot.start}`,
+            task_id: task.id,
+            task_name: task.name,
+            task_duration: task.default_duration,
+            task_difficulty: task.difficulty,
+            task_category: task.category,
+            task_tags: task.tags || [],
+            date: dateStr,
+            time_slot: timeSlot,
+            status: 'scheduled'
+          });
+          occurrenceCount++;
+        }
+      }
+    } else if (task.frequency === "monthly") {
+      // Only schedule if week contains 1st-7th of month
+      const weekStartDay = startDate.getDate();
+      if (weekStartDay <= 7) {
+        const date = new Date(startDate);
+        date.setDate(Math.min(7, weekStartDay + 2)); // Prefer Wed if possible
+        const dateStr = date.toISOString().split('T')[0];
+        
+        for (const timeSlot of timeSlots.slice(0, 2)) { // Fewer slots for monthly
+          if (occurrenceCount >= MAX_OCCURRENCES) break;
+          
+          occurrences.push({
+            id: `${task.id}-${dateStr}-${timeSlot.start}`,
+            task_id: task.id,
+            task_name: task.name,
+            task_duration: task.default_duration,
+            task_difficulty: task.difficulty,
+            task_category: task.category,
+            task_tags: task.tags || [],
+            date: dateStr,
+            time_slot: timeSlot,
+            status: 'scheduled'
+          });
+          occurrenceCount++;
+        }
+      }
+    }
+  }
+  
+  // Sort occurrences deterministically
+  return occurrences.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    if (a.time_slot.start !== b.time_slot.start) return a.time_slot.start.localeCompare(b.time_slot.start);
+    return a.task_id.localeCompare(b.task_id);
+  });
+}
+
+// Check if time slot conflicts with blackouts
+function conflictsBlackout(adult: Adult, occurrence: Occurrence): boolean {
+  if (!adult.blackout_slots) return false;
+  
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[dayOfWeek];
+  
+  return adult.blackout_slots.some(blackout => {
+    if (!blackout.days.includes(dayName)) return false;
+    
+    const blackoutStart = blackout.start;
+    const blackoutEnd = blackout.end;
+    const occStart = occurrence.time_slot.start;
+    const occEnd = occurrence.time_slot.end;
+    
+    // Check for overlap
+    return occStart < blackoutEnd && occEnd > blackoutStart;
+  });
+}
+
+// Check if task is in no-go list
+function isNoGo(adult: Adult, occurrence: Occurrence): boolean {
+  if (!adult.no_go_tasks) return false;
+  
+  return adult.no_go_tasks.some(noGoTask => 
+    occurrence.task_tags.includes(noGoTask) || occurrence.task_name.includes(noGoTask)
+  );
+}
+
+// Check if task is disliked
+function isDisliked(adult: Adult, occurrence: Occurrence): boolean {
+  if (!adult.disliked_tasks) return false;
+  
+  return adult.disliked_tasks.some(dislikedTask => 
+    occurrence.task_tags.includes(dislikedTask) || occurrence.task_name.includes(dislikedTask)
+  );
+}
+
+// Check if occurrence exceeds weeknight cap
+function exceedsWeeknightCap(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[dayOfWeek];
+  
+  if (!WEEKNIGHTS.includes(dayName)) return false;
+  
+  const currentWeeknightLoad = context.weeknightLoad[adult.id] || 0;
+  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  
+  return (currentWeeknightLoad + units) > WEEKNIGHT_CAP_DEFAULT;
+}
+
+// Check for same evening stacking
+function stacksSameEvening(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  const currentEveningLoad = context.eveningLoad[adult.id]?.[occurrence.date] || 0;
+  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  
+  return (currentEveningLoad + units) > SAME_EVENING_THRESHOLD;
+}
+
+// Check if adult has many tasks same day
+function hasTooManyTasksSameDay(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  const currentDayCount = context.dailyTaskCount[adult.id]?.[occurrence.date] || 0;
+  return currentDayCount >= SAME_DAY_TASK_LIMIT;
+}
+
+// Check preference match
+function matchesPreference(adult: Adult, occurrence: Occurrence): boolean {
+  // Could be expanded with preference tags
+  return false;
+}
+
+// Check if adult has more remaining minutes
+function hasMoreRemainingMinutes(adult: Adult, context: Context): boolean {
+  const otherAdults = context.adults.filter(a => a.id !== adult.id);
+  if (otherAdults.length === 0) return false;
+  
+  const adultRemaining = adult.weekly_time_budget - (context.load[adult.id] || 0);
+  const otherAvgRemaining = otherAdults.reduce((sum, a) => {
+    return sum + (a.weekly_time_budget - (context.load[a.id] || 0));
+  }, 0) / otherAdults.length;
+  
+  return adultRemaining > (otherAvgRemaining + 20);
+}
+
+// Calculate candidate score
+function candidateScore(adult: Adult, occurrence: Occurrence, context: Context): number {
+  // Hard constraints - reject
+  if (conflictsBlackout(adult, occurrence) || isNoGo(adult, occurrence)) {
+    return Infinity;
+  }
+  
+  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  
+  // Proportional fairness penalty
+  const totalLoadAfter = context.totalLoad + units;
+  const shareAfter = (context.load[adult.id] + units) / totalLoadAfter;
+  const target = context.targetShare[adult.id];
+  const penaltyFair = LAMBDA * Math.abs(shareAfter - target);
+  
+  // Soft constraints
+  let penalties = 0;
+  if (exceedsWeeknightCap(adult, occurrence, context)) penalties += 5;
+  if (stacksSameEvening(adult, occurrence, context)) penalties += 2;
+  if (isDisliked(adult, occurrence)) penalties += 1;
+  if (hasTooManyTasksSameDay(adult, occurrence, context)) penalties += 1;
+  
+  // Bonuses
+  if (matchesPreference(adult, occurrence)) penalties -= 1;
+  if (hasMoreRemainingMinutes(adult, context)) penalties -= 1;
+  
+  return penaltyFair + penalties;
+}
+
+// Generate explanation reasons
+function generateReasons(adult: Adult, occurrence: Occurrence, context: Context): string[] {
+  const reasons: string[] = [];
+  
+  if (hasMoreRemainingMinutes(adult, context)) {
+    reasons.push("meer_minuten_beschikbaar_dan_partner");
+  }
+  
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[dayOfWeek];
+  
+  if (WEEKNIGHTS.includes(dayName) && !exceedsWeeknightCap(adult, occurrence, context)) {
+    reasons.push("avondslot_binnen_limiet_30min");
+  }
+  
+  if (!conflictsBlackout(adult, occurrence)) {
+    reasons.push("geen_conflict_met_blokken");
+  }
+  
+  if (matchesPreference(adult, occurrence)) {
+    reasons.push("voorkeur_match_taken");
+  }
+  
+  if (!stacksSameEvening(adult, occurrence, context)) {
+    reasons.push("vermijdt_stapeling_zelfde_avond");
+  }
+  
+  return reasons;
+}
+
+// Update context after assignment
+function updateContext(context: Context, adult: Adult, occurrence: Occurrence): void {
+  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  
+  context.load[adult.id] = (context.load[adult.id] || 0) + units;
+  context.totalLoad += units;
+  
+  // Update weeknight load
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[dayOfWeek];
+  
+  if (WEEKNIGHTS.includes(dayName)) {
+    if (!context.weeknightLoad[adult.id]) context.weeknightLoad[adult.id] = 0;
+    context.weeknightLoad[adult.id] += units;
+  }
+  
+  // Update evening load
+  if (occurrence.time_slot.start >= "18:00") {
+    if (!context.eveningLoad[adult.id]) context.eveningLoad[adult.id] = {};
+    if (!context.eveningLoad[adult.id][occurrence.date]) context.eveningLoad[adult.id][occurrence.date] = 0;
+    context.eveningLoad[adult.id][occurrence.date] += units;
+  }
+  
+  // Update daily task count
+  if (!context.dailyTaskCount[adult.id]) context.dailyTaskCount[adult.id] = {};
+  if (!context.dailyTaskCount[adult.id][occurrence.date]) context.dailyTaskCount[adult.id][occurrence.date] = 0;
+  context.dailyTaskCount[adult.id][occurrence.date]++;
+}
+
+// Tie-breaker for equal scores
+function tieBreaker(adultA: Adult, adultB: Adult, occurrence: Occurrence, context: Context): number {
+  // Higher remaining minutes
+  const remainingA = adultA.weekly_time_budget - (context.load[adultA.id] || 0);
+  const remainingB = adultB.weekly_time_budget - (context.load[adultB.id] || 0);
+  
+  if (remainingA !== remainingB) return remainingB - remainingA;
+  
+  // Fewer tasks that day
+  const tasksA = context.dailyTaskCount[adultA.id]?.[occurrence.date] || 0;
+  const tasksB = context.dailyTaskCount[adultB.id]?.[occurrence.date] || 0;
+  
+  if (tasksA !== tasksB) return tasksA - tasksB;
+  
+  // Lower person_id (stable)
+  return adultA.id.localeCompare(adultB.id);
+}
+
+// Greedy assignment algorithm
+function greedyAssignment(occurrences: Occurrence[], adults: Adult[]): { assigned: Occurrence[], backlog: Occurrence[] } {
+  const assigned: Occurrence[] = [];
+  const backlog: Occurrence[] = [];
+  
+  // Initialize context
+  const totalBudget = adults.reduce((sum, a) => sum + a.weekly_time_budget, 0);
+  const context: Context = {
+    adults,
+    totalLoad: 0,
+    load: {},
+    targetShare: {},
+    weeknightLoad: {},
+    dailyTaskCount: {},
+    eveningLoad: {}
+  };
+  
+  // Calculate target shares
+  adults.forEach(adult => {
+    context.targetShare[adult.id] = adult.weekly_time_budget / totalBudget;
+    context.load[adult.id] = 0;
+  });
+  
+  // Sort occurrences by priority (difficulty DESC, duration DESC)
+  const sortedOccurrences = [...occurrences].sort((a, b) => {
+    if (a.task_difficulty !== b.task_difficulty) return b.task_difficulty - a.task_difficulty;
+    if (a.task_duration !== b.task_duration) return b.task_duration - a.task_duration;
+    return a.id.localeCompare(b.id);
+  });
+  
+  // Assign each occurrence
+  for (const occurrence of sortedOccurrences) {
+    let bestAdult: Adult | null = null;
+    let bestScore = Infinity;
+    
+    // Find best adult for this occurrence
+    for (const adult of adults) {
+      const score = candidateScore(adult, occurrence, context);
       
-      assignments.push({
-        id: `${task.id}-${weekStart}-${dayOffset}`,
-        task_id: task.id,
-        task_name: task.name,
-        task_duration: task.default_duration,
-        task_category: task.category,
-        date: assignedDate.toISOString().split('T')[0],
-        assigned_person_id: assignedPerson.id,
-        assigned_person_name: assignedPerson.first_name,
-        status: 'scheduled'
-      });
-    });
+      if (score < bestScore || (score === bestScore && bestAdult && tieBreaker(adult, bestAdult, occurrence, context) < 0)) {
+        bestScore = score;
+        bestAdult = adult;
+      }
+    }
+    
+    if (bestAdult && bestScore < Infinity) {
+      // Assign to best adult
+      const assignedOccurrence = {
+        ...occurrence,
+        assigned_person_id: bestAdult.id,
+        assigned_person_name: bestAdult.first_name,
+        rationale: {
+          reasons: generateReasons(bestAdult, occurrence, context)
+        }
+      };
+      
+      assigned.push(assignedOccurrence);
+      updateContext(context, bestAdult, occurrence);
+    } else {
+      // Move to backlog
+      backlog.push({ ...occurrence, status: 'backlog' as const });
+    }
+  }
+  
+  return { assigned, backlog };
+}
+
+// Main fairness allocation function
+function generateTaskAssignments(tasks: any[], people: any[], weekStart: string, idempotencyKey: string): any[] {
+  const startTime = Date.now();
+  
+  // Filter adults
+  const adults: Adult[] = people.filter((p: any) => p && (p.role === "adult" || !p.role));
+  
+  if (adults.length === 0) {
+    console.warn("No adults found for assignment");
+    return [];
+  }
+  
+  // Stabilize inputs for determinism
+  const { sortedTasks, sortedAdults } = stabilizeInputs(tasks, adults, idempotencyKey);
+  
+  // Expand tasks to occurrences
+  const occurrences = expandTaskOccurrences(sortedTasks, weekStart);
+  
+  console.log(`Expanded ${occurrences.length} occurrences from ${sortedTasks.length} tasks`);
+  
+  // Greedy assignment
+  const { assigned, backlog } = greedyAssignment(occurrences, sortedAdults);
+  
+  // Convert to expected format
+  const assignments = assigned.map(occ => ({
+    id: occ.id,
+    task_id: occ.task_id,
+    task_name: occ.task_name,
+    task_duration: occ.task_duration,
+    task_category: occ.task_category,
+    date: occ.date,
+    assigned_person_id: occ.assigned_person_id,
+    assigned_person_name: occ.assigned_person_name,
+    status: occ.status,
+    rationale: occ.rationale
+  }));
+  
+  // Log performance
+  const duration = Date.now() - startTime;
+  console.log({
+    occ_total: assigned.length,
+    backlog_count: backlog.length,
+    duration_ms: duration
   });
   
   return assignments.sort((a, b) => a.date.localeCompare(b.date));
@@ -127,21 +599,51 @@ serve(async (req) => {
     console.log("Full active tasks:", fullActiveTasks.length, fullActiveTasks);
     console.log("Filtered adults:", adults.length, adults);
     
-    // Calculate fairness score
-    let fairness = 85;
-    if (adults.length >= 2) {
-      const budgets = adults.map((a: any) => Number(a?.weekly_time_budget || 0));
-      const max = Math.max(...budgets, 1);
-      const min = Math.min(...budgets, 0);
-      const diff = max - min;
-      fairness = Math.max(50, Math.min(98, Math.round(98 - (diff / (max || 1)) * 30)));
-    }
-
-    // Generate task assignments
-    const assignments = generateTaskAssignments(fullActiveTasks, adults, week_start);
-    const occurrences = assignments.length;
-
     const plan_id = input?.idempotency_key || `${household_id}-${week_start}`;
+
+    // Generate task assignments with fairness allocation engine
+    const assignments = generateTaskAssignments(fullActiveTasks, adults, week_start, plan_id);
+    const occurrences = assignments.length;
+    const backlogCount = assignments.filter(a => a.status === 'backlog').length;
+
+    // Calculate proportional fairness score
+    let fairness = 85;
+    const adult_loads: { [key: string]: { actual_minutes: number; target_minutes: number; share_percentage: number } } = {};
+    
+    if (adults.length >= 2) {
+      const totalBudget = adults.reduce((sum, a) => sum + Number(a.weekly_time_budget || 0), 0);
+      const actualLoads: { [key: string]: number } = {};
+      
+      // Calculate actual loads from assignments
+      assignments.forEach(assignment => {
+        if (assignment.assigned_person_id && assignment.status === 'scheduled') {
+          const difficulty = fullActiveTasks.find(t => t.id === assignment.task_id)?.difficulty || 1;
+          const units = assignment.task_duration * DIFFICULTY_WEIGHTS[difficulty];
+          actualLoads[assignment.assigned_person_id] = (actualLoads[assignment.assigned_person_id] || 0) + units;
+        }
+      });
+      
+      const totalActualLoad = Object.values(actualLoads).reduce((sum, load) => sum + load, 0);
+      
+      // Calculate proportional fairness
+      let totalDeviation = 0;
+      adults.forEach(adult => {
+        const targetShare = adult.weekly_time_budget / totalBudget;
+        const actualLoad = actualLoads[adult.id] || 0;
+        const actualShare = totalActualLoad > 0 ? actualLoad / totalActualLoad : 0;
+        const deviation = Math.abs(actualShare - targetShare);
+        totalDeviation += deviation;
+        
+        adult_loads[adult.id] = {
+          actual_minutes: Math.round(actualLoad),
+          target_minutes: adult.weekly_time_budget,
+          share_percentage: Math.round(actualShare * 100)
+        };
+      });
+      
+      // Convert to 0-100 score with soft cap
+      fairness = Math.max(20, Math.min(98, Math.round(95 - (totalDeviation * 100))));
+    }
 
     const data = { 
       plan_id, 
@@ -151,7 +653,9 @@ serve(async (req) => {
       timezone,
       assignments,
       people: adults,
-      tasks: activeTaskIds.map(id => ({ id, active: true }))
+      tasks: activeTaskIds.map(id => ({ id, active: true })),
+      backlog_count: backlogCount,
+      adult_loads
     };
 
     return new Response(JSON.stringify(data), {
