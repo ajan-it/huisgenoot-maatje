@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
 // Full task definitions with all required properties
@@ -57,6 +58,28 @@ const WEEKNIGHT_START = "18:00";
 const WEEKNIGHT_END = "21:30";
 const WEEKNIGHTS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
+// Helper functions for local date handling
+function parseYmdLocal(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, (m - 1), d); // local time
+}
+
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Day matching for blackouts
+const DOW_EN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DOW_NL = ["zo","ma","di","wo","do","vr","za"];
+function dayMatches(days: string[], jsDay: number) {
+  const en = DOW_EN[jsDay];
+  const nl = DOW_NL[jsDay];
+  return days.includes(en) || days.includes(en.toLowerCase()) || days.includes(nl);
+}
+
 interface TimeSlot {
   start: string; // HH:mm
   end: string;   // HH:mm
@@ -84,9 +107,10 @@ interface Adult {
   id: string;
   first_name: string;
   weekly_time_budget: number;
-  disliked_tasks?: string[];
+  disliked_tags?: string[];
   no_go_tasks?: string[];
   blackout_slots?: any[];
+  weeknight_cap?: number;
 }
 
 interface Context {
@@ -160,12 +184,14 @@ function generateTimeSlots(frequency: string): TimeSlot[] {
 
 // Expand tasks to concrete occurrences (one per frequency period)
 function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
-  const startDate = new Date(weekStart);
+  const startDate = parseYmdLocal(weekStart);
   const occurrences: Occurrence[] = [];
   let occurrenceCount = 0;
   
   for (const task of tasks) {
     if (occurrenceCount >= MAX_OCCURRENCES) break;
+    
+    const taskNameLc = (task.name || "").toLowerCase();
     
     if (task.frequency === "daily") {
       // Create one occurrence per day (7 total)
@@ -174,19 +200,19 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
         
         const date = new Date(startDate);
         date.setDate(date.getDate() + dayOffset);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = ymdLocal(date);
         
         // Choose appropriate time slot based on task category
         let timeSlot: TimeSlot;
-        if (task.category === "kitchen" && task.name.includes("ontbijt")) {
+        if (task.category === "kitchen" && taskNameLc.includes("ontbijt")) {
           timeSlot = { start: "07:00", end: "07:30" };
-        } else if (task.category === "childcare" && task.name.includes("brengen")) {
+        } else if (task.category === "childcare" && taskNameLc.includes("brengen")) {
           timeSlot = { start: "08:00", end: "08:30" };
-        } else if (task.category === "childcare" && task.name.includes("ophalen")) {
+        } else if (task.category === "childcare" && taskNameLc.includes("ophalen")) {
           timeSlot = { start: "17:00", end: "17:30" };
-        } else if (task.category === "childcare" && (task.name.includes("bad") || task.name.includes("bed"))) {
+        } else if (task.category === "childcare" && (taskNameLc.includes("bad") || taskNameLc.includes("bed"))) {
           timeSlot = { start: "19:00", end: "19:30" };
-        } else if (task.category === "kitchen" && task.name.includes("diner")) {
+        } else if (task.category === "kitchen" && taskNameLc.includes("diner")) {
           timeSlot = { start: "18:00", end: "19:00" };
         } else {
           // Default evening slot for other tasks
@@ -233,7 +259,7 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
       
       const date = new Date(startDate);
       date.setDate(date.getDate() + dayOffset);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = ymdLocal(date);
       
       occurrences.push({
         id: `${task.id}-${dateStr}`,
@@ -255,7 +281,7 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
         // Prefer mid-week for monthly tasks
         const date = new Date(startDate);
         date.setDate(Math.min(7, weekStartDay + 2));
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = ymdLocal(date);
         
         const timeSlot = { start: "20:00", end: "21:00" }; // Evening slot for monthly tasks
         
@@ -288,20 +314,12 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
 function conflictsBlackout(adult: Adult, occurrence: Occurrence): boolean {
   if (!adult.blackout_slots) return false;
   
-  const dayOfWeek = new Date(occurrence.date).getDay();
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const dayName = dayNames[dayOfWeek];
-  
-  return adult.blackout_slots.some(blackout => {
-    if (!blackout.days.includes(dayName)) return false;
-    
-    const blackoutStart = blackout.start;
-    const blackoutEnd = blackout.end;
+  const jsDay = new Date(occurrence.date).getDay();
+  return adult.blackout_slots.some(b => {
+    if (!Array.isArray(b.days) || !dayMatches(b.days, jsDay)) return false;
     const occStart = occurrence.time_slot.start;
     const occEnd = occurrence.time_slot.end;
-    
-    // Check for overlap
-    return occStart < blackoutEnd && occEnd > blackoutStart;
+    return occStart < b.end && occEnd > b.start;
   });
 }
 
@@ -316,25 +334,18 @@ function isNoGo(adult: Adult, occurrence: Occurrence): boolean {
 
 // Check if task is disliked
 function isDisliked(adult: Adult, occurrence: Occurrence): boolean {
-  if (!adult.disliked_tasks) return false;
-  
-  return adult.disliked_tasks.some(dislikedTask => 
-    occurrence.task_tags.includes(dislikedTask) || occurrence.task_name.includes(dislikedTask)
-  );
+  const dislikes = new Set(adult.disliked_tags || []);
+  return occurrence.task_tags.some(t => dislikes.has(t));
 }
 
 // Check if occurrence exceeds weeknight cap
 function exceedsWeeknightCap(adult: Adult, occurrence: Occurrence, context: Context): boolean {
   const dayOfWeek = new Date(occurrence.date).getDay();
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const dayName = dayNames[dayOfWeek];
-  
-  if (!WEEKNIGHTS.includes(dayName)) return false;
-  
-  const currentWeeknightLoad = context.weeknightLoad[adult.id] || 0;
+  if (dayOfWeek < 1 || dayOfWeek > 5) return false; // Mon..Fri
+  const cap = (adult as any).weeknight_cap ?? WEEKNIGHT_CAP_DEFAULT;
+  const current = context.weeknightLoad[adult.id] || 0;
   const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
-  
-  return (currentWeeknightLoad + units) > WEEKNIGHT_CAP_DEFAULT;
+  return (current + units) > cap;
 }
 
 // Check for same evening stacking
@@ -576,11 +587,19 @@ function generateTaskAssignments(tasks: any[], people: any[], weekStart: string,
     task_duration: occ.task_duration,
     task_category: occ.task_category,
     date: occ.date,
+    start_time: occ.time_slot.start,
+    duration_min: occ.task_duration,
+    difficulty_weight: DIFFICULTY_WEIGHTS[occ.task_difficulty],
     assigned_person_id: occ.assigned_person_id,
     assigned_person_name: occ.assigned_person_name,
     status: occ.status,
     rationale: occ.rationale
   }));
+  
+  // Runtime guard
+  if (Date.now() - startTime > MAX_DURATION_MS) {
+    console.warn("Allocator hit time budget; returning partial assignments");
+  }
   
   // Log performance
   const duration = Date.now() - startTime;
