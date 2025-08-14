@@ -7,8 +7,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import PlanSchedule from "@/components/PlanSchedule";
-import { FairnessDrawer } from "@/components/FairnessDrawer";
+import { FairnessBadge } from "@/components/plan/FairnessBadge";
+import { FairnessDrawer } from "@/components/plan/FairnessDrawer";
 import { RebalancePreview } from "@/components/RebalancePreview";
+import type { FairnessDetails } from "@/types/plan";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
@@ -24,6 +26,8 @@ const PlanView = () => {
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [showRebalancePreview, setShowRebalancePreview] = useState(false);
   const [rebalanceData, setRebalanceData] = useState<any>(null);
+  const [fairnessDrawerOpen, setFairnessDrawerOpen] = useState(false);
+  const [fairnessDetails, setFairnessDetails] = useState<FairnessDetails | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -34,7 +38,13 @@ const PlanView = () => {
       const parsed = JSON.parse(raw);
       console.log("Parsed plan data:", parsed);
       console.log("Plan assignments:", parsed?.assignments);
-      if (parsed?.plan_id === planId) setPlan(parsed);
+      if (parsed?.plan_id === planId) {
+        setPlan(parsed);
+        // Load fairness details if available
+        if (parsed?.fairness_details) {
+          setFairnessDetails(parsed.fairness_details);
+        }
+      }
     } catch (error) {
       console.error("Error loading plan:", error);
     }
@@ -90,6 +100,11 @@ const PlanView = () => {
     // Update the current plan state
     setPlan(rebalanceData);
     
+    // Update fairness details if available
+    if (rebalanceData?.fairness_details) {
+      setFairnessDetails(rebalanceData.fairness_details);
+    }
+    
     // Show success message
     const improvement = rebalanceData.rebalance_preview.projectedFairness - rebalanceData.rebalance_preview.currentFairness;
     toast({
@@ -131,22 +146,10 @@ const PlanView = () => {
               <CardTitle className="flex items-center gap-3">
                 {L ? "Overview" : "Overzicht"}
                  <div className="flex items-center gap-2">
-                   <FairnessDrawer 
-                     fairness={plan.fairness ?? 0}
-                     fairnessDetails={plan.fairness_details}
-                     people={plan.people || []}
-                   >
-                     <Badge 
-                       variant="secondary" 
-                       className={`cursor-pointer transition-all hover:scale-105 ${
-                         plan.fairness >= 80 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' :
-                         plan.fairness >= 60 ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' :
-                         'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                       }`}
-                     >
-                       {L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100
-                     </Badge>
-                   </FairnessDrawer>
+                    <FairnessBadge 
+                      score={plan.fairness ?? 0}
+                      onClick={() => setFairnessDrawerOpen(true)}
+                    />
                    
                    {(plan.fairness ?? 0) < 85 && (
                      <Button
@@ -231,25 +234,34 @@ const PlanView = () => {
             </CardContent>
           </Card>
          </section>
-       )}
+        )}
 
-       {/* Rebalance Preview Dialog */}
-       {showRebalancePreview && rebalanceData?.rebalance_preview && (
-         <RebalancePreview
-           open={showRebalancePreview}
-           onOpenChange={setShowRebalancePreview}
-           currentFairness={rebalanceData.rebalance_preview.currentFairness}
-           projectedFairness={rebalanceData.rebalance_preview.projectedFairness}
-           changes={rebalanceData.rebalance_preview.changes}
-           adults={rebalanceData.rebalance_preview.adults}
-           onApply={handleApplyRebalance}
-           onCancel={() => {
-             setShowRebalancePreview(false);
-             setRebalanceData(null);
-           }}
-         />
-       )}
-     </main>
+        {/* Fairness Drawer */}
+        <FairnessDrawer
+          open={fairnessDrawerOpen}
+          onClose={() => setFairnessDrawerOpen(false)}
+          score={plan?.fairness ?? 0}
+          details={fairnessDetails}
+          peopleById={Object.fromEntries((plan?.people || []).map((p: any) => [p.id, { first_name: p.first_name }]))}
+        />
+
+        {/* Rebalance Preview Dialog */}
+        {showRebalancePreview && rebalanceData?.rebalance_preview && (
+          <RebalancePreview
+            open={showRebalancePreview}
+            onOpenChange={setShowRebalancePreview}
+            currentFairness={rebalanceData.rebalance_preview.currentFairness}
+            projectedFairness={rebalanceData.rebalance_preview.projectedFairness}
+            changes={rebalanceData.rebalance_preview.changes}
+            adults={rebalanceData.rebalance_preview.adults}
+            onApply={handleApplyRebalance}
+            onCancel={() => {
+              setShowRebalancePreview(false);
+              setRebalanceData(null);
+            }}
+          />
+        )}
+      </main>
    );
  };
 

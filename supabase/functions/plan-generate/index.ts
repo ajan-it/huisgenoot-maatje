@@ -838,6 +838,12 @@ serve(async (req) => {
         contributors.disliked_assignments[adult.id] = 0;
       });
 
+      // Track evening workload per person per date for accurate evening analysis
+      const eveningWorkload: Record<string, Record<string, { count: number; minutes: number }>> = {};
+      adults.forEach(adult => {
+        eveningWorkload[adult.id] = {};
+      });
+
       // Analyze assignments for contributors
       assignments.forEach(assignment => {
         if (assignment.status === 'backlog' || !assignment.assigned_person_id) return;
@@ -847,7 +853,7 @@ serve(async (req) => {
         
         const assignmentDate = new Date(assignment.date);
         const dayOfWeek = assignmentDate.getDay(); // 0=Sunday, 1=Monday, etc.
-        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5; // Mon-Fri
+        const isWeeknight = dayOfWeek >= 1 && dayOfWeek <= 5; // Mon-Fri
         
         // Check for disliked assignments
         const task = fullActiveTasks.find(t => t.id === assignment.task_id);
@@ -858,15 +864,41 @@ serve(async (req) => {
           }
         }
         
-        // Check for stacking violations (simplified - tasks >= 45 min)
-        if (assignment.task_duration >= 45) {
-          contributors.stacking_violations[person.id]++;
-        }
+        // Check if this is an evening task (18:00-21:30 on weeknights)
+        const taskStartTime = "18:00"; // Default evening start for analysis
+        const isEveningTask = isWeeknight && (
+          assignment.task_category === 'childcare' ||
+          assignment.task_name.toLowerCase().includes('diner') ||
+          assignment.task_name.toLowerCase().includes('bedtijd') ||
+          assignment.task_name.toLowerCase().includes('baddertijd')
+        );
         
-        // Check weeknight cap violations (simplified)
-        if (isWeekday && person.weeknight_cap && assignment.task_duration > person.weeknight_cap) {
-          contributors.evenings_over_cap[person.id]++;
+        if (isEveningTask) {
+          const dateKey = assignment.date;
+          if (!eveningWorkload[person.id][dateKey]) {
+            eveningWorkload[person.id][dateKey] = { count: 0, minutes: 0 };
+          }
+          eveningWorkload[person.id][dateKey].count++;
+          eveningWorkload[person.id][dateKey].minutes += assignment.task_duration;
         }
+      });
+
+      // Analyze evening workload patterns
+      adults.forEach(adult => {
+        const weeknightCap = adult.weeknight_cap || WEEKNIGHT_CAP_DEFAULT;
+        const evenings = eveningWorkload[adult.id];
+        
+        Object.values(evenings).forEach(evening => {
+          // Evening over cap violations
+          if (evening.minutes > weeknightCap) {
+            contributors.evenings_over_cap[adult.id]++;
+          }
+          
+          // Stacking violations (3+ tasks or 60+ minutes in one evening)
+          if (evening.count >= 3 || evening.minutes >= 60) {
+            contributors.stacking_violations[adult.id]++;
+          }
+        });
       });
 
       adults.forEach(adult => {
@@ -885,10 +917,15 @@ serve(async (req) => {
           share_percentage: Math.round(actualShare * 100)
         };
         
+        const actualPoints = Math.round(actualLoad);
+        const targetPoints = Math.round(targetShare * totalActualLoad);
+        
         fairness_adults.push({
           person_id: adult.id,
           actual_minutes: actualMinutes,
+          actual_points: actualPoints,
           target_minutes: targetMinutes,
+          target_points: targetPoints,
           actual_share: Math.round(actualShare * 100) / 100,
           target_share: Math.round(targetShare * 100) / 100,
           delta_minutes: actualMinutes - targetMinutes,
