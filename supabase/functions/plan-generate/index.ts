@@ -158,7 +158,7 @@ function generateTimeSlots(frequency: string): TimeSlot[] {
   }
 }
 
-// Expand tasks to concrete occurrences
+// Expand tasks to concrete occurrences (one per frequency period)
 function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
   const startDate = new Date(weekStart);
   const occurrences: Occurrence[] = [];
@@ -167,10 +167,8 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
   for (const task of tasks) {
     if (occurrenceCount >= MAX_OCCURRENCES) break;
     
-    const timeSlots = generateTimeSlots(task.frequency);
-    
     if (task.frequency === "daily") {
-      // Generate for all 7 days
+      // Create one occurrence per day (7 total)
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         if (occurrenceCount >= MAX_OCCURRENCES) break;
         
@@ -178,78 +176,102 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
         date.setDate(date.getDate() + dayOffset);
         const dateStr = date.toISOString().split('T')[0];
         
-        for (const timeSlot of timeSlots) {
-          if (occurrenceCount >= MAX_OCCURRENCES) break;
-          
-          occurrences.push({
-            id: `${task.id}-${dateStr}-${timeSlot.start}`,
-            task_id: task.id,
-            task_name: task.name,
-            task_duration: task.default_duration,
-            task_difficulty: task.difficulty,
-            task_category: task.category,
-            task_tags: task.tags || [],
-            date: dateStr,
-            time_slot: timeSlot,
-            status: 'scheduled'
-          });
-          occurrenceCount++;
+        // Choose appropriate time slot based on task category
+        let timeSlot: TimeSlot;
+        if (task.category === "kitchen" && task.name.includes("ontbijt")) {
+          timeSlot = { start: "07:00", end: "07:30" };
+        } else if (task.category === "childcare" && task.name.includes("brengen")) {
+          timeSlot = { start: "08:00", end: "08:30" };
+        } else if (task.category === "childcare" && task.name.includes("ophalen")) {
+          timeSlot = { start: "17:00", end: "17:30" };
+        } else if (task.category === "childcare" && (task.name.includes("bad") || task.name.includes("bed"))) {
+          timeSlot = { start: "19:00", end: "19:30" };
+        } else if (task.category === "kitchen" && task.name.includes("diner")) {
+          timeSlot = { start: "18:00", end: "19:00" };
+        } else {
+          // Default evening slot for other tasks
+          timeSlot = { start: "20:00", end: "20:30" };
         }
+        
+        occurrences.push({
+          id: `${task.id}-${dateStr}`,
+          task_id: task.id,
+          task_name: task.name,
+          task_duration: task.default_duration,
+          task_difficulty: task.difficulty,
+          task_category: task.category,
+          task_tags: task.tags || [],
+          date: dateStr,
+          time_slot: timeSlot,
+          status: 'scheduled'
+        });
+        occurrenceCount++;
       }
     } else if (task.frequency === "weekly") {
-      // Generate for optimal days in the week
-      const optimalDays = [1, 3, 5]; // Tue, Thu, Sat
+      // Create one occurrence per week
+      let dayOffset: number;
+      let timeSlot: TimeSlot;
       
-      for (const dayOffset of optimalDays) {
-        if (occurrenceCount >= MAX_OCCURRENCES) break;
-        
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + dayOffset);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        for (const timeSlot of timeSlots) {
-          if (occurrenceCount >= MAX_OCCURRENCES) break;
-          
-          occurrences.push({
-            id: `${task.id}-${dateStr}-${timeSlot.start}`,
-            task_id: task.id,
-            task_name: task.name,
-            task_duration: task.default_duration,
-            task_difficulty: task.difficulty,
-            task_category: task.category,
-            task_tags: task.tags || [],
-            date: dateStr,
-            time_slot: timeSlot,
-            status: 'scheduled'
-          });
-          occurrenceCount++;
-        }
+      // Choose day and time based on task category
+      if (task.category === "cleaning" && (task.name.includes("was") || task.name.includes("bed"))) {
+        dayOffset = 6; // Sunday for laundry/bed changing
+        timeSlot = { start: "10:00", end: "11:00" };
+      } else if (task.category === "errands" || task.name.includes("boodschappen")) {
+        dayOffset = 5; // Saturday for errands
+        timeSlot = { start: "10:00", end: "11:00" };
+      } else if (task.category === "cleaning" && task.name.includes("schoonmaak")) {
+        dayOffset = 5; // Saturday for deep cleaning
+        timeSlot = { start: "14:00", end: "15:00" };
+      } else if (task.category === "admin") {
+        dayOffset = 6; // Sunday for admin tasks
+        timeSlot = { start: "20:00", end: "20:30" };
+      } else {
+        // Default to Wednesday evening
+        dayOffset = 2;
+        timeSlot = { start: "20:00", end: "20:30" };
       }
+      
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + dayOffset);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      occurrences.push({
+        id: `${task.id}-${dateStr}`,
+        task_id: task.id,
+        task_name: task.name,
+        task_duration: task.default_duration,
+        task_difficulty: task.difficulty,
+        task_category: task.category,
+        task_tags: task.tags || [],
+        date: dateStr,
+        time_slot: timeSlot,
+        status: 'scheduled'
+      });
+      occurrenceCount++;
     } else if (task.frequency === "monthly") {
       // Only schedule if week contains 1st-7th of month
       const weekStartDay = startDate.getDate();
       if (weekStartDay <= 7) {
+        // Prefer mid-week for monthly tasks
         const date = new Date(startDate);
-        date.setDate(Math.min(7, weekStartDay + 2)); // Prefer Wed if possible
+        date.setDate(Math.min(7, weekStartDay + 2));
         const dateStr = date.toISOString().split('T')[0];
         
-        for (const timeSlot of timeSlots.slice(0, 2)) { // Fewer slots for monthly
-          if (occurrenceCount >= MAX_OCCURRENCES) break;
-          
-          occurrences.push({
-            id: `${task.id}-${dateStr}-${timeSlot.start}`,
-            task_id: task.id,
-            task_name: task.name,
-            task_duration: task.default_duration,
-            task_difficulty: task.difficulty,
-            task_category: task.category,
-            task_tags: task.tags || [],
-            date: dateStr,
-            time_slot: timeSlot,
-            status: 'scheduled'
-          });
-          occurrenceCount++;
-        }
+        const timeSlot = { start: "20:00", end: "21:00" }; // Evening slot for monthly tasks
+        
+        occurrences.push({
+          id: `${task.id}-${dateStr}`,
+          task_id: task.id,
+          task_name: task.name,
+          task_duration: task.default_duration,
+          task_difficulty: task.difficulty,
+          task_category: task.category,
+          task_tags: task.tags || [],
+          date: dateStr,
+          time_slot: timeSlot,
+          status: 'scheduled'
+        });
+        occurrenceCount++;
       }
     }
   }
