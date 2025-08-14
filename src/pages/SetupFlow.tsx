@@ -582,14 +582,14 @@ export default function SetupFlow() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <Label htmlFor={`min-week-${p.id}`}>Minuten per week</Label>
+                        <Label htmlFor={`min-week-${p.id}`}>{t("setupFlow.timePrefs.minutesPerWeek")}</Label>
                         <Button 
                           variant="secondary" 
                           size="sm" 
                           onClick={() => setEstimatorOpenFor(p.id)}
                           className="h-6 px-2 text-xs"
                         >
-                          Schatting maken
+                          {t("setupFlow.timePrefs.makeEstimate")}
                         </Button>
                       </div>
                       <Input
@@ -608,13 +608,12 @@ export default function SetupFlow() {
                         }}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Dit is je doel voor de hele week. De planner probeert jouw taken onder deze tijd te houden. 
-                        Richtlijn: 60–90 min = normaal, 30–45 = lichte week, 120+ = drukke week.
+                        {t("setupFlow.timePrefs.minutesPerWeekHelp")}
                       </p>
                     </div>
                     
                     <div>
-                      <Label htmlFor={`cap-weeknight-${p.id}`}>Max per doordeweekse avond (min)</Label>
+                      <Label htmlFor={`cap-weeknight-${p.id}`}>{t("setupFlow.timePrefs.maxWeeknightMinutes")}</Label>
                       <Input
                         id={`cap-weeknight-${p.id}`}
                         type="number"
@@ -631,15 +630,15 @@ export default function SetupFlow() {
                         }}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Tussen 18:00–21:30 proberen we niet over deze limiet te gaan. Handig om 'avondstress' te vermijden.
+                        {t("setupFlow.timePrefs.maxWeeknightMinutesHelp")}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <Label>Niet-leuk (tags)</Label>
+                    <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Vermijden we voor jou als het kan. Als er geen andere optie is, kunnen ze toch bij jou landen.
+                      {t("setupFlow.timePrefs.dislikedTagsHelp")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => {
@@ -673,9 +672,9 @@ export default function SetupFlow() {
                   </div>
 
                   <div>
-                    <Label>No-go taken</Label>
+                    <Label>{t("setupFlow.timePrefs.noGoTasks")}</Label>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Plannen we niet voor jou. Gaat naar je partner of naar de backlog.
+                      {t("setupFlow.timePrefs.noGoTasksHelp")}
                     </p>
                     <div className="grid sm:grid-cols-2 gap-2 max-h-64 overflow-auto pr-1">
                       {SEED_TASKS.map((t) => {
@@ -715,7 +714,7 @@ export default function SetupFlow() {
                 <div className="border rounded-lg p-4 bg-muted/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Info className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Fairness hint</span>
+                    <span className="text-sm font-medium">{t("setupFlow.fairnessHint.title")}</span>
                   </div>
                   <TargetSplitHint 
                     aMinutes={draft.people.filter(p => p.role === "adult")[0]?.weekly_time_budget ?? 0}
