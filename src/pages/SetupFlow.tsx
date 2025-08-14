@@ -8,6 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
 import { useMemo, useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
+import TimeBudgetEstimator from "@/components/setup/TimeBudgetEstimator";
+import TargetSplitHint from "@/components/setup/TargetSplitHint";
+import { Info } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
 import { PLAN_WEBHOOK_URL, PLAN_WEBHOOK_SECRET, TIMEZONE } from "@/config";
@@ -58,6 +61,7 @@ export default function SetupFlow() {
   const [generating, setGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const lastPayloadRef = useRef<any>(null);
+  const [estimatorOpenFor, setEstimatorOpenFor] = useState<null | string>(null);
 
   const title = useMemo(() => `${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`, [step, t, steps]);
 
@@ -571,11 +575,23 @@ export default function SetupFlow() {
               <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {draft.people.filter((p) => p.role === "adult").map((p) => (
+              {draft.people.filter((p) => p.role === "adult").map((p, index) => (
                 <div key={p.id} className="border rounded-lg p-4 space-y-4">
+                  <h3 className="font-medium text-lg">{p.first_name}</h3>
+                  
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <Label htmlFor={`min-week-${p.id}`}>Minuten per week</Label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Label htmlFor={`min-week-${p.id}`}>Minuten per week</Label>
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          onClick={() => setEstimatorOpenFor(p.id)}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Schatting maken
+                        </Button>
+                      </div>
                       <Input
                         id={`min-week-${p.id}`}
                         type="number"
@@ -591,7 +607,12 @@ export default function SetupFlow() {
                           if (e.currentTarget.value === "") updatePerson(p.id, { weekly_time_budget: 90 });
                         }}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Dit is je doel voor de hele week. De planner probeert jouw taken onder deze tijd te houden. 
+                        Richtlijn: 60–90 min = normaal, 30–45 = lichte week, 120+ = drukke week.
+                      </p>
                     </div>
+                    
                     <div>
                       <Label htmlFor={`cap-weeknight-${p.id}`}>Max per doordeweekse avond (min)</Label>
                       <Input
@@ -609,12 +630,18 @@ export default function SetupFlow() {
                           if (e.currentTarget.value === "") updatePerson(p.id, { weeknight_cap: 30 });
                         }}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Tussen 18:00–21:30 proberen we niet over deze limiet te gaan. Handig om 'avondstress' te vermijden.
+                      </p>
                     </div>
                   </div>
 
                   <div>
                     <Label>Niet-leuk (tags)</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Vermijden we voor jou als het kan. Als er geen andere optie is, kunnen ze toch bij jou landen.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => {
                         const active = (p.disliked_tags || []).includes(tag);
                         return (
@@ -647,7 +674,10 @@ export default function SetupFlow() {
 
                   <div>
                     <Label>No-go taken</Label>
-                    <div className="grid sm:grid-cols-2 gap-2 mt-2 max-h-64 overflow-auto pr-1">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Plannen we niet voor jou. Gaat naar je partner of naar de backlog.
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2 max-h-64 overflow-auto pr-1">
                       {SEED_TASKS.map((t) => {
                         const checked = (p.no_go_tasks || []).includes(t.id);
                         return (
@@ -680,6 +710,20 @@ export default function SetupFlow() {
                 </div>
               ))}
 
+              {/* Target split hint after both adults */}
+              {draft.people.filter(p => p.role === "adult").length === 2 && (
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Fairness hint</span>
+                  </div>
+                  <TargetSplitHint 
+                    aMinutes={draft.people.filter(p => p.role === "adult")[0]?.weekly_time_budget ?? 0}
+                    bMinutes={draft.people.filter(p => p.role === "adult")[1]?.weekly_time_budget ?? 0}
+                  />
+                </div>
+              )}
+
               <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" onClick={onBack}>
                   {t("setupFlow.household.back")}
@@ -690,6 +734,20 @@ export default function SetupFlow() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Time Budget Estimator Dialog */}
+        {estimatorOpenFor && (
+          <TimeBudgetEstimator
+            open={true}
+            onOpenChange={() => setEstimatorOpenFor(null)}
+            personName={draft.people.find(p => p.id === estimatorOpenFor)?.first_name ?? ""}
+            initialMinutes={draft.people.find(p => p.id === estimatorOpenFor)?.weekly_time_budget ?? 60}
+            onApply={(minutes) => {
+              updatePerson(estimatorOpenFor, { weekly_time_budget: minutes });
+              setEstimatorOpenFor(null);
+            }}
+          />
         )}
 
         {step === 4 && (
