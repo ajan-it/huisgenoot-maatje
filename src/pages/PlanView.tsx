@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import PlanSchedule from "@/components/PlanSchedule";
+import { FairnessDrawer } from "@/components/FairnessDrawer";
 
 const PlanView = () => {
   const { planId } = useParams();
@@ -61,7 +62,22 @@ const PlanView = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
                 {L ? "Overview" : "Overzicht"}
-                <Badge variant="secondary">{L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100</Badge>
+                <FairnessDrawer 
+                  fairness={plan.fairness ?? 0}
+                  fairnessDetails={plan.fairness_details}
+                  people={plan.people || []}
+                >
+                  <Badge 
+                    variant="secondary" 
+                    className={`cursor-pointer transition-all hover:scale-105 ${
+                      plan.fairness >= 80 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' :
+                      plan.fairness >= 60 ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' :
+                      'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    }`}
+                  >
+                    {L ? "Fairness" : "Eerlijkheid"}: {plan.fairness ?? 0}/100
+                  </Badge>
+                </FairnessDrawer>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">

@@ -630,6 +630,13 @@ serve(async (req) => {
 
     // Calculate proportional fairness score
     let fairness = 85;
+    let fairness_adults: any[] = [];
+    let contributors = {
+      evenings_over_cap: {} as Record<string, number>,
+      stacking_violations: {} as Record<string, number>,
+      disliked_assignments: {} as Record<string, number>
+    };
+    let fairnessColor = 'yellow';
     const adult_loads: { [key: string]: { actual_minutes: number; target_minutes: number; share_percentage: number } } = {};
     
     if (adults.length >= 2) {
@@ -647,8 +654,53 @@ serve(async (req) => {
       
       const totalActualLoad = Object.values(actualLoads).reduce((sum, load) => sum + load, 0);
       
-      // Calculate proportional fairness
+      // Calculate proportional fairness and detailed breakdown
       let totalDeviation = 0;
+      fairness_adults = [];
+      contributors = {
+        evenings_over_cap: {} as Record<string, number>,
+        stacking_violations: {} as Record<string, number>,
+        disliked_assignments: {} as Record<string, number>
+      };
+
+      // Initialize contributor counters
+      adults.forEach(adult => {
+        contributors.evenings_over_cap[adult.id] = 0;
+        contributors.stacking_violations[adult.id] = 0;
+        contributors.disliked_assignments[adult.id] = 0;
+      });
+
+      // Analyze assignments for contributors
+      assignments.forEach(assignment => {
+        if (assignment.status === 'backlog' || !assignment.assigned_person_id) return;
+        
+        const person = adults.find(a => a.id === assignment.assigned_person_id);
+        if (!person) return;
+        
+        const assignmentDate = new Date(assignment.date);
+        const dayOfWeek = assignmentDate.getDay(); // 0=Sunday, 1=Monday, etc.
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5; // Mon-Fri
+        
+        // Check for disliked assignments
+        const task = fullActiveTasks.find(t => t.id === assignment.task_id);
+        if (task && person.disliked_tags) {
+          const hasDislikedTag = task.tags.some(tag => person.disliked_tags.includes(tag));
+          if (hasDislikedTag) {
+            contributors.disliked_assignments[person.id]++;
+          }
+        }
+        
+        // Check for stacking violations (simplified - tasks >= 45 min)
+        if (assignment.task_duration >= 45) {
+          contributors.stacking_violations[person.id]++;
+        }
+        
+        // Check weeknight cap violations (simplified)
+        if (isWeekday && person.weeknight_cap && assignment.task_duration > person.weeknight_cap) {
+          contributors.evenings_over_cap[person.id]++;
+        }
+      });
+
       adults.forEach(adult => {
         const targetShare = adult.weekly_time_budget / totalBudget;
         const actualLoad = actualLoads[adult.id] || 0;
@@ -656,22 +708,45 @@ serve(async (req) => {
         const deviation = Math.abs(actualShare - targetShare);
         totalDeviation += deviation;
         
+        const actualMinutes = Math.round(actualLoad);
+        const targetMinutes = Math.round((adult.weekly_time_budget / totalBudget) * totalActualLoad);
+        
         adult_loads[adult.id] = {
-          actual_minutes: Math.round(actualLoad),
+          actual_minutes: actualMinutes,
           target_minutes: adult.weekly_time_budget,
           share_percentage: Math.round(actualShare * 100)
         };
+        
+        fairness_adults.push({
+          person_id: adult.id,
+          actual_minutes: actualMinutes,
+          target_minutes: targetMinutes,
+          actual_share: Math.round(actualShare * 100) / 100,
+          target_share: Math.round(targetShare * 100) / 100,
+          delta_minutes: actualMinutes - targetMinutes,
+          delta_share: Math.round((actualShare - targetShare) * 100) / 100
+        });
       });
       
       // Convert to 0-100 score with soft cap
       fairness = Math.max(20, Math.min(98, Math.round(95 - (totalDeviation * 100))));
+      
+      // Determine color based on score
+      fairnessColor = fairness >= 80 ? 'green' : fairness >= 60 ? 'yellow' : 'red';
     }
 
     const data = { 
+      version: "2025-08-14",
       plan_id, 
       week_start, 
       occurrences, 
+      backlog: backlogCount,
       fairness, 
+      fairness_details: {
+        adults: fairness_adults,
+        contributors,
+        color: fairnessColor
+      },
       timezone,
       assignments,
       people: adults,
