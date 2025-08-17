@@ -728,19 +728,10 @@ export default function SetupFlow() {
                 </div>
               ))}
 
-              {/* Target split hint after both adults */}
-              {draft.people.filter(p => p.role === "adult").length === 2 && (
-                <div className="border rounded-lg p-4 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{t("setupFlow.fairnessHint.title")}</span>
-                  </div>
-        <MinutesHelperSheet 
-          open={helperSheetOpen}
-          onOpenChange={setHelperSheetOpen}
-        />
-                </div>
-              )}
+              {/* Target split hint after all adults */}
+              <TargetSplitHint 
+                adultsMinutes={draft.people.filter(p => p.role === "adult").map(p => p.weekly_time_budget || 0)}
+              />
 
               <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" onClick={onBack}>
@@ -767,6 +758,12 @@ export default function SetupFlow() {
             }}
           />
         )}
+
+        {/* Minutes Helper Sheet */}
+        <MinutesHelperSheet 
+          open={helperSheetOpen}
+          onOpenChange={setHelperSheetOpen}
+        />
 
         {step === 4 && (
           <Card>

@@ -459,8 +459,8 @@ export const dictionaries = {
       },
       tooltip: {
         light: "minimal week (few evenings, many blackouts)",
-        normal: "average activity level",
-        busy: "more cooking/laundry/trips or two small kids",
+        normal: "average busyness level",
+        busy: "more cooking/laundry/rides or two small kids",
       },
       helper: {
         title: "What's typical?",
