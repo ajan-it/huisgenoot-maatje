@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, Fragment } from "react";
 import { toast } from "@/hooks/use-toast";
 import TimeBudgetEstimator from "@/components/setup/TimeBudgetEstimator";
 import TargetSplitHint from "@/components/setup/TargetSplitHint";
@@ -581,7 +581,8 @@ export default function SetupFlow() {
             </CardHeader>
             <CardContent className="space-y-6">
               {draft.people.filter((p) => p.role === "adult").map((p, index) => (
-                <div key={p.id} className="border rounded-lg p-4 space-y-4">
+                <Fragment key={p.id}>
+                  <div className="border rounded-lg p-4 space-y-4">
                   <h3 className="font-medium text-lg">{p.first_name}</h3>
                   
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -732,7 +733,8 @@ export default function SetupFlow() {
                       })}
                     </div>
                   </div>
-                </div>
+                  </div>
+                </Fragment>
               ))}
 
               {/* Target split hint after all adults */}
