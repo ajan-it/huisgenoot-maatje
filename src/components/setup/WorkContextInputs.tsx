@@ -32,27 +32,27 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
   return (
     <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
       <h4 className="font-medium text-sm text-muted-foreground">
-        {t("setup.workContext.title")}
+        {t("setupFlow.workContext.title")}
       </h4>
       
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label>{t("setup.workContext.workplace")}</Label>
+          <Label>{t("setupFlow.workContext.workplace")}</Label>
           <Select value={person.work_location || "hybrid"} onValueChange={handleWorkLocationChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="office">{t("setup.workContext.office")}</SelectItem>
-              <SelectItem value="hybrid">{t("setup.workContext.hybrid")}</SelectItem>
-              <SelectItem value="home">{t("setup.workContext.home")}</SelectItem>
+              <SelectItem value="office">{t("setupFlow.workContext.office")}</SelectItem>
+              <SelectItem value="hybrid">{t("setupFlow.workContext.hybrid")}</SelectItem>
+              <SelectItem value="home">{t("setupFlow.workContext.home")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div>
           <Label htmlFor={`paid-hours-${person.id}`}>
-            {t("setup.workContext.paidHours")} (0–50)
+            {t("setupFlow.workContext.paidHours")} (0–50)
           </Label>
           <Input
             id={`paid-hours-${person.id}`}
@@ -69,7 +69,7 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
 
         <div>
           <Label htmlFor={`commute-${person.id}`}>
-            {t("setup.workContext.commuteMinutes")} (0–120)
+            {t("setupFlow.workContext.commuteMinutes")} (0–120)
           </Label>
           <Input
             id={`commute-${person.id}`}
@@ -85,7 +85,7 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
         </div>
 
         <div>
-          <Label>{t("setup.workContext.flexibility")}: {person.flexibility_score || 3}</Label>
+          <Label>{t("setupFlow.workContext.flexibility")}: {person.flexibility_score || 3}</Label>
           <div className="px-2">
             <Slider
               value={[person.flexibility_score || 3]}
@@ -97,22 +97,22 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
             />
           </div>
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>{t("setup.workContext.notFlexible")}</span>
-            <span>{t("setup.workContext.veryFlexible")}</span>
+            <span>{t("setupFlow.workContext.notFlexible")}</span>
+            <span>{t("setupFlow.workContext.veryFlexible")}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-3 pt-2 border-t">
         <h5 className="font-medium text-sm text-muted-foreground">
-          {t("setup.psychology.title")}
+          {t("setupFlow.psychology.title")}
         </h5>
         
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <Label>{t("setup.psychology.incomeAsymmetry")}</Label>
+            <Label>{t("setupFlow.psychology.incomeAsymmetry")}</Label>
             <p className="text-xs text-muted-foreground">
-              {t("setup.psychology.incomeAsymmetryHelp")}
+              {t("setupFlow.psychology.incomeAsymmetryHelp")}
             </p>
           </div>
           <Switch
@@ -124,7 +124,7 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
         {person.income_asymmetry_ack && (
           <div>
             <Label>
-              {t("setup.psychology.fairnessStyle")}: α = {((person.fairness_style_alpha || 0.15) * 100).toFixed(0)}%
+              {t("setupFlow.psychology.fairnessStyle")}: α = {((person.fairness_style_alpha || 0.15) * 100).toFixed(0)}%
             </Label>
             <div className="px-2">
               <Slider
@@ -137,8 +137,8 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
               />
             </div>
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>{t("setup.psychology.strict5050")}</span>
-              <span>{t("setup.psychology.recognizesBreadwinner")}</span>
+              <span>{t("setupFlow.psychology.strict5050")}</span>
+              <span>{t("setupFlow.psychology.recognizesBreadwinner")}</span>
             </div>
           </div>
         )}
@@ -150,7 +150,7 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
         onClick={onUpdateBudget}
         className="w-full"
       >
-        {t("setup.workContext.updateEstimate")}
+        {t("setupFlow.workContext.updateEstimate")}
       </Button>
     </div>
   );
