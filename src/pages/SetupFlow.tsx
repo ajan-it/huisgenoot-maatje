@@ -633,6 +633,7 @@ export default function SetupFlow() {
                         onUpdate={(updates) => updatePerson(p.id, updates)}
                         onUpdateBudget={() => setEstimatorOpenFor(p.id)}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
                         {t("setupFlow.timePrefs.minutesPerWeekHelp")}
                       </p>
                     </div>
@@ -657,11 +658,11 @@ export default function SetupFlow() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("setupFlow.timePrefs.maxWeeknightMinutesHelp")}
                       </p>
-                     </div>
-                   </div>
+                    </div>
+                  </div>
                    
-                   <div>
-                     <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
+                  <div>
+                    <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
                     <p className="text-xs text-muted-foreground mb-2">
                       {t("setupFlow.timePrefs.dislikedTagsHelp")}
                     </p>
