@@ -1,16 +1,37 @@
 import React from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
-export default function TargetSplitHint({ aMinutes, bMinutes }: { aMinutes: number; bMinutes: number }) {
+function splitPercents(minutesByAdult: number[]) {
+  const total = Math.max(1, minutesByAdult.reduce((a,b)=>a+b,0));
+  return minutesByAdult.map(m => Math.round((m/total)*100));
+}
+
+export default function TargetSplitHint({ adultsMinutes }: { adultsMinutes: number[] }) {
   const { t } = useI18n();
-  const total = Math.max(1, aMinutes + bMinutes);
-  const aPct = Math.round((aMinutes / total) * 100);
-  const bPct = 100 - aPct;
+  
+  if (adultsMinutes.length === 0 || adultsMinutes.every(m => m === 0)) return null;
+  
+  const percents = splitPercents(adultsMinutes);
+  
+  if (adultsMinutes.length === 1) {
+    return null; // Single adult - no split needed
+  }
+  
+  const splitText = percents.map(p => `${p}%`).join(" / ");
+  
   return (
-    <div className="text-xs text-muted-foreground mt-2">
-      {t("setupFlow.targetSplit.text")} <span className="font-medium">{aPct}%</span> / <span className="font-medium">{bPct}%</span>
-      <div className="h-1 w-full bg-muted rounded mt-1 overflow-hidden">
-        <div className="h-1 bg-foreground/70" style={{ width: `${aPct}%` }} />
+    <div className="text-xs text-muted-foreground mt-4 p-3 bg-muted/30 rounded-md">
+      <div className="mb-2">
+        {t("time.minutes.hint").replace("{split}", splitText)}
+      </div>
+      <div className="h-2 w-full bg-muted rounded overflow-hidden flex">
+        {percents.map((pct, i) => (
+          <div 
+            key={i}
+            className={`h-2 ${i === 0 ? 'bg-foreground/70' : i === 1 ? 'bg-foreground/50' : 'bg-foreground/30'}`}
+            style={{ width: `${pct}%` }} 
+          />
+        ))}
       </div>
     </div>
   );

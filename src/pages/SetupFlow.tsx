@@ -10,6 +10,8 @@ import { useMemo, useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import TimeBudgetEstimator from "@/components/setup/TimeBudgetEstimator";
 import TargetSplitHint from "@/components/setup/TargetSplitHint";
+import MinutesHelperSheet from "@/components/setup/MinutesHelperSheet";
+import MinutesQuickChips from "@/components/setup/MinutesQuickChips";
 import { Info } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
@@ -62,6 +64,7 @@ export default function SetupFlow() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const lastPayloadRef = useRef<any>(null);
   const [estimatorOpenFor, setEstimatorOpenFor] = useState<null | string>(null);
+  const [helperSheetOpen, setHelperSheetOpen] = useState(false);
 
   const title = useMemo(() => `${t("setupFlow.meta.titlePrefix")}${steps[step - 1] ?? ""}`, [step, t, steps]);
 
@@ -583,14 +586,24 @@ export default function SetupFlow() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <Label htmlFor={`min-week-${p.id}`}>{t("setupFlow.timePrefs.minutesPerWeek")}</Label>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          onClick={() => setEstimatorOpenFor(p.id)}
-                          className="h-6 px-2 text-xs"
-                        >
-                          {t("setupFlow.timePrefs.makeEstimate")}
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setHelperSheetOpen(true)}
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            {t("time.minutes.help")}
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => setEstimatorOpenFor(p.id)}
+                            className="h-6 px-2 text-xs"
+                          >
+                            {t("setupFlow.timePrefs.makeEstimate")}
+                          </Button>
+                        </div>
                       </div>
                       <Input
                         id={`min-week-${p.id}`}
@@ -606,6 +619,12 @@ export default function SetupFlow() {
                         onBlur={(e) => {
                           if (e.currentTarget.value === "") updatePerson(p.id, { weekly_time_budget: 90 });
                         }}
+                      />
+                      <MinutesQuickChips
+                        adultsCount={adultsCount}
+                        childrenCount={draft.people.filter(p => p.role === "child").length}
+                        currentMinutes={p.weekly_time_budget}
+                        onSelectMinutes={(minutes) => updatePerson(p.id, { weekly_time_budget: minutes })}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("setupFlow.timePrefs.minutesPerWeekHelp")}
@@ -632,11 +651,11 @@ export default function SetupFlow() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("setupFlow.timePrefs.maxWeeknightMinutesHelp")}
                       </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
+                     </div>
+                   </div>
+                   
+                   <div>
+                     <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
                     <p className="text-xs text-muted-foreground mb-2">
                       {t("setupFlow.timePrefs.dislikedTagsHelp")}
                     </p>
@@ -716,10 +735,10 @@ export default function SetupFlow() {
                     <Info className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">{t("setupFlow.fairnessHint.title")}</span>
                   </div>
-                  <TargetSplitHint 
-                    aMinutes={draft.people.filter(p => p.role === "adult")[0]?.weekly_time_budget ?? 0}
-                    bMinutes={draft.people.filter(p => p.role === "adult")[1]?.weekly_time_budget ?? 0}
-                  />
+        <MinutesHelperSheet 
+          open={helperSheetOpen}
+          onOpenChange={setHelperSheetOpen}
+        />
                 </div>
               )}
 

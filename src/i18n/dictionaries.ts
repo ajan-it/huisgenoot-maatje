@@ -172,6 +172,35 @@ export const dictionaries = {
         text: "Doelverdeling met deze invoer:",
       },
     },
+    time: {
+      minutes: {
+        help: "Wat is normaal?",
+        hint: "Met deze minuten mikken we op {split} verdeling deze week.",
+      },
+      chips: {
+        light: "Licht",
+        normal: "Normaal",
+        busy: "Druk",
+      },
+      tooltip: {
+        light: "minimale week (weinig avonden, veel blackouts)",
+        normal: "gemiddeld drukte-niveau",
+        busy: "meer kook/was/ritten of twee kleine kids",
+      },
+      helper: {
+        title: "Wat is normaal?",
+        body: [
+          "Single, geen kids: 60–120 min per week.",
+          "Koppel, beide werken, geen kids: 75–120 min per volwassene.",
+          "Koppel, 1 kind: 120–180 min per volwassene.",
+          "Twee werkende ouders, 2 kids: 150–210 min per volwassene.",
+          "Single parent (1–2 kids): 180–240 min.",
+          "Huisgenoten (2–3): 45–90 min per persoon.",
+          "Dit zijn richtlijnen voor planbare klussen. Je kunt het later altijd bijstellen."
+        ],
+        note: "Gebaseerd op Nederlandse tijdsbesteding (SCP/CBS) en praktijkervaring. Het is een startpunt, geen verplichting.",
+      },
+    },
     auth: {
       title: "Inloggen of aanmelden – Eerlijke huishoudplanner",
       metaDescription: "Log in of maak een account aan om je huishouden en plannen op te slaan.",
@@ -416,6 +445,35 @@ export const dictionaries = {
       },
       targetSplit: {
         text: "Target split with this input:",
+      },
+    },
+    time: {
+      minutes: {
+        help: "What's typical?",
+        hint: "With these minutes we target a {split} split this week.",
+      },
+      chips: {
+        light: "Light",
+        normal: "Normal",
+        busy: "Busy",
+      },
+      tooltip: {
+        light: "minimal week (few evenings, many blackouts)",
+        normal: "average activity level",
+        busy: "more cooking/laundry/trips or two small kids",
+      },
+      helper: {
+        title: "What's typical?",
+        body: [
+          "Single, no kids: 60–120 min per week.",
+          "Couple, both working, no kids: 75–120 min per adult.",
+          "Couple, 1 child: 120–180 min per adult.",
+          "Two working parents, 2 kids: 150–210 min per adult.",
+          "Single parent (1–2 kids): 180–240 min.",
+          "Housemates (2–3): 45–90 min per person.",
+          "These are guidelines for plannable chores. You can always adjust later."
+        ],
+        note: "Based on NL time-use studies—just a starting point.",
       },
     },
     auth: {
