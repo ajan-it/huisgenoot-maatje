@@ -21,10 +21,27 @@ export interface SetupDraftPerson {
   notify_sms_opt_in?: boolean;
   consent_sms_at?: string; // ISO timestamp
   policy_version_sms?: string; // default POLICY_VERSION when stamped
+  
+  // Time & preferences
   weekly_time_budget?: number; // step 3
   weeknight_cap?: number; // step 3
   disliked_tags?: string[]; // step 3
   no_go_tasks?: string[]; // step 3
+  
+  // Work context (adults only)
+  work_location?: "office" | "hybrid" | "home";
+  paid_hours_per_week?: number;        // 0..50
+  commute_min_per_day?: number;        // 0..120
+  flexibility_score?: number;          // 1..5
+  
+  // Psychology & fairness
+  income_asymmetry_ack?: boolean;      // toggle
+  fairness_style_alpha?: number;       // 0.0..0.3 (default 0.15)
+  
+  // Task preferences
+  no_go_tags?: string[];               // hard avoid
+  ownership_task_ids?: string[];       // anchor routines (max 3)
+  coop_prefs?: { [taskId: string]: "lead" | "assist" | "none" };
 }
 
 
@@ -66,12 +83,18 @@ export interface SetupDraftLocalContext {
   };
 }
 
+export interface SetupDraftWeeklyContext {
+  week_mode: { [adultId: string]: "normal" | "busy" | "light" };
+  night_credit_min: { [adultId: string]: number }; // added ad-hoc
+}
+
 export interface SetupDraft {
   household: SetupDraftHousehold;
   people: SetupDraftPerson[];
   blackouts: SetupDraftBlackout[];
   tasks: SetupDraftTaskSelection[];
   local_context?: SetupDraftLocalContext;
+  weekly_context?: SetupDraftWeeklyContext;
 }
 
 const STORAGE_KEY = "setupDraftV2";
@@ -86,6 +109,7 @@ const defaultDraft = (): SetupDraft => ({
   ],
   blackouts: [],
   tasks: [],
+  weekly_context: { week_mode: {}, night_credit_min: {} },
 });
 
 export const useSetupDraft = () => {

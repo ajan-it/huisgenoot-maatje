@@ -12,6 +12,8 @@ import TimeBudgetEstimator from "@/components/setup/TimeBudgetEstimator";
 import TargetSplitHint from "@/components/setup/TargetSplitHint";
 import MinutesHelperSheet from "@/components/setup/MinutesHelperSheet";
 import MinutesQuickChips from "@/components/setup/MinutesQuickChips";
+import WorkContextInputs from "@/components/setup/WorkContextInputs";
+import OwnershipSelector from "@/components/setup/OwnershipSelector";
 import { Info } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
@@ -626,7 +628,11 @@ export default function SetupFlow() {
                         currentMinutes={p.weekly_time_budget}
                         onSelectMinutes={(minutes) => updatePerson(p.id, { weekly_time_budget: minutes })}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <WorkContextInputs
+                        person={p}
+                        onUpdate={(updates) => updatePerson(p.id, updates)}
+                        onUpdateBudget={() => setEstimatorOpenFor(p.id)}
+                      />
                         {t("setupFlow.timePrefs.minutesPerWeekHelp")}
                       </p>
                     </div>
