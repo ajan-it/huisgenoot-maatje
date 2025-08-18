@@ -214,49 +214,66 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                 <SheetTitle>Filters</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4">
-                <div>
-                  <Label className="text-sm font-medium">Frequentie</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {FREQUENCY_ORDER.map(freq => (
-                      <Badge
-                        key={freq}
-                        variant={selectedFrequencies.includes(freq) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => {
-                          setSelectedFrequencies(prev => 
-                            prev.includes(freq) 
-                              ? prev.filter(f => f !== freq)
-                              : [...prev, freq]
-                          );
-                        }}
-                      >
-                        {t(`setupFlow.tasks.frequency.${freq}`)}
-                      </Badge>
-                    ))}
+                  <div>
+                    <Label className="text-sm font-medium">Frequentie</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {FREQUENCY_ORDER.map(freq => (
+                        <Badge
+                          key={freq}
+                          variant={selectedFrequencies.includes(freq) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setSelectedFrequencies(prev => 
+                              prev.includes(freq) 
+                                ? prev.filter(f => f !== freq)
+                                : [...prev, freq]
+                            );
+                          }}
+                        >
+                          {freq === "daily" ? "Dagelijks" :
+                           freq === "two_per_week" ? "2×/week" :
+                           freq === "three_per_week" ? "3×/week" :
+                           freq === "weekly" ? "Wekelijks" :
+                           freq === "biweekly" ? "2-wekelijks" :
+                           freq === "monthly" ? "Maandelijks" :
+                           freq === "quarterly" ? "Per kwartaal" :
+                           freq === "semiannual" ? "Halfjaarlijks" :
+                           freq === "annual" ? "Jaarlijks" :
+                           freq === "seasonal" ? "Seizoensgebonden" :
+                           freq === "custom" ? "Aangepast..." : freq}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 
-                <div>
-                  <Label className="text-sm font-medium">Context</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {CONTEXT_FILTERS.map(context => (
-                      <Badge
-                        key={context}
-                        variant={selectedContexts.includes(context) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => {
-                          setSelectedContexts(prev => 
-                            prev.includes(context) 
-                              ? prev.filter(c => c !== context)
-                              : [...prev, context]
-                          );
-                        }}
-                      >
-                        {t(`setupFlow.tasks.context.${context}`)}
-                      </Badge>
-                    ))}
+                  <div>
+                    <Label className="text-sm font-medium">Context</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {CONTEXT_FILTERS.map(context => (
+                        <Badge
+                          key={context}
+                          variant={selectedContexts.includes(context) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setSelectedContexts(prev => 
+                              prev.includes(context) 
+                                ? prev.filter(c => c !== context)
+                                : [...prev, context]
+                            );
+                          }}
+                        >
+                          {context === "apartment" ? "Appartement" :
+                           context === "house" ? "Eengezinswoning" :
+                           context === "garden" ? "Tuin" :
+                           context === "fireplace" ? "Open haard" :
+                           context === "cycling" ? "Fiets" :
+                           context === "car" ? "Auto" :
+                           context === "solar" ? "Zonnepanelen" :
+                           context === "pets" ? "Huisdier" : context}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
               </div>
             </SheetContent>
           </Sheet>
@@ -305,10 +322,33 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                     <CardTitle className="text-sm">{task.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {t(`setupFlow.tasks.${task.category}`)}
+                        {task.category === "kitchen" ? "Keuken" :
+                         task.category === "bathroom" ? "Badkamer" :
+                         task.category === "cleaning" ? "Schoonmaken" :
+                         task.category === "admin" ? "Administratie" :
+                         task.category === "childcare" ? "Kindzorg" :
+                         task.category === "errands" ? "Boodschappen" :
+                         task.category === "maintenance" ? "Onderhoud" :
+                         task.category === "selfcare" ? "Zelfzorg" :
+                         task.category === "social" ? "Sociaal" :
+                         task.category === "garden" ? "Tuin" :
+                         task.category === "appliance" ? "Apparaten" :
+                         task.category === "safety" ? "Veiligheid" :
+                         task.category === "outdoor" ? "Buiten" :
+                         task.category === "seasonal" ? "Seizoens" : task.category}
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        {t(`setupFlow.tasks.frequency.${task.frequency}`)}
+                        {(config.frequency || task.frequency) === "daily" ? "Dagelijks" :
+                         (config.frequency || task.frequency) === "two_per_week" ? "2×/week" :
+                         (config.frequency || task.frequency) === "three_per_week" ? "3×/week" :
+                         (config.frequency || task.frequency) === "weekly" ? "Wekelijks" :
+                         (config.frequency || task.frequency) === "biweekly" ? "2-wekelijks" :
+                         (config.frequency || task.frequency) === "monthly" ? "Maandelijks" :
+                         (config.frequency || task.frequency) === "quarterly" ? "Per kwartaal" :
+                         (config.frequency || task.frequency) === "semiannual" ? "Halfjaarlijks" :
+                         (config.frequency || task.frequency) === "annual" ? "Jaarlijks" :
+                         (config.frequency || task.frequency) === "seasonal" ? "Seizoensgebonden" :
+                         (config.frequency || task.frequency) === "custom" ? "Aangepast..." : (config.frequency || task.frequency)}
                       </Badge>
                     </div>
                   </div>
@@ -331,11 +371,17 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {FREQUENCY_ORDER.map(freq => (
-                          <SelectItem key={freq} value={freq}>
-                            {t(`setupFlow.tasks.frequency.${freq}`)}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="daily">Dagelijks</SelectItem>
+                        <SelectItem value="two_per_week">2×/week</SelectItem>
+                        <SelectItem value="three_per_week">3×/week</SelectItem>
+                        <SelectItem value="weekly">Wekelijks</SelectItem>
+                        <SelectItem value="biweekly">2-wekelijks</SelectItem>
+                        <SelectItem value="monthly">Maandelijks</SelectItem>
+                        <SelectItem value="quarterly">Per kwartaal</SelectItem>
+                        <SelectItem value="semiannual">Halfjaarlijks</SelectItem>
+                        <SelectItem value="annual">Jaarlijks</SelectItem>
+                        <SelectItem value="seasonal">Seizoensgebonden</SelectItem>
+                        <SelectItem value="custom">Aangepast...</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
