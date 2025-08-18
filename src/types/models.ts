@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export type Role = "adult" | "child";
-export type Frequency = "daily" | "weekly" | "monthly";
+export type Frequency = "daily" | "two_per_week" | "three_per_week" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannual" | "annual" | "seasonal" | "custom";
 export type Difficulty = 1 | 2 | 3;
 
 export interface HouseholdSettings {
@@ -59,11 +59,18 @@ export interface Task {
     | "maintenance"
     | "selfcare"
     | "social"
-    | "garden";
+    | "garden"
+    | "appliance"
+    | "safety"
+    | "outdoor"
+    | "seasonal";
   default_duration: number; // minutes
   difficulty: Difficulty;
   frequency: Frequency;
+  location?: "indoor" | "outdoor";
   tags?: string[];
+  packs?: string[];
+  helper_text?: string;
   active?: boolean;
 }
 
