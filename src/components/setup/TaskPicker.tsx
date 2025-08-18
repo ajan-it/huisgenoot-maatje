@@ -53,12 +53,6 @@ const TASK_PACKS = [
 
 export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMinutesBudget }: TaskPickerProps) {
   const { t, lang } = useI18n();
-  console.log("TaskPicker debug:", { 
-    lang,
-    searchPlaceholder: t("setupFlow.tasks.picker.searchPlaceholder"),
-    testSimple: t("setupFlow.tasks.kitchen"),
-    testComplex: t("setupFlow.tasks.frequency.daily")
-  });
   const [search, setSearch] = useState("");
   const [selectedFrequencies, setSelectedFrequencies] = useState<Frequency[]>([]);
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
@@ -201,7 +195,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Input
-              placeholder={t("setupFlow.tasks.picker.searchPlaceholder")}
+              placeholder="Zoek taken..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full"
@@ -272,7 +266,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
         <div>
           <Label className="text-sm font-medium mb-2 block">
             <PackageIcon className="h-4 w-4 inline mr-1" />
-            {t("setupFlow.tasks.picker.recommendedPacks")}
+            Aanbevolen pakketten
           </Label>
           <div className="flex flex-wrap gap-2">
             {TASK_PACKS.map(pack => (
@@ -282,7 +276,16 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                 size="sm"
                 onClick={() => applyPack(pack)}
               >
-                {t(`setupFlow.tasks.packs.${pack}`)}
+                {pack === "pack_no_kids" ? "Geen kinderen" :
+                 pack === "pack_toddler" ? "Peuter 1-3" :
+                 pack === "pack_schoolkids" ? "Schoolkind(eren)" :
+                 pack === "pack_two_workers" ? "2 werkenden" :
+                 pack === "pack_house_garden" ? "Huis met tuin" :
+                 pack === "pack_apartment" ? "Appartement" :
+                 pack === "pack_appliance_maint" ? "Apparaat-onderhoud" :
+                 pack === "pack_safety_checks" ? "Veiligheid & inspecties" :
+                 pack === "pack_season_spring" ? "Seizoenscheck lente" :
+                 pack === "pack_season_autumn" ? "Seizoenscheck herfst" : pack}
               </Button>
             ))}
           </div>
@@ -387,15 +390,15 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-primary">{activeTasks.length}</div>
-              <div className="text-sm text-muted-foreground">{t("setupFlow.tasks.picker.activeTasks")}</div>
+              <div className="text-sm text-muted-foreground">Actieve taken</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-primary">{Math.round(minutesPerAdult)}</div>
-              <div className="text-sm text-muted-foreground">{t("setupFlow.tasks.picker.estimatedMinutes")}</div>
+              <div className="text-sm text-muted-foreground">Geschatte minuten p.p.</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-primary">{fairnessScore}%</div>
-              <div className="text-sm text-muted-foreground">{t("setupFlow.tasks.picker.fairnessPreview")}</div>
+              <div className="text-sm text-muted-foreground">Eerlijkheidsvoorbeeld</div>
             </div>
           </div>
         </CardContent>
