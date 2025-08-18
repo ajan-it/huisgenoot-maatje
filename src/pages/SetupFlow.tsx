@@ -14,6 +14,7 @@ import MinutesHelperSheet from "@/components/setup/MinutesHelperSheet";
 import MinutesQuickChips from "@/components/setup/MinutesQuickChips";
 import WorkContextInputs from "@/components/setup/WorkContextInputs";
 import OwnershipSelector from "@/components/setup/OwnershipSelector";
+import { TaskPicker } from "@/components/setup/TaskPicker";
 import { Info } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SEED_TASKS, SEED_BLACKOUTS } from "@/data/seeds";
@@ -474,52 +475,22 @@ export default function SetupFlow() {
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2 justify-between">
-                <div className="text-sm text-muted-foreground">Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
-                <div className="flex gap-2">
-                  <Input placeholder="Zoeken" value={taskSearch} onChange={(e) => setTaskSearch(e.target.value)} className="w-40" />
-                  <select className="h-10 rounded-md border bg-background" value={taskCategory} onChange={(e) => setTaskCategory(e.target.value)}>
-                    {categories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <Button variant="secondary" onClick={applyToddlerPreset}>Aanbevolen selectie</Button>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-2">
-                {SEED_TASKS.filter((t) => (taskCategory === "all" || t.category === taskCategory) && t.name.toLowerCase().includes(taskSearch.toLowerCase())).map((t) => {
-                  const sel = draft.tasks.find((x) => x.id === t.id);
-                  const active = !!sel?.active;
-                  return (
-                    <label key={t.id} className="flex items-center justify-between border rounded-md p-2 text-sm">
-                      <div>
-                        <div className="font-medium">{t.name}</div>
-                        <div className="text-muted-foreground">{t.category} • {t.frequency} • {t.default_duration}m</div>
-                      </div>
-                      <Checkbox
-                        checked={active}
-                        onCheckedChange={(v) =>
-                          setDraft((d) => {
-                            const idx = d.tasks.findIndex((x) => x.id === t.id);
-                            const next = [...d.tasks];
-                            if (idx >= 0) next[idx] = { ...next[idx], active: Boolean(v) };
-                            else next.push({ id: t.id, active: Boolean(v) });
-                            return { ...d, tasks: next };
-                          })
-                        }
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
+            <CardContent>
+              <TaskPicker
+                selectedTasks={draft.tasks}
+                onTasksChange={(tasks) => setDraft(d => ({ ...d, tasks }))}
+                adultsCount={adultsCount}
+                totalMinutesBudget={draft.people.filter(p => p.role === "adult").reduce((sum, p) => sum + (p.weekly_time_budget || 0), 0)}
+              />
+              
+              <div className="flex items-center justify-between pt-6">
                 <Button variant="outline" onClick={onBack}>
                   {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={onNext}>
+                <Button 
+                  onClick={onNext}
+                  disabled={draft.tasks.filter(t => t.active).length === 0}
+                >
                   {t("setupFlow.household.next")}
                 </Button>
               </div>
@@ -1007,9 +978,9 @@ export default function SetupFlow() {
                       const seed = SEED_TASKS.find((t) => t.id === x.id);
                       if (!seed) return null;
                       const freq = x.frequency || seed.frequency;
-                      const dur = x.default_duration ?? seed.default_duration;
-                      const diff = x.difficulty || seed.difficulty;
-                      const tags = Array.from(new Set([...(seed.tags || []), ...(x.tags || [])]));
+                      const dur = x.duration ?? seed.default_duration;
+                      const diff = seed.difficulty;
+                      const tags = Array.from(new Set([...(seed.tags || [])]));
                       const invalid = !dur || dur <= 0;
                       return (
                         <tr key={x.id} className="border-t">
@@ -1039,7 +1010,7 @@ export default function SetupFlow() {
                                 setDraft((d) => ({
                                   ...d,
                                   tasks: d.tasks.map((tt) =>
-                                    tt.id === x.id ? { ...tt, default_duration: Math.max(1, Number(e.target.value || 0)) } : tt
+                                    tt.id === x.id ? { ...tt, duration: Math.max(1, Number(e.target.value || 0)) } : tt
                                   ),
                                 }))
                               }
@@ -1065,27 +1036,13 @@ export default function SetupFlow() {
                           <td className="p-2">
                             <div className="flex flex-wrap gap-2">
                               {tags.map((tag) => {
-                                const active = (x.tags || seed.tags || []).includes(tag);
+                                const active = (seed.tags || []).includes(tag);
                                 return (
                                   <button
                                     key={tag}
                                     type="button"
                                     className={`px-3 py-1 rounded-full border ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
-                                    onClick={() =>
-                                      setDraft((d) => ({
-                                        ...d,
-                                        tasks: d.tasks.map((tt) =>
-                                          tt.id === x.id
-                                            ? {
-                                                ...tt,
-                                                tags: active
-                                                  ? (tt.tags || []).filter((t0) => t0 !== tag)
-                                                  : [...(tt.tags || []), tag],
-                                              }
-                                            : tt
-                                        ),
-                                      }))
-                                    }
+                                    disabled={true}
                                   >
                                     {tag}
                                   </button>

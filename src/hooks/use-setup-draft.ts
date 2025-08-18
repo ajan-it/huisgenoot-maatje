@@ -68,10 +68,10 @@ export interface SetupDraftBlackout {
 export interface SetupDraftTaskSelection {
   id: string; // task id from seeds
   active: boolean;
-  frequency?: "daily" | "weekly" | "monthly"; // step 6
-  default_duration?: number; // minutes
-  difficulty?: 1 | 2 | 3;
-  tags?: string[];
+  frequency?: "daily" | "two_per_week" | "three_per_week" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannual" | "annual" | "seasonal" | "custom";
+  duration?: number; // minutes
+  weekend_only?: boolean;
+  avoid_evenings?: boolean;
 }
 
 export interface SetupDraftLocalContext {
