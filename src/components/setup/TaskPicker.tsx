@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { InfoIcon, FilterIcon, PackageIcon } from "lucide-react";
 import { SEED_TASKS } from "@/data/seeds";
-import { Task, Frequency } from "@/types/models";
+import { Frequency } from "@/types/models";
 import { useI18n } from "@/i18n/I18nProvider";
 
 interface TaskPickerProps {
