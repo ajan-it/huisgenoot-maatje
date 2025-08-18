@@ -53,6 +53,11 @@ const TASK_PACKS = [
 
 export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMinutesBudget }: TaskPickerProps) {
   const { t } = useI18n();
+  console.log("TaskPicker translations:", { 
+    searchPlaceholder: t("setupFlow.tasks.picker.searchPlaceholder"),
+    recommendedPacks: t("setupFlow.tasks.picker.recommendedPacks"),
+    activeTasks: t("setupFlow.tasks.picker.activeTasks")
+  });
   const [search, setSearch] = useState("");
   const [selectedFrequencies, setSelectedFrequencies] = useState<Frequency[]>([]);
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
