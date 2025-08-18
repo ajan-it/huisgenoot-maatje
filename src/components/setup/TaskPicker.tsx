@@ -52,11 +52,12 @@ const TASK_PACKS = [
 ];
 
 export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMinutesBudget }: TaskPickerProps) {
-  const { t } = useI18n();
-  console.log("TaskPicker translations:", { 
+  const { t, lang } = useI18n();
+  console.log("TaskPicker debug:", { 
+    lang,
     searchPlaceholder: t("setupFlow.tasks.picker.searchPlaceholder"),
-    recommendedPacks: t("setupFlow.tasks.picker.recommendedPacks"),
-    activeTasks: t("setupFlow.tasks.picker.activeTasks")
+    testSimple: t("setupFlow.tasks.kitchen"),
+    testComplex: t("setupFlow.tasks.frequency.daily")
   });
   const [search, setSearch] = useState("");
   const [selectedFrequencies, setSelectedFrequencies] = useState<Frequency[]>([]);
