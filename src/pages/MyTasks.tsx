@@ -46,7 +46,7 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
   const myOccurrences = useMemo(() => {
     console.log('Filtering occurrences:', { occurrences, currentUserId });
     return occurrences.filter(occ => 
-      occ.assigned_person === currentUserId && 
+      ((occ as any).assigned_person_id || occ.assigned_person) === currentUserId && 
       occ.status === 'scheduled'
     );
   }, [occurrences, currentUserId]);
@@ -78,7 +78,7 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
   // Partner peek data
   const partner = people.find(p => p.id !== currentUserId);
   const partnerTodayTasks = partner ? occurrences.filter(occ => 
-    occ.assigned_person === partner.id && 
+    ((occ as any).assigned_person_id || occ.assigned_person) === partner.id && 
     occ.date === today && 
     occ.status === 'scheduled'
   ) : [];

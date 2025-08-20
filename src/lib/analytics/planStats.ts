@@ -174,7 +174,7 @@ export function transformOccurrencesToAssignments(
       task_duration: task?.default_duration || 30,
       task_difficulty: task?.difficulty || 2,
       date: occ.date,
-      assigned_person_id: occ.assigned_person || '',
+      assigned_person_id: (occ as any).assigned_person_id || occ.assigned_person || '',
       status: occ.status,
       rationale: occ.rationale ? { reasons: [] } : undefined
     };
