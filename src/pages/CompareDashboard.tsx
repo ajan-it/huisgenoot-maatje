@@ -28,16 +28,18 @@ const CompareDashboard: React.FC = () => {
   const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
 
   useEffect(() => {
-    // Load data from localStorage
-    const savedPlan = localStorage.getItem("plan");
-    const savedTasks = localStorage.getItem("tasks");
-    const savedPeople = localStorage.getItem("people");
-    const savedOccurrences = localStorage.getItem("occurrences");
-
-    if (savedPlan) setPlan(JSON.parse(savedPlan));
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
-    if (savedPeople) setPeople(JSON.parse(savedPeople));
-    if (savedOccurrences) setOccurrences(JSON.parse(savedOccurrences));
+    // Load data from localStorage (same structure as PlanView)
+    try {
+      const raw = localStorage.getItem("lastPlanResponse");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setPlan(parsed);
+      setTasks(parsed.tasks || []);
+      setPeople(parsed.people || []);
+      setOccurrences(parsed.assignments || []);
+    } catch (error) {
+      console.error("Error loading plan:", error);
+    }
   }, []);
 
   const stats = useMemo(() => {
@@ -367,6 +369,16 @@ const CompareDashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Navigation */}
+        <div className="flex gap-2 mt-6">
+          <Button onClick={() => window.location.href = `/plan/${plan.plan_id}`}>
+            {lang === 'nl' ? 'Bekijk Volledig Plan' : 'View Full Plan'}
+          </Button>
+          <Button variant="outline" onClick={() => window.location.href = '/my'}>
+            {lang === 'nl' ? 'Mijn Taken' : 'My Tasks'}
+          </Button>
+        </div>
       </div>
     </>
   );

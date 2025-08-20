@@ -211,8 +211,9 @@ const PlanView = () => {
           )}
 
            <div className="flex flex-wrap gap-2">
-             <Button onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
-             <Button variant="secondary" onClick={() => navigate("/setup/1")}>{L ? "Run wizard again" : "Wizard opnieuw"}</Button>
+             <Button onClick={() => navigate("/my")}>{L ? "My Tasks" : "Mijn Taken"}</Button>
+             <Button variant="outline" onClick={() => navigate("/compare")}>{L ? "Compare" : "Vergelijk"}</Button>
+             <Button variant="secondary" onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
            </div>
          </section>
        ) : (
