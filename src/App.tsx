@@ -12,6 +12,8 @@ import LanguageToggle from "@/components/LanguageToggle";
 import SetupFlow from "./pages/SetupFlow";
 import SetupDone from "./pages/SetupDone";
 import PlanView from "./pages/PlanView";
+import MyTasks from "./pages/MyTasks";
+import CompareDashboard from "./pages/CompareDashboard";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,10 @@ const App = () => (
 
           {/* plan page */}
           <Route path="/plan/:planId" element={<PlanView />} />
+          
+          {/* my tasks and compare */}
+          <Route path="/my" element={<MyTasks />} />
+          <Route path="/compare" element={<CompareDashboard />} />
 
           {/* wizard steps 1–8 only */}
           <Route path="/" element={<Index />} />
