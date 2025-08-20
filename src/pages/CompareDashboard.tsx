@@ -43,8 +43,10 @@ const CompareDashboard: React.FC = () => {
   }, []);
 
   const stats = useMemo(() => {
+    console.log('Computing stats:', { occurrences, tasks });
     if (!occurrences.length || !tasks.length) return new Map();
     const assignments = transformOccurrencesToAssignments(occurrences, tasks);
+    console.log('Generated assignments:', assignments);
     return splitByPerson(assignments);
   }, [occurrences, tasks]);
 

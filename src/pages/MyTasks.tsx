@@ -42,8 +42,9 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
   const currentUser = people[0];
   const currentUserId = currentUser?.id;
 
-  // Filter tasks for current user
+  // Filter tasks for current user  
   const myOccurrences = useMemo(() => {
+    console.log('Filtering occurrences:', { occurrences, currentUserId });
     return occurrences.filter(occ => 
       occ.assigned_person === currentUserId && 
       occ.status === 'scheduled'

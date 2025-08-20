@@ -162,6 +162,7 @@ export function transformOccurrencesToAssignments(
   tasks: Task[]
 ): Assignment[] {
   const taskMap = new Map(tasks.map(t => [t.id, t]));
+  console.log('Transforming occurrences:', { occurrences, tasks });
   
   return occurrences.map(occ => {
     const task = taskMap.get(occ.task_id);
