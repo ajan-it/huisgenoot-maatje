@@ -244,6 +244,9 @@ const PlanView = () => {
           score={plan?.fairness ?? 0}
           details={fairnessDetails}
           peopleById={Object.fromEntries((plan?.people || []).map((p: any) => [p.id, { first_name: p.first_name }]))}
+          assignments={plan?.assignments || []}
+          weekStart={plan?.week_start}
+          onMakeFairer={handleMakeItFairer}
         />
 
         {/* Rebalance Preview Dialog */}

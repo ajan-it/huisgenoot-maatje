@@ -1,241 +1,413 @@
-import React from "react";
-import { X, AlertTriangle, Calendar } from "lucide-react";
-import type { FairnessDetails } from "@/types/plan";
+import React, { useState, useMemo } from "react";
+import { X, Sparkles, RotateCcw } from "lucide-react";
+import { 
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerClose,
+  DrawerFooter
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch as UISwitch } from "@/components/ui/switch";
+import { useI18n } from "@/i18n/I18nProvider";
+import { FairnessBars } from "./FairnessBars";
+import { TaskTypeBreakdown } from "./TaskTypeBreakdown";
+import { HardEasyBreakdown } from "./HardEasyBreakdown";
+import { FairnessTrend } from "./FairnessTrend";
+import type { FairnessDetails } from "@/types/plan";
+import {
+  buildTypeBreakdown,
+  buildDifficultyCounts,
+  getMandatoryFlexibleCounts,
+  getTrendHistory,
+  saveTrendPoint,
+  type PersonSplit,
+  type Assignment
+} from "@/lib/fairness-helpers";
+
+interface EnhancedFairnessDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  score: number;
+  details: FairnessDetails | null;
+  peopleById: Record<string, { first_name: string }>;
+  assignments?: Assignment[];
+  weekStart?: string;
+  onMakeFairer?: () => void;
+  onSuggestSwap?: () => void;
+}
 
 export function EnhancedFairnessDrawer({
-  open, onClose, score, details, peopleById
-}: {
-  open: boolean
-  onClose: () => void
-  score: number
-  details: FairnessDetails | null
-  peopleById: Record<string, { first_name: string }>
-}) {
-  if (!open) return null;
-  const adults = details?.adults ?? [];
-
-  const pct = (n: number) => `${Math.round(n * 100)}`;
+  open,
+  onClose,
+  score,
+  details,
+  peopleById,
+  assignments = [],
+  weekStart,
+  onMakeFairer,
+  onSuggestSwap
+}: EnhancedFairnessDrawerProps) {
+  const { lang } = useI18n();
+  const L = lang === "en";
   
-  // Generate evening breakdown (mock data for demo)
-  const eveningBreakdown = React.useMemo(() => {
-    const breakdown: Record<string, Record<string, number>> = {};
-    adults.forEach(adult => {
-      breakdown[adult.person_id] = {
-        'Mon': Math.random() * 40,
-        'Tue': Math.random() * 40,
-        'Wed': Math.random() * 40,
-        'Thu': Math.random() * 40,
-        'Fri': Math.random() * 40,
-      };
-    });
-    return breakdown;
-  }, [adults]);
-
-  const getFairnessColor = (score: number) => {
-    if (score >= 90) return "text-green-600 bg-green-100";
-    if (score >= 80) return "text-yellow-600 bg-yellow-100"; 
-    return "text-red-600 bg-red-100";
+  // Get dictionary based on language
+  const dict = L ? {
+    title: "Fairness Analysis",
+    subtitle: "We balance workload points (minutes × difficulty) based on your time budgets and avoid evening overload.",
+    badge: { good: "Well balanced", okay: "Could be better", poor: "Not fairly split" },
+    distribution: { title: "Distribution per person" },
+    taskTypes: { title: "Task types" },
+    mandatoryFlexible: { title: "Mandatory vs Flexible", note: "Fixed family tasks (pickups, bedtime, meals) are placed first; the rest is optimized for fairness." },
+    hardEasy: { title: "Difficulty breakdown" },
+    whyNot100: { title: "Why not 100?" },
+    quickActions: { makeFairer: "Make it fairer", suggestSwap: "Suggest swap" },
+    trend: { title: "Trend (last 4 weeks)" },
+    myWeek: "My week"
+  } : {
+    title: "Eerlijkheidsanalyse",
+    subtitle: "We verdelen werkdrukpunten (minuten × zwaarte) op basis van jullie tijdsbudgetten en vermijden avondpiek.",
+    badge: { good: "Goed verdeeld", okay: "Kan beter", poor: "Niet eerlijk verdeeld" },
+    distribution: { title: "Verdeling per persoon" },
+    taskTypes: { title: "Taaktypes" },
+    mandatoryFlexible: { title: "Verplicht vs Flexibel", note: "Vaste gezinstaken (zoals halen/brengen, avondritueel) worden eerst ingepland; de rest optimaliseren we op eerlijkheid." },
+    hardEasy: { title: "Moeilijkheidsgraad" },
+    whyNot100: { title: "Waarom geen 100?" },
+    quickActions: { makeFairer: "Maak eerlijker", suggestSwap: "Stel ruil voor" },
+    trend: { title: "Trend (laatste 4 weken)" },
+    myWeek: "Mijn week"
   };
-
-  const getTaskRationale = (task: string) => {
-    // Mock rationale mapping
-    const rationales = {
-      "more_remaining": "More time available than partner",
-      "cap_ok": "Within evening 40min limit",
-      "avoid_blackout": "No conflict with blackout times",
-      "owner_task": "Owner of this task",
-      "rotated_pair": "Rotated paired task",
-      "daytime_flex": "Daytime flexibility",
-      "preference_match": "Matches preferences",
-      "avoid_stacking": "Avoids stacking same evening"
+  const t = dict;
+  
+  const [myWeekMode, setMyWeekMode] = useState(false);
+  
+  // Save trend point when drawer opens
+  React.useEffect(() => {
+    if (open && weekStart && score) {
+      saveTrendPoint(weekStart, score);
+    }
+  }, [open, weekStart, score]);
+  
+  // Transform fairness details to PersonSplit format
+  const personSplits = useMemo<PersonSplit[]>(() => {
+    if (!details?.adults) return [];
+    
+    return details.adults.map(adult => ({
+      id: adult.person_id,
+      name: peopleById[adult.person_id]?.first_name || adult.person_id,
+      actualMinutes: adult.actual_minutes,
+      actualPoints: adult.actual_points,
+      targetMinutes: adult.target_minutes,
+      targetPoints: adult.target_points,
+      actualShare: adult.actual_share,
+      targetShare: adult.target_share,
+      deltaMinutes: adult.delta_minutes,
+      eveningsOverCap: details.contributors.evenings_over_cap[adult.person_id] || 0,
+      stackingViolations: details.contributors.stacking_violations[adult.person_id] || 0,
+      dislikedAssignments: details.contributors.disliked_assignments[adult.person_id] || 0,
+    }));
+  }, [details, peopleById]);
+  
+  // Get task type breakdowns
+  const taskBreakdowns = useMemo(() => {
+    if (personSplits.length < 2) return null;
+    
+    const [personA, personB] = personSplits;
+    return {
+      aName: personA.name,
+      bName: personB.name,
+      a: buildTypeBreakdown(assignments, personA.id),
+      b: buildTypeBreakdown(assignments, personB.id)
     };
-    return rationales[task as keyof typeof rationales] || task;
+  }, [personSplits, assignments]);
+  
+  // Get difficulty breakdowns
+  const difficultyBreakdowns = useMemo(() => {
+    if (personSplits.length < 2) return null;
+    
+    const [personA, personB] = personSplits;
+    return {
+      aName: personA.name,
+      bName: personB.name,
+      aCounts: buildDifficultyCounts(assignments, personA.id),
+      bCounts: buildDifficultyCounts(assignments, personB.id)
+    };
+  }, [personSplits, assignments]);
+  
+  // Get mandatory/flexible counts
+  const mandatoryFlexible = useMemo(() => {
+    return getMandatoryFlexibleCounts(assignments);
+  }, [assignments]);
+  
+  // Get trend data
+  const trendData = useMemo(() => {
+    return getTrendHistory();
+  }, [open]); // Refresh when drawer opens
+  
+  // Get badge info
+  const getBadgeInfo = (score: number) => {
+    if (score >= 80) return { label: t.badge.good, color: "bg-green-100 text-green-800" };
+    if (score >= 60) return { label: t.badge.okay, color: "bg-yellow-100 text-yellow-800" };
+    return { label: t.badge.poor, color: "bg-red-100 text-red-800" };
   };
+  
+  const badgeInfo = getBadgeInfo(score);
+  
+  // Get "Why not 100?" contributors
+  const getContributorItems = () => {
+    if (!details?.contributors) return [];
+    
+    const items: { personName: string; issue: string; count: number }[] = [];
+    
+    Object.entries(details.contributors.evenings_over_cap).forEach(([pid, count]) => {
+      if (count > 0) {
+        const name = peopleById[pid]?.first_name || pid;
+        const issue = L ? `${count} evening(s) over 40min` : `${count} avond(en) boven 40min`;
+        items.push({ personName: name, issue, count });
+      }
+    });
+    
+    Object.entries(details.contributors.stacking_violations).forEach(([pid, count]) => {
+      if (count > 0) {
+        const name = peopleById[pid]?.first_name || pid;
+        const issue = L ? `${count} stacking (3+ tasks or ≥60min)` : `${count} stapeling (3+ taken of ≥60min)`;
+        items.push({ personName: name, issue, count });
+      }
+    });
+    
+    Object.entries(details.contributors.disliked_assignments).forEach(([pid, count]) => {
+      if (count > 0) {
+        const name = peopleById[pid]?.first_name || pid;
+        const issue = L ? `${count} disliked assignment(s)` : `${count} taak/taken die minder leuk zijn`;
+        items.push({ personName: name, issue, count });
+      }
+    });
+    
+    return items;
+  };
+  
+  const contributorItems = getContributorItems();
+  
+  if (!open) return null;
   
   return (
-    <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose}>
-      <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-background p-6 overflow-y-auto shadow-lg" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Fairness Analysis</h2>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <p className="text-sm text-muted-foreground mb-6">
-          We balance workload points (minutes × difficulty) with your time budgets and avoid evening overload.
-        </p>
-
-        {/* Fairness Score */}
-        <div className="mb-6 p-4 bg-muted/50 rounded-lg">
-          <div className="text-center">
-            <div className={`text-3xl font-bold mb-2 px-3 py-1 rounded-full inline-flex items-center gap-2 ${getFairnessColor(score)}`}>
-              {score}/100
-              {score < 85 && <AlertTriangle className="h-5 w-5" />}
-            </div>
-            <div className="text-sm text-muted-foreground">Fairness Score</div>
+    <Drawer open={open} onOpenChange={onClose}>
+      <DrawerContent className="max-w-md mx-auto h-[90vh]">
+        <DrawerHeader className="space-y-4">
+          <div className="flex items-center justify-between">
+            <DrawerTitle>{t.title}</DrawerTitle>
+            <DrawerClose asChild>
+              <Button variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </DrawerClose>
           </div>
-        </div>
-
-        {/* Target vs Actual Split */}
-        <div className="space-y-4 mb-6">
-          <h3 className="font-semibold text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Distribution per person
-          </h3>
-          {adults.map(a => {
-            const name = peopleById[a.person_id]?.first_name ?? a.person_id;
-            const isOverTarget = a.actual_share > a.target_share;
-            return (
-              <div key={a.person_id} className="border rounded-lg p-4 bg-card">
-                <div className="flex justify-between items-center text-sm mb-3">
-                  <span className="font-medium text-lg">{name}</span>
-                  <span className="text-muted-foreground">
-                    {Math.round(a.actual_minutes)} min (target {Math.round(a.target_minutes)} min)
-                  </span>
-                </div>
-                
-                <div className="h-4 bg-muted rounded-full relative mb-3">
-                  {/* actual bar */}
-                  <div 
-                    className={`h-4 rounded-full transition-all ${isOverTarget ? 'bg-orange-500' : 'bg-primary'}`}
-                    style={{ width: `${Math.min(a.actual_share * 100, 100)}%` }} 
-                  />
-                  {/* target marker */}
-                  <div 
-                    className="absolute top-0 -mt-1 h-6 w-1 bg-blue-600 rounded" 
-                    style={{ left: `${Math.min(a.target_share * 100, 100)}%` }} 
-                  />
-                </div>
-                
-                <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                  <span>Target {pct(a.target_share)}%</span>
-                  <span>Current {pct(a.actual_share)}%</span>
-                  <span className={a.delta_minutes >= 0 ? "text-orange-600" : "text-green-600"}>
-                    Δ {a.delta_minutes >= 0 ? "+" : ""}{Math.round(a.delta_minutes)} min
-                  </span>
-                </div>
-
-                {/* Evening breakdown mini bars */}
-                <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs text-muted-foreground mb-2">Evenings (Mon-Fri):</div>
-                  <div className="flex gap-1">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(day => {
-                      const minutes = eveningBreakdown[a.person_id]?.[day] || 0;
-                      const isOverCap = minutes > 40;
-                      return (
-                        <div key={day} className="flex-1 text-center">
-                          <div className={`h-2 rounded ${isOverCap ? 'bg-red-400' : 'bg-green-400'}`} 
-                               style={{ opacity: Math.min(minutes / 40, 1) }} />
-                          <div className="text-xs mt-1">{day.slice(0, 2)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Contributors section */}
-        {details && (
-          <div className="mb-6">
-            <h3 className="font-semibold text-lg mb-3">Why not 100?</h3>
-            <div className="space-y-3">
-              {Object.entries(details.contributors.evenings_over_cap).map(([pid, n]) =>
-                n > 0 ? (
-                  <div key={`cap-${pid}`} className="flex items-center gap-3 text-sm p-3 bg-orange-50 rounded-lg">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />
-                    <span>{peopleById[pid]?.first_name ?? pid}: {n} evening(s) over 40min limit</span>
-                  </div>
-                ) : null
-              )}
-              {Object.entries(details.contributors.stacking_violations).map(([pid, n]) =>
-                n > 0 ? (
-                  <div key={`stack-${pid}`} className="flex items-center gap-3 text-sm p-3 bg-red-50 rounded-lg">
-                    <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
-                    <span>{peopleById[pid]?.first_name ?? pid}: {n} busy evening(s) (3+ tasks)</span>
-                  </div>
-                ) : null
-              )}
-              {Object.entries(details.contributors.pair_not_rotated || {}).map(([pid, n]) =>
-                n > 0 ? (
-                  <div key={`pair-${pid}`} className="flex items-center gap-3 text-sm p-3 bg-purple-50 rounded-lg">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0" />
-                    <span>{peopleById[pid]?.first_name ?? pid}: {n} non-rotated paired tasks</span>
-                  </div>
-                ) : null
-              )}
-              {Object.entries(details.contributors.disliked_assignments).map(([pid, n]) =>
-                n > 0 ? (
-                  <div key={`dislike-${pid}`} className="flex items-center gap-3 text-sm p-3 bg-yellow-50 rounded-lg">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" />
-                    <span>{peopleById[pid]?.first_name ?? pid}: {n} disliked task(s)</span>
-                  </div>
-                ) : null
-              )}
+          
+          <p className="text-sm text-muted-foreground">
+            {t.subtitle}
+          </p>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{t.myWeek}</span>
+              <UISwitch 
+                checked={myWeekMode} 
+                onCheckedChange={setMyWeekMode}
+              />
             </div>
-            
-            {/* Show message if no contributors */}
-            {Object.values(details.contributors.evenings_over_cap).every(n => n === 0) &&
-             Object.values(details.contributors.stacking_violations).every(n => n === 0) &&
-             Object.values(details.contributors.disliked_assignments).every(n => n === 0) &&
-             Object.values(details.contributors.pair_not_rotated || {}).every(n => n === 0) && (
-              <div className="p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700">
-                  🎉 No specific bottlenecks found! Score is mainly determined by small differences in workload.
+          </div>
+        </DrawerHeader>
+        
+        <div className="flex-1 overflow-y-auto px-6 space-y-6">
+          {/* Score Card */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center space-y-2">
+                <div className="text-3xl font-bold">{score}/100</div>
+                <Badge className={badgeInfo.color}>{badgeInfo.label}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Distribution per person */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t.distribution.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FairnessBars people={personSplits} />
+            </CardContent>
+          </Card>
+          
+          {/* Task type breakdown */}
+          {taskBreakdowns && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">{t.taskTypes.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TaskTypeBreakdown {...taskBreakdowns} />
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Mandatory vs Flexible */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t.mandatoryFlexible.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">
+                  {L ? "Mandatory" : "Verplicht"}
+                </span>
+                <span className="font-medium">
+                  {mandatoryFlexible.mandatory.tasks} {L ? "tasks" : "taken"} • {mandatoryFlexible.mandatory.points} {L ? "pts" : "punten"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">
+                  {L ? "Flexible" : "Flexibel"}
+                </span>
+                <span className="font-medium">
+                  {mandatoryFlexible.flexible.tasks} {L ? "tasks" : "taken"} • {mandatoryFlexible.flexible.points} {L ? "pts" : "punten"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {t.mandatoryFlexible.note}
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Hard vs Easy breakdown */}
+          {difficultyBreakdowns && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">{t.hardEasy.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HardEasyBreakdown {...difficultyBreakdowns} />
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Why not 100? */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t.whyNot100.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {contributorItems.length > 0 ? (
+                <div className="space-y-2">
+                  {contributorItems.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 flex-shrink-0" />
+                      <span>
+                        <span className="font-medium">{item.personName}:</span> {item.issue}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  {L 
+                    ? "No specific bottlenecks found. Score may be affected by small workload differences."
+                    : "Geen specifieke knelpunten gevonden. Score kan worden beïnvloed door kleine verschillen in werkdruk."
+                  }
                 </p>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Trend */}
+          {trendData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">{t.trend.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FairnessTrend points={trendData} />
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {L ? "Quick improvements" : "Snelle verbeteringen"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                {onMakeFairer && score < 85 && (
+                  <Button 
+                    onClick={onMakeFairer}
+                    className="justify-start"
+                    size="sm"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {t.quickActions.makeFairer}
+                  </Button>
+                )}
+                
+                {onSuggestSwap && (
+                  <Button 
+                    onClick={onSuggestSwap}
+                    variant="outline"
+                    className="justify-start"
+                    size="sm"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {t.quickActions.suggestSwap}
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick improvements */}
-        <div className="border-t pt-4 mb-6">
-          <h3 className="font-semibold text-lg mb-3">Quick improvements</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <span>Increase the budget of whoever is under target by +15 min</span>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <span>Lower the frequency of the biggest time consumer</span>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <span>Swap one evening task with your partner</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Rationale explanations */}
-        <div className="border-t pt-4">
-          <h3 className="font-semibold text-lg mb-3">Why me?</h3>
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p className="font-medium">Common reasons for task assignment:</p>
-            {[
-              "more_remaining",
-              "cap_ok", 
-              "avoid_blackout",
-              "owner_task",
-              "rotated_pair",
-              "daytime_flex"
-            ].map(reason => (
-              <div key={reason} className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-muted-foreground rounded-full" />
-                <span>{getTaskRationale(reason)}</span>
+              
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
+                  <span>
+                    {L 
+                      ? "Increase budget for whoever is under target by +15 min"
+                      : "Verhoog het budget van wie onder doel zit met +15 min"
+                    }
+                  </span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
+                  <span>
+                    {L 
+                      ? "Reduce frequency of the biggest time consumer"
+                      : "Verlaag de frequentie van de grootste tijdvreter"
+                    }
+                  </span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
+                  <span>
+                    {L 
+                      ? "Swap one evening task with your partner"
+                      : "Ruil één avondtaak met je partner"
+                    }
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-    </div>
+        
+        <DrawerFooter>
+          <DrawerClose asChild>
+            <Button variant="outline" className="w-full">
+              {L ? "Close" : "Sluiten"}
+            </Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

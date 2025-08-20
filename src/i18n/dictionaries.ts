@@ -424,6 +424,42 @@ export const dictionaries = {
       actual: "Werkelijk",
       points: "punten",
     },
+    fairness: {
+      title: "Eerlijkheidsanalyse",
+      subtitle: "We verdelen werkdrukpunten (minuten × zwaarte) op basis van jullie tijdsbudgetten en vermijden avondpiek.",
+      badge: {
+        good: "Goed verdeeld",
+        okay: "Kan beter", 
+        poor: "Niet eerlijk verdeeld"
+      },
+      splitSummary: {
+        title: "Verdeling samenvatting"
+      },
+      distribution: {
+        title: "Verdeling per persoon"
+      },
+      taskTypes: {
+        title: "Taaktypes"
+      },
+      mandatoryFlexible: {
+        title: "Verplicht vs Flexibel",
+        note: "Vaste gezinstaken (zoals halen/brengen, avondritueel) worden eerst ingepland; de rest optimaliseren we op eerlijkheid."
+      },
+      hardEasy: {
+        title: "Moeilijkheidsgraad"
+      },
+      whyNot100: {
+        title: "Waarom geen 100?"
+      },
+      quickActions: {
+        makeFairer: "Maak eerlijker",
+        suggestSwap: "Stel ruil voor"
+      },
+      trend: {
+        title: "Trend (laatste 4 weken)"
+      },
+      myWeek: "Mijn week"
+    },
   },
   en: {
     common: {
@@ -849,6 +885,42 @@ export const dictionaries = {
       target: "Target",
       actual: "Actual",
       points: "points",
+    },
+    fairness: {
+      title: "Fairness Analysis",
+      subtitle: "We balance workload points (minutes × difficulty) based on your time budgets and avoid evening overload.",
+      badge: {
+        good: "Well balanced",
+        okay: "Could be better",
+        poor: "Not fairly split"
+      },
+      splitSummary: {
+        title: "Split summary"
+      },
+      distribution: {
+        title: "Distribution per person"
+      },
+      taskTypes: {
+        title: "Task types"
+      },
+      mandatoryFlexible: {
+        title: "Mandatory vs Flexible",
+        note: "Fixed family tasks (pickups, bedtime, meals) are placed first; the rest is optimized for fairness."
+      },
+      hardEasy: {
+        title: "Difficulty breakdown"
+      },
+      whyNot100: {
+        title: "Why not 100?"
+      },
+      quickActions: {
+        makeFairer: "Make it fairer",
+        suggestSwap: "Suggest swap"
+      },
+      trend: {
+        title: "Trend (last 4 weeks)"
+      },
+      myWeek: "My week"
     },
   },
 } as const;
