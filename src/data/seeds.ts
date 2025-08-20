@@ -41,11 +41,11 @@ export const SEED_TASKS: Task[] = [
   { id: "t13", name: "15-minuten reset (opruimen)", category: "cleaning", default_duration: 15, difficulty: 1, frequency: "weekly", tags: ["declutter"], location: "indoor" },
   { id: "t14", name: "Koelkast/keuken diepteren", category: "kitchen", default_duration: 45, difficulty: 3, frequency: "monthly", tags: ["deepclean"], location: "indoor" },
   
-  // Kinderzorg & routine
-  { id: "t15", name: "Dagopvang brengen (ochtend)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], packs: ["pack_toddler", "pack_schoolkids"] },
-  { id: "t16", name: "Dagopvang ophalen (middag)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], packs: ["pack_toddler", "pack_schoolkids"] },
-  { id: "t17", name: "Baddertijd", category: "childcare", default_duration: 25, difficulty: 1, frequency: "daily", tags: ["routine"], packs: ["pack_toddler", "pack_schoolkids"], location: "indoor" },
-  { id: "t18", name: "Voorlezen / bedtijd", category: "childcare", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["routine"], packs: ["pack_toddler", "pack_schoolkids"], location: "indoor" },
+  // Kinderzorg & routine  
+  { id: "t15", name: "Dagopvang brengen (ochtend)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], packs: ["pack_toddler", "pack_schoolkids"], pair_group: "daycare_dropoff" },
+  { id: "t16", name: "Dagopvang ophalen (middag)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], packs: ["pack_toddler", "pack_schoolkids"], pair_group: "daycare_pickup" },
+  { id: "t17", name: "Baddertijd", category: "childcare", default_duration: 25, difficulty: 1, frequency: "daily", tags: ["routine"], packs: ["pack_toddler", "pack_schoolkids"], location: "indoor", pair_group: "bath_bedtime" },
+  { id: "t18", name: "Voorlezen / bedtijd", category: "childcare", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["routine"], packs: ["pack_toddler", "pack_schoolkids"], location: "indoor", pair_group: "bath_bedtime" },
   
   // Boodschappen & klusjes
   { id: "t19", name: "Boodschappen doen", category: "errands", default_duration: 40, difficulty: 2, frequency: "weekly", tags: ["shopping"] },
@@ -93,4 +93,8 @@ export const SEED_TASKS: Task[] = [
   { id: "sea1", name: "Tuin: seizoensklaar maken (lente)", category: "garden", default_duration: 90, difficulty: 3, frequency: "seasonal", tags: ["garden", "seasonal"], packs: ["pack_house_garden", "pack_season_spring"], location: "outdoor" },
   { id: "sea2", name: "Tuin: winterklaar maken (herfst)", category: "garden", default_duration: 60, difficulty: 3, frequency: "seasonal", tags: ["garden", "seasonal"], packs: ["pack_house_garden", "pack_season_autumn"], location: "outdoor" },
   { id: "sea3", name: "Winterkleding ophalen/wegbergen", category: "cleaning", default_duration: 45, difficulty: 2, frequency: "seasonal", tags: ["seasonal"], packs: ["pack_season_spring", "pack_season_autumn"], location: "indoor" },
+
+  // New pack entry points
+  { id: "pack_app", name: "🔧 Apparaat-onderhoud", category: "appliance", default_duration: 0, difficulty: 1, frequency: "custom", tags: ["appliance"], packs: ["pack_appliance_maint"], location: "indoor", helper_text: "Klik om apparaat onderhoudstaken toe te voegen" },
+  { id: "pack_seas", name: "🍂 Seizoenscheck", category: "seasonal", default_duration: 0, difficulty: 1, frequency: "custom", tags: ["seasonal"], packs: ["pack_season_spring", "pack_season_autumn"], location: "outdoor", helper_text: "Klik om seizoensgebonden taken toe te voegen" },
 ];

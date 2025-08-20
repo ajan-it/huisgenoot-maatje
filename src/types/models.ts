@@ -72,6 +72,7 @@ export interface Task {
   packs?: string[];
   helper_text?: string;
   active?: boolean;
+  pair_group?: string; // For paired tasks that should alternate
 }
 
 export interface Plan {

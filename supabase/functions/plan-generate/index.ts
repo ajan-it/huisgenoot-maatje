@@ -27,10 +27,10 @@ const SEED_TASKS = [
   { id: "t13", name: "15-minuten reset (opruimen)", category: "cleaning", default_duration: 15, difficulty: 1, frequency: "weekly", tags: ["declutter"] },
   { id: "t14", name: "Koelkast/keuken diepteren", category: "kitchen", default_duration: 45, difficulty: 3, frequency: "monthly", tags: ["deepclean"] },
   // Kinderzorg & routine
-  { id: "t15", name: "Dagopvang brengen (ochtend)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"] },
-  { id: "t16", name: "Dagopvang ophalen (middag)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"] },
-  { id: "t17", name: "Baddertijd", category: "childcare", default_duration: 25, difficulty: 1, frequency: "daily", tags: ["routine"] },
-  { id: "t18", name: "Voorlezen / bedtijd", category: "childcare", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["routine"] },
+  { id: "t15", name: "Dagopvang brengen (ochtend)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], pair_group: "daycare_dropoff" },
+  { id: "t16", name: "Dagopvang ophalen (middag)", category: "childcare", default_duration: 30, difficulty: 2, frequency: "daily", tags: ["transport"], pair_group: "daycare_pickup" },
+  { id: "t17", name: "Baddertijd", category: "childcare", default_duration: 25, difficulty: 1, frequency: "daily", tags: ["routine"], pair_group: "bath_bedtime" },
+  { id: "t18", name: "Voorlezen / bedtijd", category: "childcare", default_duration: 20, difficulty: 1, frequency: "daily", tags: ["routine"], pair_group: "bath_bedtime" },
   // Boodschappen & klusjes
   { id: "t19", name: "Boodschappen doen", category: "errands", default_duration: 40, difficulty: 2, frequency: "weekly", tags: ["shopping"] },
   { id: "t20", name: "Apotheek", category: "errands", default_duration: 20, difficulty: 1, frequency: "monthly", tags: ["errands"] },
@@ -43,14 +43,16 @@ const SEED_TASKS = [
 ];
 
 // Fairness allocation engine constants
-const LAMBDA = 8; // Proportional fairness weight
+const LAMBDA = 14; // Proportional fairness weight (increased for stronger balance)
 const DIFFICULTY_WEIGHTS = { 1: 1.0, 2: 1.2, 3: 1.5 };
 const WEEKNIGHT_CAP_DEFAULT = 30; // minutes
+const MAX_EVENING_MIN = 40; // hard cap per person per evening
+const MAX_EVENING_TASKS = 2; // hard cap per person per evening
 const SAME_EVENING_THRESHOLD = 40; // minutes
 const SAME_DAY_TASK_LIMIT = 3;
 const MAX_OCCURRENCES = 500;
-const MAX_SWAP_ITERATIONS = 100;
-const MAX_DURATION_MS = 900;
+const MAX_SWAP_ITERATIONS = 200; // increased for better rebalancing
+const MAX_DURATION_MS = 300; // reduced to 300ms max
 const EARLY_STOP_THRESHOLD = 10;
 
 // Time slot definitions
@@ -93,6 +95,7 @@ interface Occurrence {
   task_difficulty: number;
   task_category: string;
   task_tags: string[];
+  pair_group?: string;
   date: string; // YYYY-MM-DD
   time_slot: TimeSlot;
   assigned_person_id?: string;
@@ -121,6 +124,9 @@ interface Context {
   weeknightLoad: { [adultId: string]: number };
   dailyTaskCount: { [adultId: string]: { [date: string]: number } };
   eveningLoad: { [adultId: string]: { [date: string]: number } };
+  eveningTaskCount: { [adultId: string]: { [date: string]: number } };
+  pairAssignments: { [pairGroup: string]: { [date: string]: string } }; // track who gets paired tasks
+  weekPatterns: { [pairGroup: string]: { [personId: string]: string[] } }; // alternating patterns
 }
 
 // Deterministic input stabilization
@@ -227,6 +233,7 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
           task_difficulty: task.difficulty,
           task_category: task.category,
           task_tags: task.tags || [],
+          pair_group: task.pair_group,
           date: dateStr,
           time_slot: timeSlot,
           status: 'scheduled'
@@ -269,6 +276,7 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
         task_difficulty: task.difficulty,
         task_category: task.category,
         task_tags: task.tags || [],
+        pair_group: task.pair_group,
         date: dateStr,
         time_slot: timeSlot,
         status: 'scheduled'
@@ -293,6 +301,7 @@ function expandTaskOccurrences(tasks: any[], weekStart: string): Occurrence[] {
           task_difficulty: task.difficulty,
           task_category: task.category,
           task_tags: task.tags || [],
+          pair_group: task.pair_group,
           date: dateStr,
           time_slot: timeSlot,
           status: 'scheduled'
@@ -338,7 +347,26 @@ function isDisliked(adult: Adult, occurrence: Occurrence): boolean {
   return occurrence.task_tags.some(t => dislikes.has(t));
 }
 
-// Check if occurrence exceeds weeknight cap
+// Check if occurrence exceeds evening hard caps
+function exceedsEveningCaps(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  // Check if this is an evening task (18:00-21:30)
+  if (occurrence.time_slot.start < "18:00" || occurrence.time_slot.start > "21:30") return false;
+  
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  if (dayOfWeek < 1 || dayOfWeek > 5) return false; // Mon-Fri only
+  
+  const currentEveningMinutes = context.eveningLoad[adult.id]?.[occurrence.date] || 0;
+  const currentEveningTasks = context.eveningTaskCount[adult.id]?.[occurrence.date] || 0;
+  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  
+  // Hard caps
+  const wouldExceedMinutes = (currentEveningMinutes + units) > MAX_EVENING_MIN;
+  const wouldExceedTasks = (currentEveningTasks + 1) > MAX_EVENING_TASKS;
+  
+  return wouldExceedMinutes && wouldExceedTasks;
+}
+
+// Check if occurrence exceeds weeknight cap (soft penalty)
 function exceedsWeeknightCap(adult: Adult, occurrence: Occurrence, context: Context): boolean {
   const dayOfWeek = new Date(occurrence.date).getDay();
   if (dayOfWeek < 1 || dayOfWeek > 5) return false; // Mon..Fri
@@ -348,12 +376,42 @@ function exceedsWeeknightCap(adult: Adult, occurrence: Occurrence, context: Cont
   return (current + units) > cap;
 }
 
-// Check for same evening stacking
+// Check for same evening stacking (3rd task)
 function stacksSameEvening(adult: Adult, occurrence: Occurrence, context: Context): boolean {
-  const currentEveningLoad = context.eveningLoad[adult.id]?.[occurrence.date] || 0;
-  const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
+  if (occurrence.time_slot.start < "18:00" || occurrence.time_slot.start > "21:30") return false;
   
-  return (currentEveningLoad + units) > SAME_EVENING_THRESHOLD;
+  const currentEveningTasks = context.eveningTaskCount[adult.id]?.[occurrence.date] || 0;
+  return currentEveningTasks >= 2; // 3rd task would be stacking
+}
+
+// Check for paired task conflicts
+function conflictsPairedTask(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  if (!occurrence.pair_group) return false;
+  
+  // Check if same person already assigned to pair on same date
+  const existingAssignment = context.pairAssignments[occurrence.pair_group]?.[occurrence.date];
+  return existingAssignment === adult.id;
+}
+
+// Check alternating pattern preference
+function violatesAlternatingPattern(adult: Adult, occurrence: Occurrence, context: Context): boolean {
+  if (!occurrence.pair_group) return false;
+  
+  const pattern = context.weekPatterns[occurrence.pair_group]?.[adult.id];
+  if (!pattern) return false;
+  
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[dayOfWeek];
+  
+  return !pattern.includes(dayName);
+}
+
+// Check ownership preference (task familiarity)
+function matchesOwnership(adult: Adult, occurrence: Occurrence): boolean {
+  // Simple ownership based on task category preference
+  // This could be expanded with actual ownership data
+  return false; // Placeholder
 }
 
 // Check if adult has many tasks same day
@@ -388,6 +446,11 @@ function candidateScore(adult: Adult, occurrence: Occurrence, context: Context):
     return Infinity;
   }
   
+  // Evening hard caps - reject if both exceeded and no alternatives
+  if (exceedsEveningCaps(adult, occurrence, context)) {
+    return Infinity;
+  }
+  
   const units = occurrence.task_duration * DIFFICULTY_WEIGHTS[occurrence.task_difficulty];
   
   // Proportional fairness penalty
@@ -396,16 +459,40 @@ function candidateScore(adult: Adult, occurrence: Occurrence, context: Context):
   const target = context.targetShare[adult.id];
   const penaltyFair = LAMBDA * Math.abs(shareAfter - target);
   
-  // Soft constraints
+  // Soft constraints - tuned penalties
   let penalties = 0;
-  if (exceedsWeeknightCap(adult, occurrence, context)) penalties += 5;
-  if (stacksSameEvening(adult, occurrence, context)) penalties += 2;
-  if (isDisliked(adult, occurrence)) penalties += 1;
-  if (hasTooManyTasksSameDay(adult, occurrence, context)) penalties += 1;
+  if (exceedsWeeknightCap(adult, occurrence, context)) penalties += 5; // weeknight over-cap
+  if (stacksSameEvening(adult, occurrence, context)) penalties += 4; // 3rd evening task stacking
+  if (hasTooManyTasksSameDay(adult, occurrence, context)) penalties += 2; // day >2 tasks
+  if (isDisliked(adult, occurrence)) penalties += 1; // disliked
+  if (conflictsPairedTask(adult, occurrence, context)) penalties += 8; // paired task conflict
+  if (violatesAlternatingPattern(adult, occurrence, context)) penalties += 8; // alternating violation
+  
+  // Check if only one evening cap exceeded (soft penalty)
+  const dayOfWeek = new Date(occurrence.date).getDay();
+  if (dayOfWeek >= 1 && dayOfWeek <= 5 && occurrence.time_slot.start >= "18:00") {
+    const currentEveningMinutes = context.eveningLoad[adult.id]?.[occurrence.date] || 0;
+    const currentEveningTasks = context.eveningTaskCount[adult.id]?.[occurrence.date] || 0;
+    const wouldExceedMinutes = (currentEveningMinutes + units) > MAX_EVENING_MIN;
+    const wouldExceedTasks = (currentEveningTasks + 1) > MAX_EVENING_TASKS;
+    
+    if ((wouldExceedMinutes || wouldExceedTasks) && !(wouldExceedMinutes && wouldExceedTasks)) {
+      penalties += 6; // soft penalty for single cap violation
+    }
+  }
   
   // Bonuses
   if (matchesPreference(adult, occurrence)) penalties -= 1;
   if (hasMoreRemainingMinutes(adult, context)) penalties -= 1;
+  if (matchesOwnership(adult, occurrence)) penalties -= 3; // ownership bonus
+  
+  // Daytime flexibility bonus
+  if (occurrence.time_slot.start < "18:00") {
+    penalties -= 1; // basic daytime flexibility
+    if (occurrence.time_slot.start >= "09:00" && occurrence.time_slot.start <= "17:00") {
+      penalties -= 1; // additional bonus for business hours
+    }
+  }
   
   return penaltyFair + penalties;
 }
@@ -415,27 +502,39 @@ function generateReasons(adult: Adult, occurrence: Occurrence, context: Context)
   const reasons: string[] = [];
   
   if (hasMoreRemainingMinutes(adult, context)) {
-    reasons.push("meer_minuten_beschikbaar_dan_partner");
+    reasons.push("more_remaining");
   }
   
   const dayOfWeek = new Date(occurrence.date).getDay();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayName = dayNames[dayOfWeek];
   
-  if (WEEKNIGHTS.includes(dayName) && !exceedsWeeknightCap(adult, occurrence, context)) {
-    reasons.push("avondslot_binnen_limiet_30min");
+  if (WEEKNIGHTS.includes(dayName) && !exceedsEveningCaps(adult, occurrence, context)) {
+    reasons.push("cap_ok");
   }
   
   if (!conflictsBlackout(adult, occurrence)) {
-    reasons.push("geen_conflict_met_blokken");
+    reasons.push("avoid_blackout");
   }
   
   if (matchesPreference(adult, occurrence)) {
-    reasons.push("voorkeur_match_taken");
+    reasons.push("preference_match");
   }
   
   if (!stacksSameEvening(adult, occurrence, context)) {
-    reasons.push("vermijdt_stapeling_zelfde_avond");
+    reasons.push("avoid_stacking");
+  }
+  
+  if (matchesOwnership(adult, occurrence)) {
+    reasons.push("owner_task");
+  }
+  
+  if (occurrence.pair_group && !violatesAlternatingPattern(adult, occurrence, context)) {
+    reasons.push("rotated_pair");
+  }
+  
+  if (occurrence.time_slot.start < "18:00") {
+    reasons.push("daytime_flex");
   }
   
   return reasons;
@@ -458,17 +557,27 @@ function updateContext(context: Context, adult: Adult, occurrence: Occurrence): 
     context.weeknightLoad[adult.id] += units;
   }
   
-  // Update evening load
-  if (occurrence.time_slot.start >= "18:00") {
+  // Update evening load and task count
+  if (occurrence.time_slot.start >= "18:00" && occurrence.time_slot.start <= "21:30") {
     if (!context.eveningLoad[adult.id]) context.eveningLoad[adult.id] = {};
     if (!context.eveningLoad[adult.id][occurrence.date]) context.eveningLoad[adult.id][occurrence.date] = 0;
     context.eveningLoad[adult.id][occurrence.date] += units;
+    
+    if (!context.eveningTaskCount[adult.id]) context.eveningTaskCount[adult.id] = {};
+    if (!context.eveningTaskCount[adult.id][occurrence.date]) context.eveningTaskCount[adult.id][occurrence.date] = 0;
+    context.eveningTaskCount[adult.id][occurrence.date]++;
   }
   
   // Update daily task count
   if (!context.dailyTaskCount[adult.id]) context.dailyTaskCount[adult.id] = {};
   if (!context.dailyTaskCount[adult.id][occurrence.date]) context.dailyTaskCount[adult.id][occurrence.date] = 0;
   context.dailyTaskCount[adult.id][occurrence.date]++;
+  
+  // Update pair assignments
+  if (occurrence.pair_group) {
+    if (!context.pairAssignments[occurrence.pair_group]) context.pairAssignments[occurrence.pair_group] = {};
+    context.pairAssignments[occurrence.pair_group][occurrence.date] = adult.id;
+  }
 }
 
 // Tie-breaker for equal scores
@@ -489,8 +598,8 @@ function tieBreaker(adultA: Adult, adultB: Adult, occurrence: Occurrence, contex
   return adultA.id.localeCompare(adultB.id);
 }
 
-// Greedy assignment algorithm
-function greedyAssignment(occurrences: Occurrence[], adults: Adult[]): { assigned: Occurrence[], backlog: Occurrence[] } {
+// Greedy assignment algorithm with backlog support
+function greedyAssignment(occurrences: Occurrence[], adults: Adult[], idempotencyKey = ""): { assigned: Occurrence[], backlog: Occurrence[] } {
   const assigned: Occurrence[] = [];
   const backlog: Occurrence[] = [];
   
@@ -503,8 +612,32 @@ function greedyAssignment(occurrences: Occurrence[], adults: Adult[]): { assigne
     targetShare: {},
     weeknightLoad: {},
     dailyTaskCount: {},
-    eveningLoad: {}
+    eveningLoad: {},
+    eveningTaskCount: {},
+    pairAssignments: {},
+    weekPatterns: {}
   };
+  
+  // Initialize alternating patterns for paired tasks (seeded)
+  const seed = hashString(idempotencyKey || "default");
+  const rng = seed % 2; // Simple alternation
+  
+  adults.forEach((adult, index) => {
+    context.weekPatterns["daycare_dropoff"] = context.weekPatterns["daycare_dropoff"] || {};
+    context.weekPatterns["daycare_pickup"] = context.weekPatterns["daycare_pickup"] || {};
+    context.weekPatterns["bath_bedtime"] = context.weekPatterns["bath_bedtime"] || {};
+    
+    // Alternate: first adult gets Mon/Wed/Fri, second gets Tue/Thu, etc.
+    if ((index + rng) % 2 === 0) {
+      context.weekPatterns["daycare_dropoff"][adult.id] = ["Mon", "Wed", "Fri"];
+      context.weekPatterns["daycare_pickup"][adult.id] = ["Mon", "Wed", "Fri"];
+      context.weekPatterns["bath_bedtime"][adult.id] = ["Mon", "Wed", "Fri"];
+    } else {
+      context.weekPatterns["daycare_dropoff"][adult.id] = ["Tue", "Thu"];
+      context.weekPatterns["daycare_pickup"][adult.id] = ["Tue", "Thu"];
+      context.weekPatterns["bath_bedtime"][adult.id] = ["Tue", "Thu"];
+    }
+  });
   
   // Calculate target shares
   adults.forEach(adult => {
@@ -548,7 +681,7 @@ function greedyAssignment(occurrences: Occurrence[], adults: Adult[]): { assigne
       assigned.push(assignedOccurrence);
       updateContext(context, bestAdult, occurrence);
     } else {
-      // Move to backlog
+      // Move to backlog if no feasible candidate
       backlog.push({ ...occurrence, status: 'backlog' as const });
     }
   }
@@ -577,7 +710,7 @@ function generateTaskAssignments(tasks: any[], people: any[], weekStart: string,
   console.log(`Expanded ${occurrences.length} occurrences from ${sortedTasks.length} tasks`);
   
   // Greedy assignment
-  const { assigned, backlog } = greedyAssignment(occurrences, sortedAdults);
+  const { assigned, backlog } = greedyAssignment(occurrences, sortedAdults, idempotencyKey);
   
   // Convert to expected format
   const assignments = assigned.map(occ => ({
@@ -821,7 +954,8 @@ serve(async (req) => {
     let contributors = {
       evenings_over_cap: {} as Record<string, number>,
       stacking_violations: {} as Record<string, number>,
-      disliked_assignments: {} as Record<string, number>
+      disliked_assignments: {} as Record<string, number>,
+      pair_not_rotated: {} as Record<string, number>
     };
     let fairnessColor = 'yellow';
     const adult_loads: { [key: string]: { actual_minutes: number; target_minutes: number; share_percentage: number } } = {};
@@ -847,7 +981,8 @@ serve(async (req) => {
       contributors = {
         evenings_over_cap: {} as Record<string, number>,
         stacking_violations: {} as Record<string, number>,
-        disliked_assignments: {} as Record<string, number>
+        disliked_assignments: {} as Record<string, number>,
+        pair_not_rotated: {} as Record<string, number>
       };
 
       // Initialize contributor counters
@@ -855,10 +990,12 @@ serve(async (req) => {
         contributors.evenings_over_cap[adult.id] = 0;
         contributors.stacking_violations[adult.id] = 0;
         contributors.disliked_assignments[adult.id] = 0;
+        contributors.pair_not_rotated[adult.id] = 0;
       });
 
       // Track evening workload per person per date for accurate evening analysis
       const eveningWorkload: Record<string, Record<string, { count: number; minutes: number }>> = {};
+      const pairTracker: Record<string, Record<string, string[]>> = {}; // track paired task assignments
       adults.forEach(adult => {
         eveningWorkload[adult.id] = {};
       });

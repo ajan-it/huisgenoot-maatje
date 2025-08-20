@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import PlanSchedule from "@/components/PlanSchedule";
 import { FairnessBadge } from "@/components/plan/FairnessBadge";
-import { FairnessDrawer } from "@/components/plan/FairnessDrawer";
+import { EnhancedFairnessDrawer } from "@/components/plan/EnhancedFairnessDrawer";
 import { RebalancePreview } from "@/components/RebalancePreview";
 import type { FairnessDetails } from "@/types/plan";
 import { supabase } from "@/integrations/supabase/client";
@@ -236,8 +236,8 @@ const PlanView = () => {
          </section>
         )}
 
-        {/* Fairness Drawer */}
-        <FairnessDrawer
+        {/* Enhanced Fairness Drawer */}
+        <EnhancedFairnessDrawer
           open={fairnessDrawerOpen}
           onClose={() => setFairnessDrawerOpen(false)}
           score={plan?.fairness ?? 0}

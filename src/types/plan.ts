@@ -16,5 +16,6 @@ export type FairnessDetails = {
     evenings_over_cap: Record<string, number>
     stacking_violations: Record<string, number>
     disliked_assignments: Record<string, number>
+    pair_not_rotated: Record<string, number>
   }
 }
