@@ -436,15 +436,27 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-primary">{activeTasks.length}</div>
-              <div className="text-sm text-muted-foreground">Actieve taken</div>
+              <div className="text-sm text-muted-foreground">{t("tasks.picker.activeTasks")}</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">{Math.round(minutesPerAdult)}</div>
-              <div className="text-sm text-muted-foreground">Geschatte minuten p.p.</div>
+              <div className="text-2xl font-bold text-primary">
+                {Math.round(minutesPerAdult)}
+                <span className="text-lg text-muted-foreground ml-1">
+                  ({(minutesPerAdult / 60).toFixed(1)}h)
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {t("tasks.picker.estimatedMinutes")}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                ≈ {(minutesPerAdult / 60).toFixed(1)}h per week • {minutesPerAdult < 90 ? t("tasks.picker.timeLight") : 
+                        minutesPerAdult < 150 ? t("tasks.picker.timeNormal") : 
+                        t("tasks.picker.timeBusy")}
+              </div>
             </div>
             <div>
               <div className="text-2xl font-bold text-primary">{fairnessScore}%</div>
-              <div className="text-sm text-muted-foreground">Eerlijkheidsvoorbeeld</div>
+              <div className="text-sm text-muted-foreground">{t("tasks.picker.fairnessPreview")}</div>
             </div>
           </div>
         </CardContent>
