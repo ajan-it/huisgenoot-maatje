@@ -61,35 +61,6 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				},
-				// Task Category Colors
-				category: {
-					kitchen: 'hsl(var(--category-kitchen))',
-					cleaning: 'hsl(var(--category-cleaning))',
-					childcare: 'hsl(var(--category-childcare))',
-					errands: 'hsl(var(--category-errands))',
-					admin: 'hsl(var(--category-admin))',
-					safety: 'hsl(var(--category-safety))',
-					maintenance: 'hsl(var(--category-maintenance))',
-					garden: 'hsl(var(--category-garden))',
-					appliance: 'hsl(var(--category-appliance))',
-					selfcare: 'hsl(var(--category-selfcare))',
-					outdoor: 'hsl(var(--category-outdoor))',
-					seasonal: 'hsl(var(--category-seasonal))'
-				},
-				'category-bg': {
-					kitchen: 'hsl(var(--category-kitchen-bg))',
-					cleaning: 'hsl(var(--category-cleaning-bg))',
-					childcare: 'hsl(var(--category-childcare-bg))',
-					errands: 'hsl(var(--category-errands-bg))',
-					admin: 'hsl(var(--category-admin-bg))',
-					safety: 'hsl(var(--category-safety-bg))',
-					maintenance: 'hsl(var(--category-maintenance-bg))',
-					garden: 'hsl(var(--category-garden-bg))',
-					appliance: 'hsl(var(--category-appliance-bg))',
-					selfcare: 'hsl(var(--category-selfcare-bg))',
-					outdoor: 'hsl(var(--category-outdoor-bg))',
-					seasonal: 'hsl(var(--category-seasonal-bg))'
 				}
 			},
 			borderRadius: {
