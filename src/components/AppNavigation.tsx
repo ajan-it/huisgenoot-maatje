@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/I18nProvider";
 import { cn } from "@/lib/utils";
+import React from "react";
 
 const AppNavigation = () => {
   const { t, lang } = useI18n();
@@ -81,16 +82,22 @@ const AppNavigation = () => {
             {/* Setup */}
             <NavigationMenuItem>
               <NavigationMenuTrigger 
-                className={isActive('/setup') ? "bg-accent text-accent-foreground" : ""}
+                className={cn(
+                  isActive('/setup') ? "bg-accent text-accent-foreground" : "",
+                  "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
+                )}
               >
                 <Settings className="h-4 w-4 mr-2" />
                 {lang === 'nl' ? 'Instellen' : 'Setup'}
               </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <div className="grid gap-3 p-4 w-[400px]">
-                  <NavigationMenuLink
+              <NavigationMenuContent className="z-50">
+                <div className="grid gap-3 p-4 w-[400px] bg-popover">
+                  <div
                     className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
-                    onClick={() => handleNavigation('/setup/1')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavigation('/setup/1');
+                    }}
                   >
                     <div className="text-sm font-medium leading-none">
                       {lang === 'nl' ? 'Setup Wizard' : 'Setup Wizard'}
@@ -101,10 +108,13 @@ const AppNavigation = () => {
                         : 'Set up your household, people and preferences'
                       }
                     </p>
-                  </NavigationMenuLink>
-                  <NavigationMenuLink
+                  </div>
+                  <div
                     className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
-                    onClick={() => handleNavigation('/setup/done')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavigation('/setup/done');
+                    }}
                   >
                     <div className="text-sm font-medium leading-none">
                       {lang === 'nl' ? 'Setup Voltooid' : 'Setup Complete'}
@@ -115,7 +125,7 @@ const AppNavigation = () => {
                         : 'View your completed setup and generate a plan'
                       }
                     </p>
-                  </NavigationMenuLink>
+                  </div>
                 </div>
               </NavigationMenuContent>
             </NavigationMenuItem>
@@ -124,16 +134,22 @@ const AppNavigation = () => {
             {currentPlanId && (
               <NavigationMenuItem>
                 <NavigationMenuTrigger 
-                  className={isActive('/plan') || isActive('/my') ? "bg-accent text-accent-foreground" : ""}
+                  className={cn(
+                    isActive('/plan') || isActive('/my') ? "bg-accent text-accent-foreground" : "",
+                    "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
+                  )}
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   {lang === 'nl' ? 'Planning' : 'Planning'}
                 </NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <div className="grid gap-3 p-4 w-[400px]">
-                    <NavigationMenuLink
+                <NavigationMenuContent className="z-50">
+                  <div className="grid gap-3 p-4 w-[400px] bg-popover">
+                    <div
                       className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
-                      onClick={() => handleNavigation(`/plan/${currentPlanId}`)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavigation(`/plan/${currentPlanId}`);
+                      }}
                     >
                       <div className="text-sm font-medium leading-none">
                         {lang === 'nl' ? 'Weekplan' : 'Week Plan'}
@@ -144,10 +160,13 @@ const AppNavigation = () => {
                           : 'View the complete week plan and fairness analysis'
                         }
                       </p>
-                    </NavigationMenuLink>
-                    <NavigationMenuLink
+                    </div>
+                    <div
                       className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
-                      onClick={() => handleNavigation('/my')}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavigation('/my');
+                      }}
                     >
                       <div className="text-sm font-medium leading-none">
                         {lang === 'nl' ? 'Mijn Taken' : 'My Tasks'}
@@ -158,7 +177,7 @@ const AppNavigation = () => {
                           : 'Personal overview of your tasks'
                         }
                       </p>
-                    </NavigationMenuLink>
+                    </div>
                   </div>
                 </NavigationMenuContent>
               </NavigationMenuItem>
