@@ -2,9 +2,11 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-chore-dutch.jpg";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const bullets = [t('index.bullets.0'), t('index.bullets.1'), t('index.bullets.2'), t('index.bullets.3')];
   return (
     <>
@@ -23,15 +25,27 @@ const Index = () => {
               <h1 className="text-4xl md:text-5xl font-bold leading-tight">{t('index.headline')}</h1>
               <p className="text-lg text-muted-foreground">{t('index.lead')}</p>
               <div className="flex gap-3">
-                <a href="/setup">
-                  <Button variant="hero" size="xl">{t('index.ctaStart')}</Button>
-                </a>
-                <a href="/privacy">
-                  <Button variant="outline" size="lg">{t('index.privacy')}</Button>
-                </a>
-                <a href="/auth">
-                  <Button variant="secondary" size="lg">{t('index.login')}</Button>
-                </a>
+                <Button 
+                  variant="hero" 
+                  size="xl"
+                  onClick={() => navigate('/setup/1')}
+                >
+                  {t('index.ctaStart')}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => navigate('/privacy')}
+                >
+                  {t('index.privacy')}
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  size="lg"
+                  onClick={() => navigate('/auth')}
+                >
+                  {t('index.login')}
+                </Button>
               </div>
               <ul className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                 {bullets.map((b, i) => (
