@@ -59,6 +59,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
   const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [selectedPacks, setSelectedPacks] = useState<string[]>([]);
 
   const filteredTasks = useMemo(() => {
     let tasks = SEED_TASKS.filter(task => {
@@ -133,29 +134,53 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
     onTasksChange(newTasks);
   };
 
-  const applyPack = (packId: string) => {
+  const isPackSelected = (packId: string) => {
+    const packTasks = SEED_TASKS.filter(task => task.packs?.includes(packId));
+    return packTasks.length > 0 && packTasks.every(task => 
+      selectedTasks.some(selectedTask => selectedTask.id === task.id && selectedTask.active)
+    );
+  };
+
+  const togglePack = (packId: string) => {
     const packTasks = SEED_TASKS.filter(task => task.packs?.includes(packId));
     const newTasks = [...selectedTasks];
+    const isCurrentlySelected = isPackSelected(packId);
     
     packTasks.forEach(task => {
       const index = newTasks.findIndex(t => t.id === task.id);
-      const config = {
-        id: task.id,
-        active: true,
-        frequency: task.frequency,
-        duration: task.default_duration,
-        weekend_only: false,
-        avoid_evenings: false,
-      };
       
-      if (index >= 0) {
-        newTasks[index] = { ...newTasks[index], ...config };
+      if (!isCurrentlySelected) {
+        // Select the pack
+        const config = {
+          id: task.id,
+          active: true,
+          frequency: task.frequency,
+          duration: task.default_duration,
+          weekend_only: false,
+          avoid_evenings: false,
+        };
+        
+        if (index >= 0) {
+          newTasks[index] = { ...newTasks[index], ...config };
+        } else {
+          newTasks.push(config);
+        }
       } else {
-        newTasks.push(config);
+        // Deselect the pack
+        if (index >= 0) {
+          newTasks[index] = { ...newTasks[index], active: false };
+        }
       }
     });
     
     onTasksChange(newTasks);
+    
+    // Update selected packs state for UI
+    setSelectedPacks(prev => 
+      isCurrentlySelected 
+        ? prev.filter(p => p !== packId)
+        : [...prev, packId]
+    );
   };
 
   const activeTasks = selectedTasks.filter(t => t.active);
@@ -269,16 +294,27 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
             {t("tasks.picker.recommendedPacks")}
           </Label>
           <div className="flex flex-wrap gap-2">
-            {TASK_PACKS.map(pack => (
-              <Button
-                key={pack}
-                variant="outline"
-                size="sm"
-                onClick={() => applyPack(pack)}
-              >
-                {t(`tasks.packs.${pack}`)}
-              </Button>
-            ))}
+            {TASK_PACKS.map(pack => {
+              const isSelected = isPackSelected(pack);
+              return (
+                <Button
+                  key={pack}
+                  variant={isSelected ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => togglePack(pack)}
+                  className={`transition-all ${
+                    isSelected 
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  {t(`tasks.packs.${pack}`)}
+                  {isSelected && (
+                    <span className="ml-2 text-xs opacity-70">✓</span>
+                  )}
+                </Button>
+              );
+            })}
           </div>
         </div>
       </div>
