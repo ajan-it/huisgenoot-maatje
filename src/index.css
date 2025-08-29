@@ -45,6 +45,34 @@ All colors MUST be HSL.
     --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.25);
     --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 
+    /* Task Category Colors - Psychology-Based */
+    --category-kitchen: 25 95% 53%;        /* Warm orange - appetite, energy */
+    --category-cleaning: 210 79% 46%;      /* Clean blue - trust, cleanliness */
+    --category-childcare: 330 81% 60%;     /* Nurturing pink - care, love */
+    --category-errands: 142 76% 36%;       /* Active green - movement, action */
+    --category-admin: 262 83% 58%;         /* Intelligent purple - organization */
+    --category-safety: 0 84% 60%;          /* Alert red - attention, critical */
+    --category-maintenance: 215 25% 27%;   /* Reliable gray-blue - stability */
+    --category-garden: 120 61% 34%;        /* Natural green - growth, outdoors */
+    --category-appliance: 180 78% 34%;     /* Modern teal - technology */
+    --category-selfcare: 231 48% 48%;      /* Calming indigo - wellness */
+    --category-outdoor: 158 58% 45%;       /* Earth green - outdoor activities */
+    --category-seasonal: 35 91% 65%;       /* Autumn orange - seasonal changes */
+
+    /* Category Background Variants */
+    --category-kitchen-bg: 25 95% 95%;
+    --category-cleaning-bg: 210 79% 95%;
+    --category-childcare-bg: 330 81% 95%;
+    --category-errands-bg: 142 76% 95%;
+    --category-admin-bg: 262 83% 95%;
+    --category-safety-bg: 0 84% 95%;
+    --category-maintenance-bg: 215 25% 95%;
+    --category-garden-bg: 120 61% 95%;
+    --category-appliance-bg: 180 78% 95%;
+    --category-selfcare-bg: 231 48% 95%;
+    --category-outdoor-bg: 158 58% 95%;
+    --category-seasonal-bg: 35 91% 95%;
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -105,6 +133,34 @@ All colors MUST be HSL.
     --gradient-hero: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
     --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.35);
     --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* Task Category Colors - Dark Mode Adjusted */
+    --category-kitchen: 25 85% 60%;        /* Slightly brighter for dark mode */
+    --category-cleaning: 210 70% 55%;      
+    --category-childcare: 330 75% 65%;     
+    --category-errands: 142 70% 45%;       
+    --category-admin: 262 75% 65%;         
+    --category-safety: 0 75% 65%;          
+    --category-maintenance: 215 20% 65%;   
+    --category-garden: 120 55% 45%;        
+    --category-appliance: 180 70% 45%;     
+    --category-selfcare: 231 45% 60%;      
+    --category-outdoor: 158 50% 55%;       
+    --category-seasonal: 35 85% 70%;       
+
+    /* Category Background Variants - Dark Mode */
+    --category-kitchen-bg: 25 85% 15%;
+    --category-cleaning-bg: 210 70% 15%;
+    --category-childcare-bg: 330 75% 15%;
+    --category-errands-bg: 142 70% 15%;
+    --category-admin-bg: 262 75% 15%;
+    --category-safety-bg: 0 75% 15%;
+    --category-maintenance-bg: 215 20% 15%;
+    --category-garden-bg: 120 55% 15%;
+    --category-appliance-bg: 180 70% 15%;
+    --category-selfcare-bg: 231 45% 15%;
+    --category-outdoor-bg: 158 50% 15%;
+    --category-seasonal-bg: 35 85% 15%;
   }
 }
 

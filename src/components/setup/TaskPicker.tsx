@@ -14,6 +14,7 @@ import { InfoIcon, FilterIcon, PackageIcon } from "lucide-react";
 import { SEED_TASKS } from "@/data/seeds";
 import { Frequency } from "@/types/models";
 import { useI18n } from "@/i18n/I18nProvider";
+import { getCategoryColorClasses, getCategoryIcon, getFrequencyIntensity } from "@/lib/task-colors";
 
 interface TaskPickerProps {
   selectedTasks: Array<{
@@ -296,6 +297,11 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
           <div className="flex flex-wrap gap-2">
             {TASK_PACKS.map(pack => {
               const isSelected = isPackSelected(pack);
+              // Get the most common category in this pack for color theming
+              const packTasks = SEED_TASKS.filter(task => task.packs?.includes(pack));
+              const dominantCategory = packTasks.length > 0 ? packTasks[0].category : "admin";
+              const packageColors = getCategoryColorClasses(dominantCategory);
+              
               return (
                 <Button
                   key={pack}
@@ -304,8 +310,8 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                   onClick={() => togglePack(pack)}
                   className={`transition-all ${
                     isSelected 
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                      : "hover:bg-accent hover:text-accent-foreground"
+                      ? `${packageColors.bg} ${packageColors.color} border-current hover:opacity-90` 
+                      : `hover:${packageColors.bg} hover:${packageColors.color} hover:border-current`
                   }`}
                 >
                   {t(`tasks.packs.${pack}`)}
@@ -323,15 +329,26 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTasks.map(task => {
           const config = getTaskConfig(task.id);
+          const categoryColors = getCategoryColorClasses(task.category);
+          const categoryIcon = getCategoryIcon(task.category);
+          const frequencyIntensity = getFrequencyIntensity(config.frequency || task.frequency);
           
           return (
-            <Card key={task.id} className={`transition-all ${config.active ? 'ring-2 ring-primary' : ''}`}>
+            <Card key={task.id} className={`transition-all ${config.active ? 'ring-2 ring-primary' : ''} ${categoryColors.borderLeft} border-l-4`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-sm">{task.name}</CardTitle>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg" role="img" aria-label={task.category}>
+                        {categoryIcon}
+                      </span>
+                      <CardTitle className={`text-sm ${frequencyIntensity}`}>{task.name}</CardTitle>
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
-                       <Badge variant="outline" className="text-xs">
+                       <Badge 
+                         variant="outline" 
+                         className={`text-xs ${categoryColors.color} ${categoryColors.bg} border-current`}
+                       >
                          {t(`tasks.${task.category}`)}
                        </Badge>
                        <Badge variant="secondary" className="text-xs">
