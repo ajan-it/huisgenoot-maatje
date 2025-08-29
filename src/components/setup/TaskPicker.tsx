@@ -195,7 +195,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Input
-              placeholder="Zoek taken..."
+              placeholder={t("tasks.picker.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full"
@@ -206,16 +206,16 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
             <SheetTrigger asChild>
               <Button variant="outline" size="sm">
                 <FilterIcon className="h-4 w-4 mr-2" />
-                Filters
+                {t("tasks.picker.filters")}
               </Button>
             </SheetTrigger>
             <SheetContent>
               <SheetHeader>
-                <SheetTitle>Filters</SheetTitle>
+                <SheetTitle>{t("tasks.picker.filters")}</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4">
                   <div>
-                    <Label className="text-sm font-medium">Frequentie</Label>
+                    <Label className="text-sm font-medium">{t("tasks.picker.filterFrequency")}</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {FREQUENCY_ORDER.map(freq => (
                         <Badge
@@ -230,24 +230,14 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                             );
                           }}
                         >
-                          {freq === "daily" ? "Dagelijks" :
-                           freq === "two_per_week" ? "2×/week" :
-                           freq === "three_per_week" ? "3×/week" :
-                           freq === "weekly" ? "Wekelijks" :
-                           freq === "biweekly" ? "2-wekelijks" :
-                           freq === "monthly" ? "Maandelijks" :
-                           freq === "quarterly" ? "Per kwartaal" :
-                           freq === "semiannual" ? "Halfjaarlijks" :
-                           freq === "annual" ? "Jaarlijks" :
-                           freq === "seasonal" ? "Seizoensgebonden" :
-                           freq === "custom" ? "Aangepast..." : freq}
+                          {t(`tasks.frequency.${freq}`)}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 
                   <div>
-                    <Label className="text-sm font-medium">Context</Label>
+                    <Label className="text-sm font-medium">{t("tasks.picker.filterContext")}</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {CONTEXT_FILTERS.map(context => (
                         <Badge
@@ -262,14 +252,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                             );
                           }}
                         >
-                          {context === "apartment" ? "Appartement" :
-                           context === "house" ? "Eengezinswoning" :
-                           context === "garden" ? "Tuin" :
-                           context === "fireplace" ? "Open haard" :
-                           context === "cycling" ? "Fiets" :
-                           context === "car" ? "Auto" :
-                           context === "solar" ? "Zonnepanelen" :
-                           context === "pets" ? "Huisdier" : context}
+                          {t(`tasks.context.${context}`)}
                         </Badge>
                       ))}
                     </div>
@@ -283,7 +266,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
         <div>
           <Label className="text-sm font-medium mb-2 block">
             <PackageIcon className="h-4 w-4 inline mr-1" />
-            Aanbevolen pakketten
+            {t("tasks.picker.recommendedPacks")}
           </Label>
           <div className="flex flex-wrap gap-2">
             {TASK_PACKS.map(pack => (
@@ -293,16 +276,7 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                 size="sm"
                 onClick={() => applyPack(pack)}
               >
-                {pack === "pack_no_kids" ? "Geen kinderen" :
-                 pack === "pack_toddler" ? "Peuter 1-3" :
-                 pack === "pack_schoolkids" ? "Schoolkind(eren)" :
-                 pack === "pack_two_workers" ? "2 werkenden" :
-                 pack === "pack_house_garden" ? "Huis met tuin" :
-                 pack === "pack_apartment" ? "Appartement" :
-                 pack === "pack_appliance_maint" ? "Apparaat-onderhoud" :
-                 pack === "pack_safety_checks" ? "Veiligheid & inspecties" :
-                 pack === "pack_season_spring" ? "Seizoenscheck lente" :
-                 pack === "pack_season_autumn" ? "Seizoenscheck herfst" : pack}
+                {t(`tasks.packs.${pack}`)}
               </Button>
             ))}
           </div>
@@ -321,35 +295,12 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                   <div className="flex-1">
                     <CardTitle className="text-sm">{task.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {task.category === "kitchen" ? "Keuken" :
-                         task.category === "bathroom" ? "Badkamer" :
-                         task.category === "cleaning" ? "Schoonmaken" :
-                         task.category === "admin" ? "Administratie" :
-                         task.category === "childcare" ? "Kindzorg" :
-                         task.category === "errands" ? "Boodschappen" :
-                         task.category === "maintenance" ? "Onderhoud" :
-                         task.category === "selfcare" ? "Zelfzorg" :
-                         task.category === "social" ? "Sociaal" :
-                         task.category === "garden" ? "Tuin" :
-                         task.category === "appliance" ? "Apparaten" :
-                         task.category === "safety" ? "Veiligheid" :
-                         task.category === "outdoor" ? "Buiten" :
-                         task.category === "seasonal" ? "Seizoens" : task.category}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {(config.frequency || task.frequency) === "daily" ? "Dagelijks" :
-                         (config.frequency || task.frequency) === "two_per_week" ? "2×/week" :
-                         (config.frequency || task.frequency) === "three_per_week" ? "3×/week" :
-                         (config.frequency || task.frequency) === "weekly" ? "Wekelijks" :
-                         (config.frequency || task.frequency) === "biweekly" ? "2-wekelijks" :
-                         (config.frequency || task.frequency) === "monthly" ? "Maandelijks" :
-                         (config.frequency || task.frequency) === "quarterly" ? "Per kwartaal" :
-                         (config.frequency || task.frequency) === "semiannual" ? "Halfjaarlijks" :
-                         (config.frequency || task.frequency) === "annual" ? "Jaarlijks" :
-                         (config.frequency || task.frequency) === "seasonal" ? "Seizoensgebonden" :
-                         (config.frequency || task.frequency) === "custom" ? "Aangepast..." : (config.frequency || task.frequency)}
-                      </Badge>
+                       <Badge variant="outline" className="text-xs">
+                         {t(`tasks.${task.category}`)}
+                       </Badge>
+                       <Badge variant="secondary" className="text-xs">
+                         {t(`tasks.frequency.${config.frequency || task.frequency}`)}
+                       </Badge>
                     </div>
                   </div>
                   <Switch
@@ -360,62 +311,62 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
               </CardHeader>
               
               {config.active && (
-                <CardContent className="pt-0 space-y-3">
-                  <div>
-                    <Label className="text-xs">Frequentie</Label>
-                    <Select
-                      value={config.frequency || task.frequency}
-                      onValueChange={(frequency: Frequency) => updateTask(task.id, { frequency })}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Dagelijks</SelectItem>
-                        <SelectItem value="two_per_week">2×/week</SelectItem>
-                        <SelectItem value="three_per_week">3×/week</SelectItem>
-                        <SelectItem value="weekly">Wekelijks</SelectItem>
-                        <SelectItem value="biweekly">2-wekelijks</SelectItem>
-                        <SelectItem value="monthly">Maandelijks</SelectItem>
-                        <SelectItem value="quarterly">Per kwartaal</SelectItem>
-                        <SelectItem value="semiannual">Halfjaarlijks</SelectItem>
-                        <SelectItem value="annual">Jaarlijks</SelectItem>
-                        <SelectItem value="seasonal">Seizoensgebonden</SelectItem>
-                        <SelectItem value="custom">Aangepast...</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs">Duur: {config.duration || task.default_duration} min</Label>
-                    <Slider
-                      value={[config.duration || task.default_duration]}
-                      onValueChange={([duration]) => updateTask(task.id, { duration })}
-                      min={5}
-                      max={120}
-                      step={5}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`weekend-${task.id}`}
-                        checked={config.weekend_only || false}
-                        onCheckedChange={(weekend_only) => updateTask(task.id, { weekend_only: Boolean(weekend_only) })}
-                      />
-                      <Label htmlFor={`weekend-${task.id}`}>Weekend</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`avoid-${task.id}`}
-                        checked={config.avoid_evenings || false}
-                        onCheckedChange={(avoid_evenings) => updateTask(task.id, { avoid_evenings: Boolean(avoid_evenings) })}
-                      />
-                      <Label htmlFor={`avoid-${task.id}`}>Avond vermijden</Label>
-                    </div>
-                  </div>
+                 <CardContent className="pt-0 space-y-3">
+                   <div>
+                     <Label className="text-xs">{t("tasks.picker.frequency")}</Label>
+                     <Select
+                       value={config.frequency || task.frequency}
+                       onValueChange={(frequency: Frequency) => updateTask(task.id, { frequency })}
+                     >
+                       <SelectTrigger className="h-8">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="daily">{t("tasks.frequency.daily")}</SelectItem>
+                         <SelectItem value="two_per_week">{t("tasks.frequency.two_per_week")}</SelectItem>
+                         <SelectItem value="three_per_week">{t("tasks.frequency.three_per_week")}</SelectItem>
+                         <SelectItem value="weekly">{t("tasks.frequency.weekly")}</SelectItem>
+                         <SelectItem value="biweekly">{t("tasks.frequency.biweekly")}</SelectItem>
+                         <SelectItem value="monthly">{t("tasks.frequency.monthly")}</SelectItem>
+                         <SelectItem value="quarterly">{t("tasks.frequency.quarterly")}</SelectItem>
+                         <SelectItem value="semiannual">{t("tasks.frequency.semiannual")}</SelectItem>
+                         <SelectItem value="annual">{t("tasks.frequency.annual")}</SelectItem>
+                         <SelectItem value="seasonal">{t("tasks.frequency.seasonal")}</SelectItem>
+                         <SelectItem value="custom">{t("tasks.frequency.custom")}</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   
+                   <div>
+                     <Label className="text-xs">{t("tasks.picker.duration")}: {config.duration || task.default_duration} min</Label>
+                     <Slider
+                       value={[config.duration || task.default_duration]}
+                       onValueChange={([duration]) => updateTask(task.id, { duration })}
+                       min={5}
+                       max={120}
+                       step={5}
+                       className="mt-1"
+                     />
+                   </div>
+                   
+                   <div className="flex items-center justify-between text-xs">
+                     <div className="flex items-center gap-2">
+                       <Checkbox
+                         id={`weekend-${task.id}`}
+                         checked={config.weekend_only || false}
+                         onCheckedChange={(weekend_only) => updateTask(task.id, { weekend_only: Boolean(weekend_only) })}
+                       />
+                       <Label htmlFor={`weekend-${task.id}`}>{t("tasks.picker.weekendOnly")}</Label>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <Checkbox
+                         id={`avoid-${task.id}`}
+                         checked={config.avoid_evenings || false}
+                         onCheckedChange={(avoid_evenings) => updateTask(task.id, { avoid_evenings: Boolean(avoid_evenings) })}
+                       />
+                       <Label htmlFor={`avoid-${task.id}`}>{t("tasks.picker.avoidEvenings")}</Label>
+                     </div>
+                   </div>
                   
                   {task.helper_text && (
                     <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">

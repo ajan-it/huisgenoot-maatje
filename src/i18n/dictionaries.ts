@@ -281,6 +281,9 @@ export const dictionaries = {
         timeLight: "lichte week",
         timeNormal: "normale week",
         timeBusy: "drukke week",
+        filters: "Filters",
+        frequency: "Frequentie",
+        duration: "Duur",
       },
     },
     time: {
@@ -731,7 +734,7 @@ export const dictionaries = {
         filterFrequency: "Filter by frequency",
         filterContext: "Filter by context",
         showCategories: "Show categories", 
-        recommendedPacks: "Recommended packs",
+        recommendedPacks: "Recommended packages",
         bulkEdit: "Bulk edit",
         weekendOnly: "Weekend only",
         avoidEvenings: "Avoid evenings",
@@ -747,6 +750,9 @@ export const dictionaries = {
         timeLight: "light week",
         timeNormal: "normal week",
         timeBusy: "busy week",
+        filters: "Filters",
+        frequency: "Frequency",
+        duration: "Duration",
       },
     },
     time: {
