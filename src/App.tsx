@@ -9,6 +9,7 @@ import SetupWizard from "./pages/SetupWizard";
 import Privacy from "./pages/Privacy";
 import Auth from "./pages/Auth";
 import LanguageToggle from "@/components/LanguageToggle";
+import AppNavigation from "@/components/AppNavigation";
 import SetupFlow from "./pages/SetupFlow";
 import SetupDone from "./pages/SetupDone";
 import PlanView from "./pages/PlanView";
@@ -24,7 +25,10 @@ const App = () => (
       <Sonner />
       <LanguageToggle />
       <BrowserRouter>
-        <Routes>
+        <div className="min-h-screen flex flex-col">
+          <AppNavigation />
+          <div className="flex-1">
+            <Routes>
           {/* success page (static) */}
           <Route path="/setup/done" element={<SetupDone />} />
 
@@ -46,7 +50,9 @@ const App = () => (
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
+            </Routes>
+          </div>
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
