@@ -46,12 +46,18 @@ export function useBoostSettings(householdId?: string) {
         .from('household_members')
         .select('household_id')
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .limit(1)
         .single();
 
       if (error) throw error;
       setActualHouseholdId(data?.household_id);
     } catch (error) {
       console.error('Error fetching household ID:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load household settings",
+        variant: "destructive"
+      });
     }
   };
 
