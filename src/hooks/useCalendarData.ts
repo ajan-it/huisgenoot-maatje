@@ -24,6 +24,7 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   }, [startDate, endDate, filters]);
 
   const fetchData = async () => {
+    console.log('Fetching calendar data for:', { startDate, endDate, filters, householdId });
     setLoading(true);
     try {
       // Build query for occurrences
@@ -55,6 +56,8 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
       }
 
       const { data: occurrenceData, error: occurrenceError } = await query;
+      
+      console.log('Query result:', { occurrenceData, occurrenceError });
       
       if (occurrenceError) throw occurrenceError;
       
