@@ -1,4 +1,4 @@
-import { Home, Calendar, BarChart3, Settings, ArrowLeft, ChevronDown } from "lucide-react";
+import { Home, Calendar, BarChart3, Settings, ArrowLeft, ChevronDown, Zap } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,6 +120,21 @@ const AppNavigation = () => {
                   {lang === 'nl' 
                     ? 'Bekijk je voltooide setup en genereer een plan'
                     : 'View your completed setup and generate a plan'
+                  }
+                </p>
+              </div>
+              <div
+                className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                onClick={() => handleNavigation('/boost-settings')}
+              >
+                <div className="text-sm font-medium leading-none flex items-center">
+                  <Zap className="h-4 w-4 mr-2" />
+                  {lang === 'nl' ? 'Boost Instellingen' : 'Boost Settings'}
+                </div>
+                <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                  {lang === 'nl' 
+                    ? 'Configureer herinneringen en betrouwbaarheidsfeatures'
+                    : 'Configure reminders and reliability features'
                   }
                 </p>
               </div>
