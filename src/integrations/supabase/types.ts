@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -88,6 +88,87 @@ export type Database = {
         }
         Relationships: []
       }
+      boosts_log: {
+        Row: {
+          channel: Database["public"]["Enums"]["boost_channel"]
+          created_at: string
+          escalation_used: boolean | null
+          id: string
+          interaction: Database["public"]["Enums"]["boost_interaction"] | null
+          outcome: string | null
+          person_id: string
+          sent_at: string
+          task_occurrence_id: string
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["boost_channel"]
+          created_at?: string
+          escalation_used?: boolean | null
+          id?: string
+          interaction?: Database["public"]["Enums"]["boost_interaction"] | null
+          outcome?: string | null
+          person_id: string
+          sent_at?: string
+          task_occurrence_id: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["boost_channel"]
+          created_at?: string
+          escalation_used?: boolean | null
+          id?: string
+          interaction?: Database["public"]["Enums"]["boost_interaction"] | null
+          outcome?: string | null
+          person_id?: string
+          sent_at?: string
+          task_occurrence_id?: string
+        }
+        Relationships: []
+      }
+      disruptions: {
+        Row: {
+          affected_person_ids: string[]
+          consent_a: boolean | null
+          consent_b: boolean | null
+          created_at: string
+          created_by: string
+          household_id: string
+          id: string
+          nights_impacted: number
+          notes: string | null
+          type: Database["public"]["Enums"]["disruption_type"]
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          affected_person_ids?: string[]
+          consent_a?: boolean | null
+          consent_b?: boolean | null
+          created_at?: string
+          created_by: string
+          household_id: string
+          id?: string
+          nights_impacted?: number
+          notes?: string | null
+          type: Database["public"]["Enums"]["disruption_type"]
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          affected_person_ids?: string[]
+          consent_a?: boolean | null
+          consent_b?: boolean | null
+          created_at?: string
+          created_by?: string
+          household_id?: string
+          id?: string
+          nights_impacted?: number
+          notes?: string | null
+          type?: Database["public"]["Enums"]["disruption_type"]
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       household_members: {
         Row: {
           created_at: string
@@ -122,6 +203,7 @@ export type Database = {
       }
       households: {
         Row: {
+          boost_settings: Json | null
           created_at: string
           created_by: string
           id: string
@@ -131,6 +213,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          boost_settings?: Json | null
           created_at?: string
           created_by?: string
           id?: string
@@ -140,6 +223,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          boost_settings?: Json | null
           created_at?: string
           created_by?: string
           id?: string
@@ -153,36 +237,63 @@ export type Database = {
       occurrences: {
         Row: {
           assigned_person: string | null
+          backup_person_id: string | null
+          boost_enabled: boolean | null
           created_at: string
           date: string
+          difficulty_weight: number
+          duration_min: number
+          fairness_excused: boolean | null
+          has_backup: boolean | null
           id: string
+          is_critical: boolean | null
           plan_id: string
           rationale: Json | null
+          start_time: string
           status: Database["public"]["Enums"]["occurrence_status"]
           task_id: string
           updated_at: string
+          workload_units: number | null
         }
         Insert: {
           assigned_person?: string | null
+          backup_person_id?: string | null
+          boost_enabled?: boolean | null
           created_at?: string
           date: string
+          difficulty_weight?: number
+          duration_min?: number
+          fairness_excused?: boolean | null
+          has_backup?: boolean | null
           id?: string
+          is_critical?: boolean | null
           plan_id: string
           rationale?: Json | null
+          start_time?: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           task_id: string
           updated_at?: string
+          workload_units?: number | null
         }
         Update: {
           assigned_person?: string | null
+          backup_person_id?: string | null
+          boost_enabled?: boolean | null
           created_at?: string
           date?: string
+          difficulty_weight?: number
+          duration_min?: number
+          fairness_excused?: boolean | null
+          has_backup?: boolean | null
           id?: string
+          is_critical?: boolean | null
           plan_id?: string
           rationale?: Json | null
+          start_time?: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           task_id?: string
           updated_at?: string
+          workload_units?: number | null
         }
         Relationships: [
           {
@@ -405,6 +516,14 @@ export type Database = {
       }
     }
     Enums: {
+      boost_channel: "push" | "email" | "whatsapp" | "sms"
+      boost_interaction:
+        | "acknowledged"
+        | "rescheduled"
+        | "swapped"
+        | "backup_requested"
+        | "completed"
+        | "missed"
       category_type:
         | "kitchen"
         | "bathroom"
@@ -416,6 +535,20 @@ export type Database = {
         | "selfcare"
         | "social"
         | "garden"
+      disruption_type:
+        | "sick_child"
+        | "childcare_issues"
+        | "overtime"
+        | "late_shifts"
+        | "commute_delays"
+        | "travel"
+        | "guests"
+        | "events"
+        | "low_energy"
+        | "mental_load"
+        | "appliance_broken"
+        | "repairs"
+        | "other"
       frequency_type: "daily" | "weekly" | "monthly"
       locale: "nl" | "en"
       occurrence_status: "scheduled" | "done" | "moved" | "backlog"
@@ -549,6 +682,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      boost_channel: ["push", "email", "whatsapp", "sms"],
+      boost_interaction: [
+        "acknowledged",
+        "rescheduled",
+        "swapped",
+        "backup_requested",
+        "completed",
+        "missed",
+      ],
       category_type: [
         "kitchen",
         "bathroom",
@@ -560,6 +702,21 @@ export const Constants = {
         "selfcare",
         "social",
         "garden",
+      ],
+      disruption_type: [
+        "sick_child",
+        "childcare_issues",
+        "overtime",
+        "late_shifts",
+        "commute_delays",
+        "travel",
+        "guests",
+        "events",
+        "low_energy",
+        "mental_load",
+        "appliance_broken",
+        "repairs",
+        "other",
       ],
       frequency_type: ["daily", "weekly", "monthly"],
       locale: ["nl", "en"],

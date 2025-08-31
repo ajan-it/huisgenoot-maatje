@@ -10,10 +10,14 @@ import PlanSchedule from "@/components/PlanSchedule";
 import { FairnessBadge } from "@/components/plan/FairnessBadge";
 import { EnhancedFairnessDrawer } from "@/components/plan/EnhancedFairnessDrawer";
 import { RebalancePreview } from "@/components/RebalancePreview";
+import { WeeklyReflectionBanner } from "@/components/reflection/WeeklyReflectionBanner";
+import { DisruptionForm } from "@/components/reflection/DisruptionForm";
 import type { FairnessDetails } from "@/types/plan";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDisruptions } from "@/hooks/useDisruptions";
 import { Loader2, Sparkles } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const PlanView = () => {
   const { planId } = useParams();
@@ -28,7 +32,12 @@ const PlanView = () => {
   const [rebalanceData, setRebalanceData] = useState<any>(null);
   const [fairnessDrawerOpen, setFairnessDrawerOpen] = useState(false);
   const [fairnessDetails, setFairnessDetails] = useState<FairnessDetails | null>(null);
+  const [showReflectionForm, setShowReflectionForm] = useState(false);
   const { toast } = useToast();
+  
+  // Demo household ID - in real app this would come from auth context
+  const householdId = "demo-household-id";
+  const { disruptions, createDisruptions } = useDisruptions(householdId, plan?.week_start);
 
   useEffect(() => {
     try {
@@ -117,6 +126,17 @@ const PlanView = () => {
     setRebalanceData(null);
   };
 
+  const handleReflectionSubmit = async (disruptionsData: any[]) => {
+    const success = await createDisruptions(disruptionsData);
+    if (success) {
+      setShowReflectionForm(false);
+      toast({
+        title: L ? "Reflection saved" : "Reflectie opgeslagen",
+        description: L ? "Your insights will help improve next week's plan" : "Je inzichten helpen het plan van volgende week te verbeteren"
+      });
+    }
+  };
+
   return (
     <main className="container py-8 space-y-6">
       <Helmet>
@@ -132,6 +152,15 @@ const PlanView = () => {
             {L ? "This is a shared week plan link. You can review the plan below." : "Dit is een gedeelde weekplan‑link. Hieronder kun je het plan bekijken."}
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Weekly Reflection Banner */}
+      {plan && (
+        <WeeklyReflectionBanner
+          weekStart={plan.week_start}
+          onStartReflection={() => setShowReflectionForm(true)}
+          hasReflection={disruptions.length > 0}
+        />
       )}
 
       <header className="space-y-2">
@@ -247,6 +276,7 @@ const PlanView = () => {
           assignments={plan?.assignments || []}
           weekStart={plan?.week_start}
           onMakeFairer={handleMakeItFairer}
+          householdId={householdId}
         />
 
         {/* Rebalance Preview Dialog */}
@@ -264,6 +294,20 @@ const PlanView = () => {
               setRebalanceData(null);
             }}
           />
+        )}
+
+        {/* Reflection Form Dialog */}
+        {showReflectionForm && plan && (
+          <Dialog open={showReflectionForm} onOpenChange={setShowReflectionForm}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DisruptionForm
+                weekStart={plan.week_start}
+                people={plan.people || []}
+                onSubmit={handleReflectionSubmit}
+                onCancel={() => setShowReflectionForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </main>
    );

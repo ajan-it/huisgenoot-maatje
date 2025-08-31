@@ -20,6 +20,8 @@ import { TaskTypeBreakdown } from "./TaskTypeBreakdown";
 import { HardEasyBreakdown } from "./HardEasyBreakdown";
 import { FairnessTrend } from "./FairnessTrend";
 import type { FairnessDetails } from "@/types/plan";
+import { formatDisruptionExplanation } from "@/lib/fairness-enhanced";
+import { useDisruptions } from "@/hooks/useDisruptions";
 import {
   buildTypeBreakdown,
   buildDifficultyCounts,
