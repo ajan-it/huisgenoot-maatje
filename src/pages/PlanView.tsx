@@ -36,7 +36,7 @@ const PlanView = () => {
   const { toast } = useToast();
   
   // Demo household ID - in real app this would come from auth context
-  const householdId = "demo-household-id";
+  const householdId = "00000000-0000-4000-8000-000000000000";
   const { disruptions, createDisruptions } = useDisruptions(householdId, plan?.week_start);
 
   useEffect(() => {
