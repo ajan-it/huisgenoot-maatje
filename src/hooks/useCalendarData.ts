@@ -15,16 +15,23 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   const [boosts, setBoosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRequestInProgress, setIsRequestInProgress] = useState(false);
   const { toast } = useToast();
 
   // Using the first household ID from the database
   const householdId = "1b2dc522-7093-4b62-9c40-ce031c527066";
 
   useEffect(() => {
+    // Prevent duplicate requests
+    if (isRequestInProgress) {
+      console.log('Request already in progress, skipping duplicate');
+      return;
+    }
+
     let isCancelled = false;
     
     const fetchDataSafe = async () => {
-      if (!isCancelled) {
+      if (!isCancelled && !isRequestInProgress) {
         await fetchData();
       }
     };
@@ -37,7 +44,13 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   }, [startDate, endDate, filters]);
 
   const fetchData = async () => {
+    if (isRequestInProgress) {
+      console.log('Fetch already in progress, aborting duplicate request');
+      return;
+    }
+
     console.log('Fetching calendar data for:', { startDate, endDate, filters, householdId });
+    setIsRequestInProgress(true);
     setLoading(true);
     setError(null);
     
@@ -145,6 +158,7 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
       });
     } finally {
       setLoading(false);
+      setIsRequestInProgress(false);
     }
   };
 
