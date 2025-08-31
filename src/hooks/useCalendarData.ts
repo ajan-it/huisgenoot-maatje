@@ -42,10 +42,16 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
     setError(null);
     
     try {
-      // Check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
+      // First check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Authentication check:', { session: !!session, sessionError });
+      
+      if (sessionError) {
+        throw new Error(`Authentication error: ${sessionError.message}`);
+      }
+      
       if (!session) {
-        throw new Error('User not authenticated');
+        throw new Error('User not authenticated. Please sign in.');
       }
 
       // Build query for occurrences with retry logic
