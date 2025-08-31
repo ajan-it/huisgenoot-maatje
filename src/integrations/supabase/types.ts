@@ -510,9 +510,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_boost_needed: {
+        Args: { occurrence_id: string }
+        Returns: boolean
+      }
       is_household_member: {
         Args: { _household_id: string }
         Returns: boolean
+      }
+      log_boost_interaction: {
+        Args: {
+          channel_used: string
+          interaction_type?: string
+          occurrence_id: string
+          outcome_text?: string
+          person_id: string
+        }
+        Returns: string
       }
     }
     Enums: {
