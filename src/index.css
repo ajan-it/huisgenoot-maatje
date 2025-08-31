@@ -60,6 +60,14 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Category colors */
+    --category-cleaning: 210 94% 45%;
+    --category-maintenance: 25 85% 45%;
+    --category-childcare: 270 70% 45%;
+    --category-admin: 180 85% 35%;
+    --category-errands: 0 85% 45%;
+    --category-safety: 160 60% 45%;
   }
 
   .dark {
@@ -98,6 +106,14 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Category colors (dark) */
+    --category-cleaning: 210 84% 55%;
+    --category-maintenance: 25 75% 55%;
+    --category-childcare: 270 60% 55%;
+    --category-admin: 180 75% 45%;
+    --category-errands: 0 75% 55%;
+    --category-safety: 160 50% 55%;
 
     /* Brand & motion tokens (dark) */
     --brand-start: 264 84% 70%;

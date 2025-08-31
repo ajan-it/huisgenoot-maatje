@@ -15,6 +15,8 @@ import SetupDone from "./pages/SetupDone";
 import PlanView from "./pages/PlanView";
 import MyTasks from "./pages/MyTasks";
 import CompareDashboard from "./pages/CompareDashboard";
+import CalendarMonth from "./pages/CalendarMonth";
+import CalendarYear from "./pages/CalendarYear";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,10 @@ const App = () => (
           {/* my tasks and compare */}
           <Route path="/my" element={<MyTasks />} />
           <Route path="/compare" element={<CompareDashboard />} />
+          
+          {/* calendar views */}
+          <Route path="/calendar/month" element={<CalendarMonth />} />
+          <Route path="/calendar/year" element={<CalendarYear />} />
 
           {/* wizard steps 1–8 only */}
           <Route path="/" element={<Index />} />

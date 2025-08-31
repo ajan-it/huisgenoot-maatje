@@ -136,7 +136,7 @@ const AppNavigation = () => {
                 size="sm"
                 className={cn(
                   "h-9 px-3",
-                  isActive('/plan') || isActive('/my') ? "bg-accent text-accent-foreground" : ""
+                  isActive('/plan') || isActive('/my') || isActive('/calendar') ? "bg-accent text-accent-foreground" : ""
                 )}
               >
                 <Calendar className="h-4 w-4 mr-2" />
@@ -160,20 +160,48 @@ const AppNavigation = () => {
                     }
                   </p>
                 </div>
-                <div
-                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                  onClick={() => handleNavigation('/my')}
-                >
-                  <div className="text-sm font-medium leading-none">
-                    {lang === 'nl' ? 'Mijn Taken' : 'My Tasks'}
+                  <div
+                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    onClick={() => handleNavigation('/my')}
+                  >
+                    <div className="text-sm font-medium leading-none">
+                      {lang === 'nl' ? 'Mijn Taken' : 'My Tasks'}
+                    </div>
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {lang === 'nl' 
+                        ? 'Persoonlijk overzicht van jouw taken'
+                        : 'Personal overview of your tasks'
+                      }
+                    </p>
                   </div>
-                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                    {lang === 'nl' 
-                      ? 'Persoonlijk overzicht van jouw taken'
-                      : 'Personal overview of your tasks'
-                    }
-                  </p>
-                </div>
+                  <div
+                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    onClick={() => handleNavigation('/calendar/month')}
+                  >
+                    <div className="text-sm font-medium leading-none">
+                      {lang === 'nl' ? 'Kalender Maand' : 'Calendar Month'}
+                    </div>
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {lang === 'nl' 
+                        ? 'Maandelijks overzicht van alle taken'
+                        : 'Monthly overview of all tasks'
+                      }
+                    </p>
+                  </div>
+                  <div
+                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    onClick={() => handleNavigation('/calendar/year')}
+                  >
+                    <div className="text-sm font-medium leading-none">
+                      {lang === 'nl' ? 'Kalender Jaar' : 'Calendar Year'}
+                    </div>
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {lang === 'nl' 
+                        ? 'Jaarlijks overzicht van werkdruk'
+                        : 'Yearly overview of workload intensity'
+                      }
+                    </p>
+                  </div>
               </div>
             </PopoverContent>
           </Popover>
