@@ -12,9 +12,8 @@ const BoostSettingsPage = () => {
   const { lang } = useI18n();
   const L = lang === "en";
   
-  // Demo household ID - in real app this would come from auth context
-  const householdId = "demo-household-id";
-  const { settings, updateSettings, loading } = useBoostSettings(householdId);
+  // Use the hook without passing a household ID - it will fetch it automatically
+  const { settings, updateSettings, loading } = useBoostSettings();
 
   return (
     <main className="container py-8 space-y-6">

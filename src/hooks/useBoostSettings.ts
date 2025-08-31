@@ -22,23 +22,48 @@ const DEFAULT_BOOST_SETTINGS: BoostSettings = {
 export function useBoostSettings(householdId?: string) {
   const [settings, setSettings] = useState<BoostSettings>(DEFAULT_BOOST_SETTINGS);
   const [loading, setLoading] = useState(false);
+  const [actualHouseholdId, setActualHouseholdId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Get household ID from database if not provided
   useEffect(() => {
     if (householdId) {
-      fetchSettings();
+      setActualHouseholdId(householdId);
+    } else {
+      fetchHouseholdId();
     }
   }, [householdId]);
 
+  useEffect(() => {
+    if (actualHouseholdId) {
+      fetchSettings();
+    }
+  }, [actualHouseholdId]);
+
+  const fetchHouseholdId = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (error) throw error;
+      setActualHouseholdId(data?.household_id);
+    } catch (error) {
+      console.error('Error fetching household ID:', error);
+    }
+  };
+
   const fetchSettings = async () => {
-    if (!householdId) return;
+    if (!actualHouseholdId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('households')
         .select('boost_settings')
-        .eq('id', householdId)
+        .eq('id', actualHouseholdId)
         .single();
 
       if (error) throw error;
@@ -53,13 +78,13 @@ export function useBoostSettings(householdId?: string) {
   };
 
   const updateSettings = async (newSettings: BoostSettings) => {
-    if (!householdId) return;
+    if (!actualHouseholdId) return;
 
     try {
       const { error } = await supabase
         .from('households')
         .update({ boost_settings: newSettings as any })
-        .eq('id', householdId);
+        .eq('id', actualHouseholdId);
 
       if (error) throw error;
 
