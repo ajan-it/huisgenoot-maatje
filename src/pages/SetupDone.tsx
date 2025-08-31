@@ -14,11 +14,36 @@ function useLastPlan() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("lastPlanResponse");
-      if (!raw) return;
+      console.log("SetupDone: Raw localStorage data:", raw);
+      if (!raw) {
+        console.log("SetupDone: No lastPlanResponse in localStorage");
+        return;
+      }
       const parsed = JSON.parse(raw);
-      const fresh = Date.now() - Date.parse(parsed.created_at || 0) < 24 * 60 * 60 * 1000;
-      if (fresh) setPlan(parsed);
-    } catch {}
+      console.log("SetupDone: Parsed plan data:", parsed);
+      
+      if (!parsed.created_at) {
+        console.log("SetupDone: Plan data missing created_at, using current time");
+        // If no created_at, assume it's fresh (just created)
+        setPlan(parsed);
+        return;
+      }
+      
+      const fresh = Date.now() - Date.parse(parsed.created_at) < 24 * 60 * 60 * 1000;
+      console.log("SetupDone: Plan freshness check:", {
+        created_at: parsed.created_at,
+        age_hours: (Date.now() - Date.parse(parsed.created_at)) / (1000 * 60 * 60),
+        is_fresh: fresh
+      });
+      
+      if (fresh) {
+        setPlan(parsed);
+      } else {
+        console.log("SetupDone: Plan data is too old (>24 hours)");
+      }
+    } catch (error) {
+      console.error("SetupDone: Error parsing plan data:", error);
+    }
   }, []);
   return plan;
 }
