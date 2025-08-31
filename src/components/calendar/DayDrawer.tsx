@@ -35,15 +35,15 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
     sum + ((occ.duration_min || 0) * (occ.difficulty_weight || 1)), 0
   );
   const criticalCount = occurrences.filter(occ => occ.is_critical).length;
-  const completedCount = occurrences.filter(occ => occ.status === 'completed').length;
+  const completedCount = occurrences.filter(occ => occ.status === 'done').length;
 
   // Get status badge
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any, label: string }> = {
       scheduled: { variant: "default", label: t('scheduled') },
-      completed: { variant: "secondary", label: t('completed') },
-      missed: { variant: "destructive", label: t('missed') },
-      swapped: { variant: "outline", label: t('swapped') }
+      done: { variant: "secondary", label: t('completed') },
+      moved: { variant: "outline", label: t('moved') },
+      backlog: { variant: "destructive", label: t('backlog') }
     };
     return variants[status] || variants.scheduled;
   };
@@ -170,7 +170,7 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
 
                     {/* Actions */}
                     <div className="flex items-center space-x-2 pt-2">
-                      {occ.status !== 'completed' && (
+                      {occ.status !== 'done' && (
                         <Button
                           size="sm"
                           variant="outline"

@@ -258,7 +258,7 @@ const CalendarYear = () => {
                   const intensity = getIntensityLevel(dayData?.points || 0);
                   const hasBoosts = dayData?.boosts?.length > 0;
                   const allCompleted = dayData?.occurrences?.length > 0 && 
-                    dayData.occurrences.every(occ => occ.status === 'completed');
+                    dayData.occurrences.every(occ => occ.status === 'done');
 
                   return (
                     <div
