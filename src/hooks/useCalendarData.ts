@@ -39,8 +39,16 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   const fetchData = async () => {
     console.log('Fetching calendar data for:', { startDate, endDate, filters, householdId });
     setLoading(true);
+    setError(null);
+    
     try {
-      // Build query for occurrences
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      // Build query for occurrences with retry logic
       let query = supabase
         .from('occurrences')
         .select(`
@@ -68,33 +76,51 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
         query = query.eq('status', filters.status as any);
       }
 
-      const { data: occurrenceData, error: occurrenceError } = await query;
+      // Execute query with timeout
+      const queryPromise = query;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout')), 10000)
+      );
+
+      const { data: occurrenceData, error: occurrenceError } = await Promise.race([
+        queryPromise,
+        timeoutPromise
+      ]) as any;
       
       console.log('Query result:', { occurrenceData, occurrenceError });
       
-      if (occurrenceError) throw occurrenceError;
+      if (occurrenceError) {
+        console.error('Supabase query error:', occurrenceError);
+        throw occurrenceError;
+      }
       
       setOccurrences(occurrenceData || []);
 
       // Fetch boosts if enabled
       if (filters.showBoosts) {
-        const { data: boostData, error: boostError } = await supabase
-          .from('boosts_log')
-          .select(`
-            *,
-            occurrences!inner (
-              date,
-              plans!inner (household_id)
-            )
-          `)
-          .eq('occurrences.plans.household_id', householdId)
-          .gte('sent_at', startDate.toISOString())
-          .lte('sent_at', endDate.toISOString());
+        try {
+          const { data: boostData, error: boostError } = await supabase
+            .from('boosts_log')
+            .select(`
+              *,
+              occurrences!inner (
+                date,
+                plans!inner (household_id)
+              )
+            `)
+            .eq('occurrences.plans.household_id', householdId)
+            .gte('sent_at', startDate.toISOString())
+            .lte('sent_at', endDate.toISOString());
 
-        if (boostError) {
-          console.error('Error fetching boosts:', boostError);
-        } else {
-          setBoosts(boostData || []);
+          if (boostError) {
+            console.error('Error fetching boosts:', boostError);
+            // Don't fail the whole request for boost errors
+          } else {
+            setBoosts(boostData || []);
+          }
+        } catch (boostErr) {
+          console.error('Boost fetch failed:', boostErr);
+          setBoosts([]);
         }
       } else {
         setBoosts([]);
@@ -102,16 +128,15 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
 
     } catch (error) {
       console.error('Error fetching calendar data:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load calendar data');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load calendar data';
+      setError(errorMessage);
       
-      // Only show toast if it's a different error or first error
-      if (!error || error !== (error instanceof Error ? error.message : 'Failed to load calendar data')) {
-        toast({
-          title: "Error",
-          description: "Failed to load calendar data",
-          variant: "destructive"
-        });
-      }
+      // Show toast for user feedback
+      toast({
+        title: "Connection Error",
+        description: "Unable to load calendar data. Please check your connection and try again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
