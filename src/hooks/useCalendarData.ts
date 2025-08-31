@@ -16,8 +16,8 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Mock household ID - in real app this would come from auth context
-  const householdId = "00000000-0000-4000-8000-000000000000";
+  // Using the same household ID as used in other parts of the app
+  const householdId = "550e8400-e29b-41d4-a716-446655440000";
 
   useEffect(() => {
     fetchData();
