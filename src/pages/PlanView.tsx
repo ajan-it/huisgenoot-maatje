@@ -276,7 +276,6 @@ const PlanView = () => {
           assignments={plan?.assignments || []}
           weekStart={plan?.week_start}
           onMakeFairer={handleMakeItFairer}
-          householdId={householdId}
         />
 
         {/* Rebalance Preview Dialog */}
