@@ -14,13 +14,26 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   const [occurrences, setOccurrences] = useState<any[]>([]);
   const [boosts, setBoosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Using the first household ID from the database
   const householdId = "1b2dc522-7093-4b62-9c40-ce031c527066";
 
   useEffect(() => {
-    fetchData();
+    let isCancelled = false;
+    
+    const fetchDataSafe = async () => {
+      if (!isCancelled) {
+        await fetchData();
+      }
+    };
+    
+    fetchDataSafe();
+    
+    return () => {
+      isCancelled = true;
+    };
   }, [startDate, endDate, filters]);
 
   const fetchData = async () => {
@@ -89,11 +102,16 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
 
     } catch (error) {
       console.error('Error fetching calendar data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load calendar data",
-        variant: "destructive"
-      });
+      setError(error instanceof Error ? error.message : 'Failed to load calendar data');
+      
+      // Only show toast if it's a different error or first error
+      if (!error || error !== (error instanceof Error ? error.message : 'Failed to load calendar data')) {
+        toast({
+          title: "Error",
+          description: "Failed to load calendar data",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -103,6 +121,7 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
     occurrences,
     boosts,
     loading,
+    error,
     refetch: fetchData
   };
 }
