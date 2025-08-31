@@ -1,0 +1,140 @@
+-- Add boost-related functions and triggers for the boost system
+
+-- Function to check if a task occurrence needs a boost
+CREATE OR REPLACE FUNCTION check_boost_needed(occurrence_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  occ_record RECORD;
+  plan_record RECORD;
+  household_boost_settings JSONB;
+  current_time TIMESTAMPTZ;
+  boost_time TIMESTAMPTZ;
+BEGIN
+  -- Get occurrence details
+  SELECT o.*, p.household_id 
+  INTO occ_record
+  FROM occurrences o
+  JOIN plans p ON p.id = o.plan_id
+  WHERE o.id = occurrence_id;
+  
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+  
+  -- Get household boost settings
+  SELECT boost_settings INTO household_boost_settings
+  FROM households 
+  WHERE id = occ_record.household_id;
+  
+  -- Check if boosts are enabled
+  IF NOT (household_boost_settings->>'enabled')::boolean THEN
+    RETURN FALSE;
+  END IF;
+  
+  -- Check if boost is enabled for this occurrence
+  IF NOT COALESCE(occ_record.boost_enabled, false) THEN
+    RETURN FALSE;
+  END IF;
+  
+  -- Check if task is critical or overdue
+  current_time := NOW();
+  boost_time := (occ_record.date + occ_record.start_time)::timestamptz - INTERVAL '30 minutes';
+  
+  -- Send boost if it's within 30 minutes of start time and not completed
+  RETURN (current_time >= boost_time AND occ_record.status != 'completed');
+END;
+$$;
+
+-- Function to log boost interactions
+CREATE OR REPLACE FUNCTION log_boost_interaction(
+  occurrence_id uuid,
+  person_id uuid,
+  channel_used text,
+  interaction_type text DEFAULT NULL,
+  outcome_text text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  log_id uuid;
+BEGIN
+  INSERT INTO boosts_log (
+    task_occurrence_id,
+    person_id,
+    channel,
+    sent_at,
+    interaction,
+    outcome,
+    escalation_used
+  ) VALUES (
+    occurrence_id,
+    person_id,
+    channel_used::boost_channel,
+    NOW(),
+    interaction_type::boost_interaction,
+    outcome_text,
+    false
+  ) RETURNING id INTO log_id;
+  
+  RETURN log_id;
+END;
+$$;
+
+-- Function to update occurrence status after boost interaction
+CREATE OR REPLACE FUNCTION handle_boost_response(
+  occurrence_id uuid,
+  interaction_type text,
+  new_assigned_person uuid DEFAULT NULL,
+  new_date date DEFAULT NULL,
+  new_time time DEFAULT NULL
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  CASE interaction_type
+    WHEN 'acknowledged' THEN
+      -- Just log the acknowledgment, no status change needed
+      RETURN TRUE;
+      
+    WHEN 'completed' THEN
+      UPDATE occurrences 
+      SET status = 'completed', updated_at = NOW()
+      WHERE id = occurrence_id;
+      
+    WHEN 'rescheduled' THEN
+      UPDATE occurrences 
+      SET 
+        date = COALESCE(new_date, date),
+        start_time = COALESCE(new_time, start_time),
+        updated_at = NOW()
+      WHERE id = occurrence_id;
+      
+    WHEN 'swapped' THEN
+      UPDATE occurrences 
+      SET 
+        assigned_person = new_assigned_person,
+        updated_at = NOW()
+      WHERE id = occurrence_id AND new_assigned_person IS NOT NULL;
+      
+    WHEN 'backup_requested' THEN
+      UPDATE occurrences 
+      SET 
+        has_backup = TRUE,
+        backup_person_id = new_assigned_person,
+        updated_at = NOW()
+      WHERE id = occurrence_id;
+      
+    ELSE
+      RETURN FALSE;
+  END CASE;
+  
+  RETURN TRUE;
+END;
+$$;
