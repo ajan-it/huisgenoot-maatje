@@ -549,6 +549,10 @@ export type Database = {
         | "selfcare"
         | "social"
         | "garden"
+        | "outdoor"
+        | "organizing"
+        | "health"
+        | "safety"
       disruption_type:
         | "sick_child"
         | "childcare_issues"
@@ -723,6 +727,10 @@ export const Constants = {
         "selfcare",
         "social",
         "garden",
+        "outdoor",
+        "organizing",
+        "health",
+        "safety",
       ],
       disruption_type: [
         "sick_child",
