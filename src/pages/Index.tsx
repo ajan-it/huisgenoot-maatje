@@ -45,7 +45,7 @@ export default function Index() {
         <link rel="canonical" href="/" />
       </Helmet>
 
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-gradient-to-br from-brand-soft via-white to-brand-warm/30">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-brand-soft to-brand-warm py-24 px-4 overflow-hidden">
           {/* Subtle geometric background */}
@@ -97,7 +97,7 @@ export default function Index() {
         </section>
 
         {/* Section 1: The Problem */}
-        <section className="py-20 px-4 bg-white">
+        <section className="py-20 px-4 bg-gradient-to-br from-white via-brand-soft/20 to-white relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-8 text-brand-primary tracking-tight">
               {t('index.problem.title')}
@@ -126,7 +126,7 @@ export default function Index() {
         </section>
 
         {/* Section 2: The Solution (3 pillars) */}
-        <section className="py-24 px-4 bg-gradient-soft">
+        <section className="py-24 px-4 bg-gradient-to-br from-brand-soft via-brand-warm/30 to-brand-soft relative overflow-hidden">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-light mb-16 text-center text-brand-primary tracking-tight">
               {t('index.solution.title')}
@@ -184,7 +184,7 @@ export default function Index() {
         </section>
 
         {/* Section 3: Emotional Payoff */}
-        <section className="py-24 px-4 bg-white">
+        <section className="py-24 px-4 bg-gradient-to-br from-white via-brand-soft/10 to-white relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-8 text-brand-primary tracking-tight">
               {t('index.emotionalPayoff.title')}
@@ -218,7 +218,7 @@ export default function Index() {
         </section>
 
         {/* Section 4: How It Works */}
-        <section className="py-24 px-4 bg-gradient-soft">
+        <section className="py-24 px-4 bg-gradient-to-br from-brand-soft via-brand-warm/20 to-brand-soft relative overflow-hidden">
           <div className="max-w-5xl mx-auto">
             <div className="grid md:grid-cols-2 gap-16 items-center">
               <div>
@@ -283,7 +283,7 @@ export default function Index() {
         </section>
 
         {/* Section 5: Social Proof */}
-        <section className="py-24 px-4 bg-white">
+        <section className="py-24 px-4 bg-gradient-to-br from-white via-brand-soft/15 to-white relative overflow-hidden">
           <div className="max-w-5xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-16 text-brand-primary tracking-tight">
               {t('index.testimonials.title')}
@@ -326,7 +326,7 @@ export default function Index() {
         </section>
 
         {/* Section 6: Seasonal Helper */}
-        <section className="py-24 px-4 bg-gradient-soft">
+        <section className="py-24 px-4 bg-gradient-to-br from-brand-soft via-brand-warm/25 to-brand-soft relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-8 text-brand-primary tracking-tight">
               {t('index.seasonal.title')}
