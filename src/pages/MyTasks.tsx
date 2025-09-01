@@ -8,85 +8,124 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Clock, User, Timer, CheckCircle, Calendar, RotateCcw, MessageCircle, HelpCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { splitByPerson, transformOccurrencesToAssignments } from "@/lib/analytics/planStats";
-import type { Occurrence, Task, Person } from "@/types/models";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, startOfWeek, endOfWeek, isToday, isThisWeek } from "date-fns";
 
 interface MyTasksPageProps {}
 
 const MyTasks: React.FC<MyTasksPageProps> = () => {
   const { t, lang } = useI18n();
-  const [plan, setPlan] = useState<any>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
+  const queryClient = useQueryClient();
   const [focusMode, setFocusMode] = useState(false);
   const [timer, setTimer] = useState(0);
   const [activeTask, setActiveTask] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Load data from localStorage (same structure as PlanView)
-    try {
-      const raw = localStorage.getItem("lastPlanResponse");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setPlan(parsed);
-      setTasks(parsed.tasks || []);
-      setPeople(parsed.people || []);
-      setOccurrences(parsed.assignments || []);
-    } catch (error) {
-      console.error("Error loading plan:", error);
-    }
-  }, []);
-
-  // Get current user (first person for now)
-  const currentUser = people[0];
-  const currentUserId = currentUser?.id;
-
-  // Filter tasks for current user  
-  const myOccurrences = useMemo(() => {
-    console.log('Filtering occurrences:', { occurrences, currentUserId });
-    return occurrences.filter(occ => 
-      ((occ as any).assigned_person_id || occ.assigned_person) === currentUserId && 
-      occ.status === 'scheduled'
-    );
-  }, [occurrences, currentUserId]);
-
-  // Get today's tasks
-  const today = new Date().toISOString().split('T')[0];
-  const todayTasks = myOccurrences.filter(occ => occ.date === today);
-
-  // Get this week's tasks
-  const startOfWeek = new Date();
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 6);
-  
-  const weekTasks = myOccurrences.filter(occ => {
-    const taskDate = new Date(occ.date);
-    return taskDate >= startOfWeek && taskDate <= endOfWeek;
+  // Get current household and user
+  const { data: householdData } = useQuery({
+    queryKey: ['current-household-and-user'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      
+      const { data: memberData, error: memberError } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .single();
+      
+      if (memberError) throw memberError;
+      
+      // Get household people
+      const { data: people, error: peopleError } = await supabase
+        .from('people')
+        .select('*')
+        .eq('household_id', memberData.household_id);
+      
+      if (peopleError) throw peopleError;
+      
+      // For now, assume first person is current user (this could be improved with user-person mapping)
+      const currentPerson = people[0];
+      
+      return {
+        householdId: memberData.household_id,
+        people,
+        currentPerson,
+        userId: session.user.id
+      };
+    },
   });
 
-  // Calculate daily progress
-  const todayMinutes = todayTasks.reduce((sum, occ) => {
-    const task = tasks.find(t => t.id === occ.task_id);
-    return sum + (task?.default_duration || 0);
-  }, 0);
+  // Get current week's occurrences and tasks
+  const { data: tasksData = [], isLoading } = useQuery({
+    queryKey: ['my-tasks', householdData?.householdId, householdData?.currentPerson?.id],
+    queryFn: async () => {
+      if (!householdData?.householdId || !householdData?.currentPerson?.id) return [];
 
-  const completedToday = todayTasks.filter(occ => occ.status === 'done').length;
+      const today = new Date();
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+
+      const { data: occurrences, error } = await supabase
+        .from('occurrences')
+        .select(`
+          *,
+          tasks!inner(id, name, category, default_duration, difficulty),
+          plans!inner(household_id)
+        `)
+        .eq('plans.household_id', householdData.householdId)
+        .eq('assigned_person', householdData.currentPerson.id)
+        .gte('date', format(weekStart, 'yyyy-MM-dd'))
+        .lte('date', format(weekEnd, 'yyyy-MM-dd'))
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+      return occurrences || [];
+    },
+    enabled: !!householdData?.householdId && !!householdData?.currentPerson?.id,
+  });
+
+  // Filter tasks for today and this week
+  const todayTasks = useMemo(() => {
+    return tasksData.filter(task => isToday(new Date(task.date)));
+  }, [tasksData]);
+
+  const thisWeekTasks = useMemo(() => {
+    return tasksData.filter(task => isThisWeek(new Date(task.date), { weekStartsOn: 1 }));
+  }, [tasksData]);
+
+  // Calculate progress
+  const todayMinutes = todayTasks.reduce((sum, task) => sum + (task.duration_min || 0), 0);
+  const completedToday = todayTasks.filter(task => task.status === 'done').length;
   const progressPercent = todayTasks.length > 0 ? (completedToday / todayTasks.length) * 100 : 0;
 
-  // Partner peek data
-  const partner = people.find(p => p.id !== currentUserId);
-  const partnerTodayTasks = partner ? occurrences.filter(occ => 
-    ((occ as any).assigned_person_id || occ.assigned_person) === partner.id && 
-    occ.date === today && 
-    occ.status === 'scheduled'
-  ) : [];
-  
-  const partnerMinutes = partnerTodayTasks.reduce((sum, occ) => {
-    const task = tasks.find(t => t.id === occ.task_id);
-    return sum + (task?.default_duration || 0);
-  }, 0);
+  // Partner data
+  const partner = householdData?.people.find(p => p.id !== householdData?.currentPerson?.id);
+  const { data: partnerTasks = [] } = useQuery({
+    queryKey: ['partner-tasks-today', householdData?.householdId, partner?.id],
+    queryFn: async () => {
+      if (!householdData?.householdId || !partner?.id) return [];
+
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { data: occurrences, error } = await supabase
+        .from('occurrences')
+        .select(`
+          *,
+          tasks!inner(default_duration),
+          plans!inner(household_id)
+        `)
+        .eq('plans.household_id', householdData.householdId)
+        .eq('assigned_person', partner.id)
+        .eq('date', today);
+
+      if (error) throw error;
+      return occurrences || [];
+    },
+    enabled: !!householdData?.householdId && !!partner?.id,
+  });
+
+  const partnerMinutes = partnerTasks.reduce((sum, task) => sum + (task.duration_min || 0), 0);
 
   // Timer effect
   useEffect(() => {
@@ -99,31 +138,51 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
     return () => clearInterval(interval);
   }, [focusMode, activeTask]);
 
-  const handleTaskComplete = (occurrenceId: string) => {
-    const updatedOccurrences = occurrences.map(occ =>
-      occ.id === occurrenceId ? { ...occ, status: 'done' as const } : occ
-    );
-    setOccurrences(updatedOccurrences);
-    localStorage.setItem("occurrences", JSON.stringify(updatedOccurrences));
-    
-    toast({
-      title: "Task completed! 🎉",
-      description: "Great job getting that done."
-    });
+  const handleTaskComplete = async (occurrenceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('occurrences')
+        .update({ status: 'done' })
+        .eq('id', occurrenceId);
 
-    if (activeTask === occurrenceId) {
-      setActiveTask(null);
-      setFocusMode(false);
-      setTimer(0);
+      if (error) throw error;
+
+      // Refetch data
+      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      
+      toast({
+        title: "Task completed! 🎉",
+        description: "Great job getting that done."
+      });
+
+      if (activeTask === occurrenceId) {
+        setActiveTask(null);
+        setFocusMode(false);
+        setTimer(0);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to complete task",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleTaskSnooze = (occurrenceId: string, snoozeType: '+30min' | 'tonight' | 'tomorrow') => {
-    // Implementation would depend on your snooze logic
-    toast({
-      title: "Task snoozed",
-      description: `Task moved to ${snoozeType}`
-    });
+  const handleTaskSnooze = async (occurrenceId: string, snoozeType: '+30min' | 'tonight' | 'tomorrow') => {
+    try {
+      // This would require more complex logic to update the date/time
+      toast({
+        title: "Task snoozed",
+        description: `Task moved to ${snoozeType}`
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to snooze task",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleTaskSwap = (occurrenceId: string) => {
@@ -134,6 +193,7 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
   };
 
   const handleExportICS = () => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     // Create ICS content
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -141,8 +201,8 @@ PRODID:Fair Household Planner
 BEGIN:VEVENT
 SUMMARY:My Tasks Today
 DESCRIPTION:${todayTasks.length} tasks, ${todayMinutes} minutes
-DTSTART:${today.replace(/-/g, '')}T080000
-DTEND:${today.replace(/-/g, '')}T200000
+DTSTART:${todayStr.replace(/-/g, '')}T080000
+DTEND:${todayStr.replace(/-/g, '')}T200000
 END:VEVENT
 END:VCALENDAR`;
 
@@ -161,18 +221,21 @@ END:VCALENDAR`;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const TaskCard = ({ occurrence, task }: { occurrence: Occurrence; task: Task }) => (
+  const TaskCard = ({ task }: { task: any }) => (
     <Card className="mb-3">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="font-medium text-card-foreground">{task.name}</h3>
+            <h3 className="font-medium text-card-foreground">{task.tasks?.name || 'Unknown Task'}</h3>
             <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>{task.default_duration} min</span>
+              <span>{task.duration_min || task.tasks?.default_duration || 0} min</span>
               <Badge variant="outline" className="text-xs">
-                {task.category}
+                {task.tasks?.category || 'general'}
               </Badge>
+              {task.start_time && (
+                <span>{task.start_time.slice(0, 5)}</span>
+              )}
             </div>
           </div>
           
@@ -180,7 +243,7 @@ END:VCALENDAR`;
             <div className="flex gap-1">
               <Button
                 size="sm"
-                onClick={() => handleTaskComplete(occurrence.id)}
+                onClick={() => handleTaskComplete(task.id)}
                 className="h-8 px-2 text-xs"
               >
                 <CheckCircle className="h-3 w-3 mr-1" />
@@ -190,7 +253,7 @@ END:VCALENDAR`;
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleTaskSnooze(occurrence.id, '+30min')}
+                onClick={() => handleTaskSnooze(task.id, '+30min')}
                 className="h-8 px-2 text-xs"
               >
                 <Calendar className="h-3 w-3 mr-1" />
@@ -202,7 +265,7 @@ END:VCALENDAR`;
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleTaskSwap(occurrence.id)}
+                onClick={() => handleTaskSwap(task.id)}
                 className="h-8 px-2 text-xs"
               >
                 <RotateCcw className="h-3 w-3 mr-1" />
@@ -221,7 +284,7 @@ END:VCALENDAR`;
           </div>
         </div>
         
-        {activeTask === occurrence.id && focusMode && (
+        {activeTask === task.id && focusMode && (
           <div className="mt-3 p-3 bg-accent rounded-md">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Focus mode active</span>
@@ -236,14 +299,25 @@ END:VCALENDAR`;
     </Card>
   );
 
-  if (!plan) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">No plan found</h1>
-          <p className="text-muted-foreground mb-4">Create a plan first to see your tasks.</p>
-          <Button onClick={() => window.location.href = '/setup/1'}>
-            Start Wizard
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!householdData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in</h1>
+          <p className="text-muted-foreground mb-4">You need to be signed in to view your tasks.</p>
+          <Button onClick={() => window.location.href = '/auth'}>
+            Sign In
           </Button>
         </div>
       </div>
@@ -272,7 +346,7 @@ END:VCALENDAR`;
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
-                {currentUser?.first_name}: {todayMinutes} min • {todayTasks.length} {lang === 'nl' ? 'taken' : 'tasks'}
+                {householdData.currentPerson?.first_name}: {todayMinutes} min • {todayTasks.length} {lang === 'nl' ? 'taken' : 'tasks'}
               </span>
               <div className="w-8 h-8">
                 <Progress value={progressPercent} className="h-2" />
@@ -282,7 +356,7 @@ END:VCALENDAR`;
             {partner && (
               <Badge variant="secondary" className="cursor-pointer">
                 <User className="h-3 w-3 mr-1" />
-                {partner.first_name}: {partnerMinutes} min • {partnerTodayTasks.length} {lang === 'nl' ? 'taken' : 'tasks'}
+                {partner?.first_name}: {partnerMinutes} min • {partnerTasks.length} {lang === 'nl' ? 'taken' : 'tasks'}
               </Badge>
             )}
           </div>
@@ -324,15 +398,14 @@ END:VCALENDAR`;
                 </CardContent>
               </Card>
             ) : (
-              todayTasks.map(occ => {
-                const task = tasks.find(t => t.id === occ.task_id);
-                return task ? <TaskCard key={occ.id} occurrence={occ} task={task} /> : null;
-              })
+              todayTasks.map(task => (
+                <TaskCard key={task.id} task={task} />
+              ))
             )}
           </TabsContent>
           
           <TabsContent value="week" className="space-y-4">
-            {weekTasks.length === 0 ? (
+            {thisWeekTasks.length === 0 ? (
               <Card>
                 <CardContent className="p-6 text-center">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -343,18 +416,17 @@ END:VCALENDAR`;
                 </CardContent>
               </Card>
             ) : (
-              weekTasks.map(occ => {
-                const task = tasks.find(t => t.id === occ.task_id);
-                return task ? <TaskCard key={occ.id} occurrence={occ} task={task} /> : null;
-              })
+              thisWeekTasks.map(task => (
+                <TaskCard key={task.id} task={task} />
+              ))
             )}
           </TabsContent>
         </Tabs>
 
         {/* Navigation */}
         <div className="flex gap-2 mt-6">
-          <Button onClick={() => window.location.href = `/plan/${plan.plan_id}`}>
-            {lang === 'nl' ? 'Bekijk Volledig Plan' : 'View Full Plan'}
+          <Button onClick={() => window.location.href = '/calendar/year'}>
+            {lang === 'nl' ? 'Bekijk Kalender' : 'View Calendar'}
           </Button>
           <Button variant="outline" onClick={() => window.location.href = '/compare'}>
             {lang === 'nl' ? 'Vergelijk Dashboard' : 'Compare Dashboard'}
