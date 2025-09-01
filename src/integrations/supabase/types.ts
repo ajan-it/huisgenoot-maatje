@@ -563,7 +563,14 @@ export type Database = {
         | "appliance_broken"
         | "repairs"
         | "other"
-      frequency_type: "daily" | "weekly" | "monthly"
+      frequency_type:
+        | "daily"
+        | "weekly"
+        | "monthly"
+        | "seasonal"
+        | "quarterly"
+        | "semiannual"
+        | "annual"
       locale: "nl" | "en"
       occurrence_status: "scheduled" | "done" | "moved" | "backlog"
       plan_status: "draft" | "confirmed" | "sent"
@@ -732,7 +739,15 @@ export const Constants = {
         "repairs",
         "other",
       ],
-      frequency_type: ["daily", "weekly", "monthly"],
+      frequency_type: [
+        "daily",
+        "weekly",
+        "monthly",
+        "seasonal",
+        "quarterly",
+        "semiannual",
+        "annual",
+      ],
       locale: ["nl", "en"],
       occurrence_status: ["scheduled", "done", "moved", "backlog"],
       plan_status: ["draft", "confirmed", "sent"],
