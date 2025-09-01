@@ -9,60 +9,58 @@ export const dictionaries = {
       backHome: "Terug naar start",
     },
     index: {
-      title: "Deel de last. Red de liefde.",
-      metaDescription: "Geen wasruzie meer of drama over wie de kinderen ophaalt. Onze app houdt klussen eerlijk, betrouwbaar en ruzievrij.",
-      ogTitle: "Deel de last. Red de liefde.",
-      ogDescription: "Geen wasruzie meer. Eerlijke klussen, betrouwbaar en ruzievrij.",
-      headline: "Deel de last. Red de liefde.",
-      subheadline: "Geen wasruzie meer of drama over wie de kinderen ophaalt. Onze app houdt klussen eerlijk, betrouwbaar en ruzievrij.",
-      ctaStart: "Plan je eerlijke week nu",
-      privacy: "Privacy",
-      login: "Inloggen",
-      heroAlt: "Gelukkig stel met peuter, huishoudklussen zweven eromheen",
-      
-      // Pain → Promise section
-      painTitle: "Moe van het 'ik doe meer dan jij' argument?",
-      painText: "De meeste stellen kennen hun klussen... maar niet hoe eerlijk het werkelijk voelt. Wij houden de inspanning bij, zorgen voor zachte balans, en stoppen het eindeloze gezeur over wie meer doet.",
-      
-      // Core Value Props
-      valueProps: {
+      hero: {
+        headline: "Eerlijk verdelen. Liefde redden.",
+        subheadline: "Moe van het 'wie doet meer' argument? Onze app maakt taken eerlijk, betrouwbaar en ruzievrij — zodat je minder tijd besteedt aan punten tellen en meer tijd aan elkaar.",
+        cta: "Minder taken, meer wij",
+        ctaSecondary: "Bekijk hoe het werkt"
+      },
+      problem: {
+        title: "Moe van het 'ik doe meer dan jij' gevecht?",
+        copy: "De meeste stellen kennen hun taken. Maar eerlijk gezegd — de inspanning voelt nooit gelijk. Wij volgen minuten × inspanning, balanceren het voorzichtig, en stoppen het eindeloze gekibbel over wie meer doet."
+      },
+      solution: {
+        title: "De Oplossing",
         fairness: {
           title: "Eerlijkheid zonder ruzies",
-          text: "Wij tellen minuten × inspanning, zodat beide partners zien dat de last gedeeld wordt."
+          description: "We meten inspanning, niet alleen taken. Beide partners zien dat de last gedeeld wordt."
         },
         reliability: {
-          title: "Mis nooit meer de belangrijke dingen",
-          text: "Kritieke taken (zoals rekeningen, kinderopvang, afval) krijgen zachte boosts & backups — geen paniek meer."
+          title: "Mis nooit meer belangrijke dingen",
+          description: "Rekeningen, kinderopvang, afvaldagen? Zachte duwtjes + backup herinneringen = geen last-minute paniek meer."
         },
         adaptive: {
           title: "Leert jouw ritme",
-          text: "Als bedtijd steeds uitloopt, of een partner reist — het plan past zich aan, zeurt niet."
+          description: "Als bedtijd steeds uitloopt, of één partner reist, past het plan zich aan. Het zeurt niet — gewoon slim teamwork."
         }
       },
-      
-      // Feature Highlight
-      featureTitle: "Klussen die meetbuigen met je week",
-      featureText: "Voeg taken toe of sla ze over in seconden. Eenmaal, deze week, deze maand, of voor altijd. Het systeem past zich aan en houdt dingen eerlijk zonder dat je Excel hoeft aan te raken.",
-      
-      // Social Proof
-      testimonialTitle: "Stellen zeggen...",
-      testimonials: [
-        "Eindelijk gestopt met ruziën over de afwas.",
-        "Eerlijkheidsscore voelt als therapie zonder de therapeut.",
-        "We kregen twee avonden per week terug voor onszelf."
-      ],
-      
-      // Seasonal section
-      seasonalTitle: "Wij onthouden wat jij vergeet.",
-      seasonalText: "Nederlandse afval ophaal dagen? Check. Lente tuin voorbereidingen? Check. Feestdagen chaos? Wij dekken je.",
-      
-      // Final CTA
-      finalHeadline: "Verander klussen in teamwork.",
-      finalSubheadline: "Probeer het gratis — want het leven is te kort voor afwas ruzies.",
-      finalCta: "Start mijn eerlijke week",
-      
-      // Footer
-      footerTagline: "Gemaakt voor drukke Nederlandse gezinnen — eerlijk, betrouwbaar, en een beetje brutaal."
+      emotionalPayoff: {
+        title: "Meer tijd voor elkaar",
+        copy: "Wanneer de taken eerlijk voelen, verdwijnt wrok. Dat betekent minder ruzies, meer gelach, en ja — zelfs meer tijd voor date night."
+      },
+      howItWorks: {
+        title: "Taken die meebewegen met je week",
+        copy: "Voeg taken toe of sla ze over in seconden. Alleen deze keer, deze week, deze maand, of voor altijd. Het systeem past zich aan — eerlijkheid inbegrepen — geen Excel-vaardigheden vereist."
+      },
+      testimonials: {
+        title: "Stellen zeggen...",
+        0: "💬 \"Eindelijk gestopt met ruziën over de afwas.\"",
+        1: "💬 \"Eerlijkheidsscore voelt als therapie zonder therapeut.\"",
+        2: "💬 \"We kregen twee avonden per week terug voor onszelf.\""
+      },
+      seasonal: {
+        title: "Wij onthouden wat jij vergeet",
+        copy: "Nederlandse afvaldagen? Check. Lente tuinvoorbereiding? Check. Feestdagenchaos? Wij hebben je rug.",
+        seasons: "Lente 🌱 Zomer ☀️ Herfst 🍂 Winter ❄️"
+      },
+      finalCta: {
+        headline: "Maak van taken teamwork",
+        subheadline: "Probeer het gratis — want het leven is te kort voor afwasruzies",
+        cta: "Krijg je avonden terug"
+      },
+      footer: {
+        tagline: "Gemaakt voor drukke Nederlandse gezinnen — eerlijk, betrouwbaar, en een beetje brutaal."
+      }
     },
     setup: {
       title: "Setup wizard – Eerlijke huishoudplanner",
@@ -243,7 +241,7 @@ export const dictionaries = {
     },
     tasks: {
       kitchen: "Keuken",
-      bathroom: "Badkamer", 
+      bathroom: "Badkamer",
       cleaning: "Schoonmaken",
       admin: "Administratie",
       childcare: "Kindzorg",
@@ -259,7 +257,7 @@ export const dictionaries = {
       frequency: {
         daily: "Dagelijks",
         two_per_week: "2×/week",
-        three_per_week: "3×/week", 
+        three_per_week: "3×/week",
         weekly: "Wekelijks",
         biweekly: "2-wekelijks",
         monthly: "Maandelijks",
@@ -299,7 +297,7 @@ export const dictionaries = {
         title: "Kies je taken",
         searchPlaceholder: "Zoek taken...",
         filterFrequency: "Filter op frequentie",
-        filterContext: "Filter op context", 
+        filterContext: "Filter op context",
         showCategories: "Toon categorieën",
         recommendedPacks: "Aanbevolen pakketten",
         bulkEdit: "Bulk wijzigen",
@@ -433,115 +431,143 @@ export const dictionaries = {
       timeForNewPlan: "Tijd voor een nieuwe planning.",
       done: "Klaar",
       later: "Later",
-      swap: "Ruil",
-      whyMe: "Waarom ik?",
-      focusMode: "Focus Mode",
-      taskCompleted: "Taak voltooid! 🎉",
-      greatJob: "Goed gedaan!",
-      taskSnoozed: "Taak uitgesteld",
-      swapRequestSent: "Ruil verzoek verzonden",
-      partnerNotification: "Je partner krijgt een melding",
-      addToCalendar: "Toevoegen aan agenda",
-      exportICS: "Agenda",
+      backToDashboard: "Terug naar dashboard",
+      undoComplete: "Ongedaan maken",
+      skipThisWeek: "Sla deze week over",
+      upNextToday: "Volgende vandaag",
+      upNextThisWeek: "Deze week verder",
+      viewFullWeek: "Bekijk hele week",
     },
-    compare: {
-      title: "Verdeling Vergelijken",
-      targetVsActual: "Doel vs. werkelijk:",
-      weekScore: "Weekscore",
-      tasksBacklog: "taken backlog",
-      workloadVsTarget: "Werkbelasting vs Doel",
-      difficultyMix: "Moeilijkheidsgraad Mix",
-      eveningLoad: "Avondbelasting (Ma-Vr)",
-      categoryDistribution: "Categorie Verdeling",
-      dislikedTasks: "Niet-leuk Taken",
-      makeItFairer: "Eerlijker Maken",
-      suggestedImprovements: "Voorgestelde verbeteringen die de fairness verhogen:",
-      fairnessPoints: "fairness punten",
-      apply: "Toepassen",
-      distributionLooksGood: "Verdeling ziet er goed uit!",
-      noImprovementsNeeded: "Geen verbeteringen nodig op dit moment.",
-      light: "Licht",
-      medium: "Gemiddeld", 
-      hard: "Zwaar",
-      target: "Doel",
-      actual: "Werkelijk",
-      points: "punten",
-    },
-    calendar: {
-      filters: "Filters",
-      all: "Alle",
-      scheduled: "Gepland",
-      completed: "Voltooid",
-      missed: "Gemist",
-      swapped: "Geruild",
-      people: "Personen",
-      categories: "Categorieën",
-      status: "Status",
-      show_boosts: "Toon boosts",
-      clear_all: "Alles wissen",
-      no_tasks_this_day: "Geen taken op deze dag",
-      total_points: "Totaal punten",
-      critical: "Kritiek",
-      backup_available: "Backup beschikbaar",
-      why_me: "Waarom ik",
-      mark_done: "Markeer klaar",
-      swap: "Ruil",
-      move: "Verplaats",
-      boost: "Boost",
-      boost_sent: "Boost verstuurd",
-      backup_used: "Backup gebruikt",
-      complete: "Voltooid",
-      intensity: "Intensiteit",
-      mon: "Ma",
-      tue: "Di",
-      wed: "Wo",
-      thu: "Do",
-      fri: "Vr",
-      sat: "Za",
-      sun: "Zo",
+    planView: {
+      title: "Weekplan",
+      metaDescription: "Je weekplan overzicht met alle taken en verdeling.",
+      overview: "Overzicht",
+      day: "Dag",
+      task: "Taak",
+      assignee: "Toegewezen aan",
+      duration: "Duur",
+      fairness: "Eerlijkheid",
+      settings: "Instellingen",
+      regenerate: "Herplanning",
+      confirmRegenerate: "Weet je zeker dat je het plan opnieuw wilt genereren?",
+      regenerateButton: "Ja, herplan",
+      cancelButton: "Annuleren",
+      emptyPlan: "Geen taken in dit plan",
+      loadingPlan: "Plan wordt geladen...",
+      editPlan: "Plan bewerken",
+      goToMyTasks: "Ga naar mijn taken",
+      switchToWeek: "Wissel naar week",
+      switchToFairness: "Wissel naar eerlijkheid",
+      fairnessScore: "Eerlijkheidsscore",
+      totalMinutes: "Totaal minuten",
+      mondayShort: "Ma",
+      tuesdayShort: "Di",
+      wednesdayShort: "Wo",
+      thursdayShort: "Do",
+      fridayShort: "Vr",
+      saturdayShort: "Za",
+      sundayShort: "Zo",
       monday: "Maandag",
       tuesday: "Dinsdag",
       wednesday: "Woensdag",
       thursday: "Donderdag",
       friday: "Vrijdag",
       saturday: "Zaterdag",
-      sunday: "Zondag"
+      sunday: "Zondag",
+      todayShort: "vandaag",
+      todayLong: "Vandaag",
+      morning: "Ochtend",
+      afternoon: "Middag",
+      evening: "Avond",
+      totalAssignmentText: (person: string, minutes: number) => `${person}: ${minutes} min`,
+      fairnessExplanation: "Deze score toont hoe eerlijk de taken verdeeld zijn tussen alle volwassenen in je huishouden.",
+      goodFairness: "Goede verdeling!",
+      okayFairness: "Redelijke verdeling",
+      poorFairness: "Kan beter verdeeld worden",
+      noTasks: "Geen taken",
+      skipThisTime: "Sla deze keer over",
+      assignToSomeoneElse: "Wijs toe aan iemand anders",
+      scheduleForLater: "Plan later in",
     },
-    fairness: {
-      title: "Eerlijkheidsanalyse",
-      subtitle: "We verdelen werkdrukpunten (minuten × zwaarte) op basis van jullie tijdsbudgetten en vermijden avondpiek.",
-      badge: {
-        good: "Goed verdeeld",
-        okay: "Kan beter", 
-        poor: "Niet eerlijk verdeeld"
-      },
-      splitSummary: {
-        title: "Verdeling samenvatting"
-      },
-      distribution: {
-        title: "Verdeling per persoon"
-      },
-      taskTypes: {
-        title: "Taaktypes"
-      },
-      mandatoryFlexible: {
-        title: "Verplicht vs Flexibel",
-        note: "Vaste gezinstaken (zoals halen/brengen, avondritueel) worden eerst ingepland; de rest optimaliseren we op eerlijkheid."
-      },
-      hardEasy: {
-        title: "Moeilijkheidsgraad"
-      },
-      whyNot100: {
-        title: "Waarom geen 100?"
-      },
-      quickActions: {
-        makeFairer: "Maak eerlijker",
-        suggestSwap: "Stel ruil voor"
-      },
-      trend: {
-        title: "Trend (laatste 4 weken)"
-      },
-      myWeek: "Mijn week"
+    calendar: {
+      title: "Kalender",
+      metaDescription: "Kalender overzicht van al je huishoudtaken.",
+      today: "Vandaag",
+      week: "Week",
+      month: "Maand",
+      year: "Jaar",
+      previousWeek: "Vorige week",
+      nextWeek: "Volgende week",
+      previousMonth: "Vorige maand",
+      nextMonth: "Volgende maand",
+      previousYear: "Vorig jaar",
+      nextYear: "Volgend jaar",
+      noTasksToday: "Geen taken vandaag",
+      noTasksThisWeek: "Geen taken deze week",
+      noTasksThisMonth: "Geen taken deze maand",
+      loadingCalendar: "Kalender wordt geladen...",
+      generateYearPlan: "Jaarplan genereren",
+      yearPlanTitle: "Jaarplan voor {year}",
+      generatePlan: "Plan genereren",
+      confirmGenerateYear: "Weet je zeker dat je een jaarplan wilt genereren voor {year}?",
+      confirmGenerateButton: "Ja, genereer jaarplan",
+      cancelButton: "Annuleren",
+      tasksGenerated: "Taken gegenereerd",
+      yearPlanGenerated: "Jaarplan voor {year} is gegenereerd met {count} taken.",
+      failedToGenerate: "Kon jaarplan niet genereren",
+      taskCreated: "Taak aangemaakt",
+      taskUpdated: "Taak bijgewerkt",
+      taskDeleted: "Taak verwijderd",
+      editTask: "Taak bewerken",
+      deleteTask: "Taak verwijderen",
+      confirmDelete: "Weet je zeker dat je deze taak wilt verwijderen?",
+      deleteButton: "Verwijderen",
+      taskTitle: "Taaknaam",
+      taskAssignee: "Toegewezen aan",
+      taskDate: "Datum",
+      taskTime: "Tijd",
+      taskDuration: "Duur (minuten)",
+      taskNotes: "Notities",
+      saveTask: "Taak opslaan",
+      newTask: "Nieuwe taak",
+      addTask: "Taak toevoegen",
+    },
+    boosts: {
+      title: "Boosts",
+      metaDescription: "Beheer je taken boosts en herinneringen.",
+      overview: "Boosts overzicht",
+      noBoosts: "Geen actieve boosts",
+      createBoost: "Boost aanmaken",
+      editBoost: "Boost bewerken",
+      deleteBoost: "Boost verwijderen",
+      boostName: "Boost naam",
+      boostDescription: "Beschrijving",
+      boostDuration: "Duur (dagen)",
+      boostIntensity: "Intensiteit",
+      saveBoost: "Boost opslaan",
+      confirmDelete: "Weet je zeker dat je deze boost wilt verwijderen?",
+      deleteButton: "Verwijderen",
+      cancelButton: "Annuleren",
+      boostCreated: "Boost aangemaakt",
+      boostUpdated: "Boost bijgewerkt",
+      boostDeleted: "Boost verwijderd",
+      lowIntensity: "Laag",
+      mediumIntensity: "Gemiddeld",
+      highIntensity: "Hoog",
+      activateBoost: "Boost activeren",
+      deactivateBoost: "Boost deactiveren",
+      boostActivated: "Boost geactiveerd",
+      boostDeactivated: "Boost gedeactiveerd",
+    },
+    navigation: {
+      home: "Start",
+      calendar: "Kalender",
+      plan: "Plan",
+      myTasks: "Mijn Taken",
+      boosts: "Boosts",
+      settings: "Instellingen",
+      logout: "Uitloggen",
+      login: "Inloggen",
     },
   },
   en: {
@@ -554,67 +580,65 @@ export const dictionaries = {
       backHome: "Back to home",
     },
     index: {
-      title: "Share the load. Save the love.",
-      metaDescription: "No more laundry fights or who-picks-up-the-kid drama. Our app keeps chores fair, reliable, and argument-free.",
-      ogTitle: "Share the load. Save the love.",
-      ogDescription: "No more laundry fights. Fair chores, reliable and argument-free.",
-      headline: "Share the load. Save the love.",
-      subheadline: "No more laundry fights or who-picks-up-the-kid drama. Our app keeps chores fair, reliable, and argument-free.",
-      ctaStart: "Plan your fair week now",
-      privacy: "Privacy",
-      login: "Login",
-      heroAlt: "Happy couple with toddler, household chores floating around",
-      
-      // Pain → Promise section
-      painTitle: "Tired of the 'I do more than you' argument?",
-      painText: "Most couples know their chores... but not how fair it really feels. We track the effort, balance it gently, and stop the endless bickering about who does more.",
-      
-      // Core Value Props
-      valueProps: {
+      hero: {
+        headline: "Share the load. Save the love.",
+        subheadline: "Tired of the 'who does more' argument? Our app makes chores fair, reliable, and fight-free — so you can spend less time keeping score and more time on each other.",
+        cta: "Less chores, more us",
+        ctaSecondary: "See how it works"
+      },
+      problem: {
+        title: "Tired of the 'I do more than you' fight?",
+        copy: "Most couples know their chores. But let's be real — the effort never feels equal. We track minutes × effort, balance it gently, and stop the endless bickering about who does more."
+      },
+      solution: {
+        title: "The Solution",
         fairness: {
           title: "Fairness without fights",
-          text: "We count minutes × effort, so both partners see the load is shared."
+          description: "We measure effort, not just tasks. Both partners see the load is shared."
         },
         reliability: {
           title: "Never miss the big stuff",
-          text: "Critical tasks (like bills, daycare, waste) get gentle boosts & backups — no more panics."
+          description: "Bills, daycare, waste days? Gentle nudges + backup reminders = no more last-minute panics."
         },
         adaptive: {
           title: "Learns your rhythm",
-          text: "If bedtime keeps slipping, or one partner travels — the plan adapts, not nags."
+          description: "If bedtime keeps slipping, or one partner travels, the plan adapts. It's not nagging — just smart teamwork."
         }
       },
-      
-      // Feature Highlight
-      featureTitle: "Chores that flex with your week",
-      featureText: "Add or skip tasks in seconds. Once, this week, this month, or forever. The system adapts and keeps things fair without you touching Excel again.",
-      
-      // Social Proof
-      testimonialTitle: "Couples say...",
-      testimonials: [
-        "Finally stopped arguing about the dishes.",
-        "Fairness score feels like therapy without the therapist.",
-        "We got back two evenings a week just for us."
-      ],
-      
-      // Seasonal section
-      seasonalTitle: "We remember what you forget.",
-      seasonalText: "Dutch waste pickup days? Check. Spring garden prep? Check. Holiday chaos? We've got your back.",
-      
-      // Final CTA
-      finalHeadline: "Turn chores into teamwork.",
-      finalSubheadline: "Try it free — because life's too short for dish arguments.",
-      finalCta: "Start my fair week",
-      
-      // Footer
-      footerTagline: "Built for busy Dutch families — fair, reliable, and a little cheeky."
+      emotionalPayoff: {
+        title: "More time for each other",
+        copy: "When the chores feel fair, resentment fades. That means fewer arguments, more laughs, and yes — even more time for date night."
+      },
+      howItWorks: {
+        title: "Chores that flex with your week",
+        copy: "Add or skip tasks in seconds. Just this time, this week, this month, or forever. The system adapts — fairness included — no Excel skills required."
+      },
+      testimonials: {
+        title: "Couples say...",
+        0: "💬 \"Finally stopped arguing about the dishes.\"",
+        1: "💬 \"Fairness score feels like therapy without the therapist.\"",
+        2: "💬 \"We got back two evenings a week just for us.\""
+      },
+      seasonal: {
+        title: "We remember what you forget",
+        copy: "Dutch waste pickup days? Check. Spring garden prep? Check. Holiday chaos? We've got your back.",
+        seasons: "Spring 🌱 Summer ☀️ Autumn 🍂 Winter ❄️"
+      },
+      finalCta: {
+        headline: "Turn chores into teamwork",
+        subheadline: "Try it free — because life's too short for dish arguments",
+        cta: "Get your evenings back"
+      },
+      footer: {
+        tagline: "Built for busy Dutch families — fair, reliable, and a little cheeky."
+      }
     },
     setup: {
       title: "Setup wizard – Fair household planner",
       metaDescription:
-        "Configure your household: members, time budgets, preferences and blackouts. Dutch by default.",
+        "Set up your household: residents, time budgets, preferences and blackouts. Dutch as default.",
       header: "Quick start",
-      subtext: "Step 1: Set up household and preferences. No account needed.",
+      subtext: "Step 1: Set household and preferences. No account needed.",
       household: "Household",
       householdName: "Household name",
       firstName: "First name",
@@ -624,469 +648,64 @@ export const dictionaries = {
       minutesPerWeek: "Minutes per week",
       contact: "Contact (email or phone)",
       contactPlaceholder: "for notifications",
-      dislikedTasks: "Disliked chores",
+      dislikedTasks: "Disliked tasks",
       addPerson: "Add person",
       saveAndContinue: "Save and continue",
       saveToAccount: "Save to account",
       blackoutsTitle: "Common blackouts",
-      toastSavedLocalTitle: "Saved locally",
-      toastSavedLocalDesc: "Your draft has been saved locally.",
-      toastNeedAccountTitle: "Account required",
+      toastSavedLocalTitle: "Temporarily saved",
+      toastSavedLocalDesc: "Your draft is saved locally.",
+      toastNeedAccountTitle: "Account needed",
       toastNeedAccountDesc: "Log in to save your settings.",
       toastSavedRemoteTitle: "Saved",
-      toastSavedRemoteDesc: "Your household has been saved to your account.",
+      toastSavedRemoteDesc: "Your household is saved to your account.",
       toastErrorTitle: "Save failed",
       taskLabels: {
         t1: "Prepare breakfast",
-        t2: "Tidy up after breakfast",
-        t3: "Pack lunchboxes",
-        t4: "Meal planning",
-        t5: "Cook dinner",
-        t6: "Family dinner & clean up",
-        t7: "Start a laundry load",
-        t8: "Dry / hang laundry",
-        t9: "Fold and put away laundry",
-        t10: "Change bed sheets",
+        t2: "Clean up after breakfast",
+        t3: "Prepare lunch boxes",
+        t4: "Plan meals",
+        t5: "Prepare dinner",
+        t6: "Family dinner & cleanup",
+        t7: "Start laundry",
+        t8: "In dryer / hang up",
+        t9: "Fold laundry & put away",
+        t10: "Change beds",
         t11: "Tidy bedrooms & vacuum",
-        t12: "Weekly clean (bathroom, mopping)",
+        t12: "Weekly cleaning (bathroom, mopping)",
       },
       blackoutsList: [
         "Workday (Mon–Fri 09:00–17:30)",
         "Morning rush (Mon–Fri 07:30–08:45)",
         "Evening rush & pickup (Mon–Fri 17:00–18:30)",
-        "Bedtime routine (daily 19:00–20:00)",
+        "Bedtime ritual (daily 19:00–20:00)",
         "Toddler nap (13:00–15:00)",
-        "Self-care (exercise/meditation)",
+        "Self-care (sports/meditation)",
         "Weekend activities",
         "Sleep time (21:00–07:00)",
-        "Sick / travel",
+        "Sick / traveling",
       ],
-    },
-    setupFlow: {
-      steps: [
-        "Welcome",
-        "Household",
-        "Time & preferences",
-        "Blackouts",
-        "Pick tasks",
-        "Tune tasks",
-        "Address & local",
-        "Summary",
-      ],
-      meta: { titlePrefix: "Setup • " },
-      actions: {
-        exitSetup: "Exit setup",
-        openPlan: "Open week plan",
-      },
-      welcome: {
-        title: "Welcome",
-        headline: "Fair weekly plan for your household — less hassle, fewer arguments.",
-        bullets: [
-          "Automatic distribution",
-          "Clear reminders",
-          "Dutch & GDPR‑proof",
-        ],
-        start: "Start now without account",
-        gdprHint: "We only ask what's needed. Your data stays local on this device during testing.",
-      },
-      household: {
-        pageTitle: "Household (people & roles)",
-        householdName: "Household name",
-        firstName: "First name",
-        role: "Role",
-        roleAdult: "Adult",
-        roleChild: "Child",
-        email: "Email (optional)",
-        phone: "Mobile (optional)",
-        language: "Language",
-        consentLabel: "Allowed to send notifications (GDPR consent)",
-        addAdult: "+ Adult",
-        addChild: "+ Child",
-        delete: "Delete",
-        back: "Back",
-        next: "Next",
-      },
-      placeholder: "This step is under construction for local tests. Navigation and draft saving already work.",
-      validation: {
-        minOneAdultTitle: "At least 1 adult",
-        minOneAdultDesc: "Add at least one adult to continue.",
-        householdNameMissingTitle: "Household name missing",
-        householdNameMissingDesc: "Please enter a name for your household.",
-      },
-      timePrefs: {
-        minutesPerWeek: "Minutes per week",
-        makeEstimate: "Make estimate",
-        minutesPerWeekHelp: "This is your goal for the whole week. The planner tries to keep your tasks under this time. Guideline: 60–90 min = normal, 30–45 = light week, 120+ = busy week.",
-        maxWeeknightMinutes: "Max per weeknight (min)",
-        maxWeeknightMinutesHelp: "Between 18:00–21:30 we try not to go over this limit. Handy to avoid 'evening stress'.",
-        dislikedTags: "Disliked (tags)",
-        dislikedTagsHelp: "We'll avoid these for you if possible. If there's no other option, they might still land with you.",
-        noGoTasks: "No-go tasks",
-        noGoTasksHelp: "We won't plan these for you. Goes to your partner or to the backlog.",
-      },
-      timeEstimator: {
-        title: "Quick estimate for {name}",
-        subtitle: "Answer a few short questions. We'll fill in your weekly minutes automatically.",
-        evenings: "Evenings available (Mon–Fri)",
-        eveningsUnit: "evening(s)",
-        mornings: "Mornings with 10 minutes to spare",
-        weekendBlocks: "Weekend blocks (60 min)",
-        satMorning: "Saturday morning",
-        satAfternoon: "Saturday afternoon",
-        sunMorning: "Sunday morning",
-        sunAfternoon: "Sunday afternoon",
-        blocksResult: "Blocks: {count} → ≈ {minutes} min",
-        weekType: "Week type",
-        light: "Light (-20%)",
-        normal: "Normal",
-        heavy: "Busy (+20%)",
-        estimate: "Estimate",
-        week: "week",
-        calculation: "Base {base} × {modifier} (week type)",
-        cancel: "Cancel",
-        apply: "Use {minutes} min",
-      },
-      fairnessHint: {
-        title: "Fairness hint",
-      },
-      targetSplit: {
-        text: "Target split with this input:",
-      },
-      workContext: {
-        title: "Work context",
-        workplace: "Workplace",
-        office: "Office",
-        hybrid: "Hybrid",
-        home: "Home",
-        paidHours: "Paid hours/week",
-        commuteMinutes: "Commute time per workday (min)",
-        flexibility: "Daytime flexibility",
-        notFlexible: "Not flexible",
-        veryFlexible: "Very flexible",
-        updateEstimate: "Update estimate",
-      },
-      psychology: {
-        title: "Psychology & agreement",
-        incomeAsymmetry: "Do we acknowledge income asymmetry?",
-        incomeAsymmetryHelp: "The breadwinner gets a small planning compensation; we still divide visibly.",
-        fairnessStyle: "Fairness style",
-        strict5050: "Strict 50/50",
-        recognizesBreadwinner: "Recognizes breadwinner",
-      },
-      ownership: {
-        title: "Ownership",
-        help: "Choose max 3 anchor routines you'd like to keep (e.g., 'Thu bedtime', 'Saturday groceries').",
-        maxThree: "Ownership: {count}/3 tasks selected",
-      },
-      cooperation: {
-        title: "Co-op care",
-        help: "For bedtime/bathtime tasks you can choose whether to lead or assist.",
-        lead: "Lead (100%)",
-        assist: "Assist (50%)",
-        none: "No preference",
-      },
-    },
-    tasks: {
-      kitchen: "Kitchen",
-      bathroom: "Bathroom",
-      cleaning: "Cleaning", 
-      admin: "Administration",
-      childcare: "Childcare",
-      errands: "Errands",
-      maintenance: "Maintenance",
-      selfcare: "Self-care",
-      social: "Social",
-      garden: "Garden",
-      appliance: "Appliances",
-      safety: "Safety",
-      outdoor: "Outdoor",
-      seasonal: "Seasonal",
-      frequency: {
-        daily: "Daily",
-        two_per_week: "2×/week",
-        three_per_week: "3×/week",
-        weekly: "Weekly", 
-        biweekly: "Biweekly",
-        monthly: "Monthly",
-        quarterly: "Quarterly",
-        semiannual: "Semi-annual",
-        annual: "Annual",
-        seasonal: "Seasonal",
-        custom: "Custom...",
-      },
-      packs: {
-        pack_no_kids: "No children",
-        pack_toddler: "Toddler 1-3",
-        pack_schoolkids: "School kids",
-        pack_two_workers: "2 workers",
-        pack_house_garden: "House with garden",
-        pack_apartment: "Apartment",
-        pack_appliance_maint: "Appliance maintenance",
-        pack_safety_checks: "Safety & inspections",
-        pack_season_spring: "Spring seasonal",
-        pack_season_autumn: "Autumn seasonal",
-        pack_cycling: "Cycling",
-        pack_car: "Car",
-        pack_fireplace: "Fireplace",
-        pack_solar: "Solar panels",
-      },
-      context: {
-        apartment: "Apartment",
-        house: "Single-family home",
-        garden: "Garden",
-        fireplace: "Fireplace",
-        cycling: "Cycling",
-        car: "Car",
-        solar: "Solar panels",
-        pets: "Pets",
-      },
-      picker: {
-        title: "Pick your tasks",
-        searchPlaceholder: "Search tasks...",
-        filterFrequency: "Filter by frequency",
-        filterContext: "Filter by context",
-        showCategories: "Show categories", 
-        recommendedPacks: "Recommended packages",
-        bulkEdit: "Bulk edit",
-        weekendOnly: "Weekend only",
-        avoidEvenings: "Avoid evenings",
-        activeTasks: "Active tasks",
-        estimatedMinutes: "Estimated minutes p.p. per week",
-        fairnessPreview: "Fairness preview",
-        whyThisFrequency: "Why this frequency?",
-        helperText: "Info",
-        selectAll: "Select all",
-        selectNone: "Select none",
-        applyToBulk: "Apply to selection",
-        weeklyTimeContext: "≈ {hours}h per week • {context}",
-        timeLight: "light week",
-        timeNormal: "normal week",
-        timeBusy: "busy week",
-        filters: "Filters",
-        frequency: "Frequency",
-        duration: "Duration",
-      },
-    },
-    time: {
-      minutes: {
-        help: "What's typical?",
-        hint: "With these minutes we target a {split} split this week.",
-      },
-      chips: {
-        light: "Light",
-        normal: "Normal",
-        busy: "Busy",
-      },
-      tooltip: {
-        light: "minimal week (few evenings, many blackouts)",
-        normal: "average busyness level",
-        busy: "more cooking/laundry/rides or two small kids",
-      },
-      helper: {
-        title: "What's typical?",
-        body: [
-          "Single, no kids: 60–120 min per week.",
-          "Couple, both working, no kids: 75–120 min per adult.",
-          "Couple, 1 child: 120–180 min per adult.",
-          "Two working parents, 2 kids: 150–210 min per adult.",
-          "Single parent (1–2 kids): 180–240 min.",
-          "Housemates (2–3): 45–90 min per person.",
-          "These are guidelines for plannable chores. You can always adjust later."
-        ],
-        note: "Based on NL time-use studies—just a starting point.",
-      },
     },
     auth: {
-      title: "Log in or sign up – Fair household planner",
+      title: "Login or signup – Fair household planner",
       metaDescription: "Log in or create an account to save your household and plans.",
-      login: "Log in",
+      login: "Login",
       signup: "Create account",
       email: "Email",
       password: "Password",
-      haveAccount: "Already have an account? Log in",
-      noAccount: "No account yet? Sign up",
-      afterLogin: (next: string) => `After login you will continue to ${next}.`,
+      haveAccount: "Already have an account? Login",
+      noAccount: "Don't have an account yet? Sign up",
+      afterLogin: (next: string) => `After login you'll continue to ${next}.`,
       testingTip: "Tip: during testing you can disable email confirmation in Supabase → Auth settings.",
       loginFailed: "Login failed",
       welcomeBack: "Welcome back",
       signedIn: "You are logged in.",
-      signupFailed: "Sign up failed",
+      signupFailed: "Signup failed",
       confirmEmail: "Confirm your email",
       checkInbox: "Check your inbox to activate your account.",
     },
     notFound: {
       oops: "Oops! Page not found",
-    },
-    done: {
-      metaTitle: "Week plan created | Household",
-      metaDescription: "Your weekly plan has been created. View details and next steps.",
-      noPlanTitle: "No plan found",
-      noPlanDesc: "Start at step 1 to create a new weekly plan.",
-      startWizard: "Start wizard",
-      backHome: "Back to home",
-      h1: "Week plan created 🎉",
-      successPrefix: "Your plan for the week from",
-      successSuffix: "is ready.",
-      overview: "Plan overview",
-      fairnessLabel: "Fairness",
-      tasksLabel: "Tasks",
-      planIdLabel: "Plan ID",
-      weekStartLabel: "Week start",
-      openPlan: "Open week plan",
-      invitePartner: "Invite partner",
-      notifications: "Set up notifications",
-      addToCalendar: "Add to calendar",
-      openGcal: "Open in Google Calendar",
-      print: "Print / Download",
-      whyThis: "Why this distribution?",
-      whyTitle: "About fairness",
-      whyBody: "The fairness score compares workload per adult with their time budgets and task preferences. The goal is a balanced distribution that’s also practical.",
-      restart: "Start over",
-      restartConfirmTitle: "Are you sure?",
-      restartConfirmBody: "This will remove your draft and the last created plan from this device.",
-      restartConfirmAction: "Yes, delete and start over",
-      cancel: "Cancel",
-      inviteCopiedTitle: "Invite link copied",
-      inviteCopiedDesc: "Share the link with your partner.",
-      gcalText: "Household chores week plan",
-      gcalDetails: "Automatically generated weekly plan",
-      icsSummary: "Household chores week plan",
-      icsDescription: "Automatically generated weekly plan",
-    },
-    privacy: {
-      metaDescription:
-        "Privacy policy: we only use data to schedule chores and send reminders. GDPR-compliant, EU data centers.",
-      heading: "Privacy Policy",
-      p1:
-        "We minimize personal data: first names and contact details for reminders only. Data is used solely to plan household tasks and send reminders via email or WhatsApp/SMS. We do not use data for advertising or profiling.",
-      rights: "Your rights",
-      rightsList: [
-        "You can access, correct, or delete your data at any time.",
-        "Data is stored in EU data centers.",
-        "Plans older than 12 months are automatically deleted.",
-      ],
-      p2:
-        "For WhatsApp messages we use approved templates and ask for explicit consent. Questions? Contact privacy@example.com.",
-    },
-    myTasks: {
-      title: "My Tasks",
-      today: "Today",
-      thisWeek: "This week",
-      noTasksToday: "No tasks today!",
-      noTasksWeek: "No tasks this week!",
-      enjoyFreeDay: "Enjoy your free day.",
-      timeForNewPlan: "Time for a new plan.",
-      done: "Done",
-      later: "Later",
-      swap: "Swap",
-      whyMe: "Why me?",
-      focusMode: "Focus Mode",
-      taskCompleted: "Task completed! 🎉",
-      greatJob: "Great job getting that done.",
-      taskSnoozed: "Task snoozed",
-      swapRequestSent: "Swap request sent",
-      partnerNotification: "Your partner will receive a notification",
-      addToCalendar: "Add to calendar",
-      exportICS: "Calendar",
-    },
-    compare: {
-      title: "Compare Distribution",
-      targetVsActual: "Target vs. actual:",
-      weekScore: "Week score",
-      tasksBacklog: "tasks backlog",
-      workloadVsTarget: "Workload vs Target",
-      difficultyMix: "Difficulty Mix",
-      eveningLoad: "Evening Load (Mon-Fri)",
-      categoryDistribution: "Category Distribution",
-      dislikedTasks: "Disliked Tasks",
-      makeItFairer: "Make it Fairer",
-      suggestedImprovements: "Suggested improvements that increase fairness:",
-      fairnessPoints: "fairness points",
-      apply: "Apply",
-      distributionLooksGood: "Distribution looks good!",
-      noImprovementsNeeded: "No improvements needed right now.",
-      light: "Light",
-      medium: "Medium",
-      hard: "Hard", 
-      target: "Target",
-      actual: "Actual",
-      points: "points",
-    },
-    calendar: {
-      filters: "Filters",
-      all: "All",
-      scheduled: "Scheduled",
-      completed: "Completed",
-      missed: "Missed",
-      swapped: "Swapped",
-      people: "People",
-      categories: "Categories",
-      status: "Status",
-      show_boosts: "Show boosts",
-      clear_all: "Clear all",
-      no_tasks_this_day: "No tasks on this day",
-      total_points: "Total points",
-      critical: "Critical",
-      backup_available: "Backup available",
-      why_me: "Why me",
-      mark_done: "Mark done",
-      swap: "Swap",
-      move: "Move",
-      boost: "Boost",
-      boost_sent: "Boost sent",
-      backup_used: "Backup used",
-      complete: "Complete",
-      intensity: "Intensity",
-      mon: "Mon",
-      tue: "Tue",
-      wed: "Wed",
-      thu: "Thu",
-      fri: "Fri",
-      sat: "Sat",
-      sun: "Sun",
-      monday: "Monday",
-      tuesday: "Tuesday",
-      wednesday: "Wednesday",
-      thursday: "Thursday",
-      friday: "Friday",
-      saturday: "Saturday",
-      sunday: "Sunday"
-    },
-    fairness: {
-      title: "Fairness Analysis",
-      subtitle: "We balance workload points (minutes × difficulty) based on your time budgets and avoid evening overload.",
-      badge: {
-        good: "Well balanced",
-        okay: "Could be better",
-        poor: "Not fairly split"
-      },
-      splitSummary: {
-        title: "Split summary"
-      },
-      distribution: {
-        title: "Distribution per person"
-      },
-      taskTypes: {
-        title: "Task types"
-      },
-      mandatoryFlexible: {
-        title: "Mandatory vs Flexible",
-        note: "Fixed family tasks (pickups, bedtime, meals) are placed first; the rest is optimized for fairness."
-      },
-      hardEasy: {
-        title: "Difficulty breakdown"
-      },
-      whyNot100: {
-        title: "Why not 100?"
-      },
-      quickActions: {
-        makeFairer: "Make it fairer",
-        suggestSwap: "Suggest swap"
-      },
-      trend: {
-        title: "Trend (last 4 weeks)"
-      },
-      myWeek: "My week"
     },
   },
 } as const;
