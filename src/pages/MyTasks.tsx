@@ -32,7 +32,8 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
         .from('household_members')
         .select('household_id')
         .eq('user_id', session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
       
       if (memberError) throw memberError;
       
