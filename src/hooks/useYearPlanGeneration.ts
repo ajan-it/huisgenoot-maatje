@@ -24,8 +24,16 @@ export function useYearPlanGeneration() {
     try {
       console.log('Starting year plan generation...', params);
       
-      const { data, error } = await supabase.functions.invoke('plan-generate-year', {
-        body: params,
+      const { data, error } = await supabase.functions.invoke('plan-generate-with-overrides', {
+        body: {
+          household_id: params.household_id,
+          date_range: {
+            start: `${params.year}-01-01`,
+            end: `${params.year}-12-31`
+          },
+          context: 'year',
+          selected_tasks: params.selected_tasks
+        },
       });
 
       if (error) {

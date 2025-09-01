@@ -15,6 +15,9 @@ import {
 import { useI18n } from "@/i18n/I18nProvider";
 import { CalendarFilters } from "@/components/calendar/CalendarFilters";
 import { DayDrawer } from "@/components/calendar/DayDrawer";
+import { MonthlyTaskPicker } from "@/components/calendar/MonthlyTaskPicker";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { useCalendarData } from "@/hooks/useCalendarData";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
@@ -40,6 +43,24 @@ const CalendarMonth = () => {
     status: searchParams.get('status') || 'all',
     showBoosts: searchParams.get('boosts') === 'true'
   }), [searchParams]);
+
+  // Get current household
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.household_id;
+    },
+  });
 
   // Data
   const { occurrences, loading } = useCalendarData(
@@ -128,6 +149,13 @@ const CalendarMonth = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {householdId && (
+            <MonthlyTaskPicker
+              householdId={householdId}
+              currentDate={currentDate}
+              onTasksUpdate={() => window.location.reload()}
+            />
+          )}
           <Button
             variant="outline"
             size="sm"

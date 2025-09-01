@@ -15,6 +15,7 @@ import { SeasonalTasksToggle } from "@/components/calendar/SeasonalTasksToggle";
 import { FrequencyFilter, FrequencyType } from "@/components/calendar/FrequencyFilter";
 import { YearPlanGenerator } from "@/components/calendar/YearPlanGenerator";
 import { LongTermFairnessChart } from "@/components/calendar/LongTermFairnessChart";
+import { YearlyTaskPicker } from "@/components/calendar/YearlyTaskPicker";
 import { useCalendarData } from "@/hooks/useCalendarData";
 import { useLongTermFairness } from "@/hooks/useLongTermFairness";
 import { supabase } from "@/integrations/supabase/client";
@@ -206,6 +207,16 @@ const CalendarYear = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {householdId && (
+            <YearlyTaskPicker
+              householdId={householdId}
+              year={currentYear.getFullYear()}
+              onTasksUpdate={() => {
+                setRefreshKey(prev => prev + 1);
+                refetch?.();
+              }}
+            />
+          )}
           <YearPlanGenerator
             year={currentYear.getFullYear()}
             householdId={householdId}

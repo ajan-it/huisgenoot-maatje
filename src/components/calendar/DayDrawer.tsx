@@ -14,8 +14,11 @@ import {
   Zap
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
 import { format } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface DayDrawerProps {
   date: Date | null;
@@ -27,6 +30,24 @@ interface DayDrawerProps {
 export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) {
   const { t, lang } = useI18n();
   const locale = lang === 'nl' ? nl : enUS;
+
+  // Get current household
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.household_id;
+    },
+  });
 
   if (!date) return null;
 
@@ -71,9 +92,18 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="space-y-3">
-          <SheetTitle className="text-left">
-            {format(date, 'EEEE, MMMM d, yyyy', { locale })}
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-left">
+              {format(date, 'EEEE, MMMM d, yyyy', { locale })}
+            </SheetTitle>
+            {householdId && (
+              <TaskQuickActions
+                householdId={householdId}
+                date={date}
+                onTaskUpdate={() => window.location.reload()}
+              />
+            )}
+          </div>
           
           {/* Summary */}
           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
