@@ -45,9 +45,9 @@ export default function Index() {
         <link rel="canonical" href="/" />
       </Helmet>
 
-      <main className="min-h-screen bg-gradient-to-br from-brand-soft via-white to-brand-warm/30">
+      <main className="min-h-screen bg-gradient-to-br from-brand-soft via-white to-brand-warm/50">
         {/* Hero Section */}
-        <section className="relative bg-gradient-to-br from-brand-soft to-brand-warm py-24 px-4 overflow-hidden">
+        <section className="relative bg-gradient-to-br from-brand-soft to-brand-warm/60 py-24 px-4 overflow-hidden">
           {/* Subtle geometric background */}
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-highlight/5 rounded-full blur-3xl"></div>
@@ -97,7 +97,7 @@ export default function Index() {
         </section>
 
         {/* Section 1: The Problem */}
-        <section className="py-20 px-4 bg-gradient-to-br from-white via-brand-soft/20 to-white relative overflow-hidden">
+        <section className="py-20 px-4 bg-gradient-to-br from-brand-warm/30 via-brand-soft/40 to-brand-warm/30 relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-8 text-brand-primary tracking-tight">
               {t('index.problem.title')}
