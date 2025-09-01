@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/i18n/I18nProvider';
+import mastheadImage from '@/assets/masthead-household-teamwork.jpg';
 import { 
   Scale, 
   Bell, 
@@ -48,14 +49,24 @@ export default function Index() {
       <main className="min-h-screen bg-gradient-to-br from-brand-soft via-white to-brand-warm/50">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-brand-soft to-brand-warm/60 py-24 px-4 overflow-hidden">
+          {/* Masthead Image */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={mastheadImage} 
+              alt="Happy couple working together in modern kitchen" 
+              className="w-full h-full object-cover opacity-15 mix-blend-soft-light"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-soft/80 to-brand-warm/60"></div>
+          </div>
+          
           {/* Subtle geometric background */}
-          <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden z-10">
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-highlight/5 rounded-full blur-3xl"></div>
             <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-brand-primary/10 rounded-full blur-3xl"></div>
           </div>
           
           {/* Floating minimal icons */}
-          <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden z-20">
             <div className="absolute top-20 left-10 animate-pulse opacity-20">
               <Scale className="h-8 w-8 text-brand-primary" />
             </div>
@@ -70,7 +81,7 @@ export default function Index() {
             </div>
           </div>
           
-          <div className="max-w-6xl mx-auto text-center relative z-10">
+          <div className="max-w-6xl mx-auto text-center relative z-30">
             <h1 className="text-5xl md:text-7xl font-light mb-6 leading-tight text-brand-primary tracking-tight">
               {t('index.hero.headline')}
             </h1>
