@@ -100,10 +100,9 @@ export default function Index() {
                 {t('index.hero.cta')} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
-                variant="outline" 
+                variant="hero-secondary" 
                 size="lg"
-                className="!border-white/60 !text-white hover:!bg-white/15 hover:!text-white text-lg px-10 py-6 rounded-2xl font-semibold backdrop-blur-sm border-2"
-                style={{ borderColor: 'rgba(255, 255, 255, 0.6)', color: 'white' }}
+                className="text-lg px-10 py-6 rounded-2xl font-semibold"
               >
                 {t('index.hero.ctaSecondary')}
               </Button>
