@@ -22,7 +22,7 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
   const [activeTask, setActiveTask] = useState<string | null>(null);
 
   // Get current household and user
-  const { data: householdData } = useQuery({
+  const { data: householdData, isLoading: householdLoading } = useQuery({
     queryKey: ['current-household-and-user'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -31,17 +31,19 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
       const { data: memberData, error: memberError } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('user_id', session.user.id)
-        .limit(1)
-        .maybeSingle();
+        .eq('user_id', session.user.id);
       
       if (memberError) throw memberError;
+      if (!memberData || memberData.length === 0) return null;
+      
+      // Take the first household if user is member of multiple
+      const householdId = memberData[0].household_id;
       
       // Get household people
       const { data: people, error: peopleError } = await supabase
         .from('people')
         .select('*')
-        .eq('household_id', memberData.household_id);
+        .eq('household_id', householdId);
       
       if (peopleError) throw peopleError;
       
@@ -49,7 +51,7 @@ const MyTasks: React.FC<MyTasksPageProps> = () => {
       const currentPerson = people[0];
       
       return {
-        householdId: memberData.household_id,
+        householdId,
         people,
         currentPerson,
         userId: session.user.id
@@ -300,7 +302,7 @@ END:VCALENDAR`;
     </Card>
   );
 
-  if (isLoading) {
+  if (householdLoading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
