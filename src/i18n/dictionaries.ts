@@ -9,24 +9,60 @@ export const dictionaries = {
       backHome: "Terug naar start",
     },
     index: {
-      title: "Eerlijke huishoudplanner voor gezinnen",
-      metaDescription:
-        "Plan eerlijke wekelijkse klussen, verlaag de mentale last en ontvang simpele herinneringen. Nederlands eerst, GDPR-vriendelijk.",
-      ogTitle: "Eerlijke huishoudplanner voor gezinnen",
-      ogDescription: "Plan eerlijke klussen en ontvang herinneringen via e-mail/WhatsApp.",
-      headline: "Eerlijke huishoudplanner voor jonge gezinnen",
-      lead:
-        "Genereer een eerlijk weekplan, respecteer voorkeuren en ontvang herinneringen via e-mail of WhatsApp. Minder mentale last, meer rust.",
-      ctaStart: "Start nu zonder account",
+      title: "Deel de last. Red de liefde.",
+      metaDescription: "Geen wasruzie meer of drama over wie de kinderen ophaalt. Onze app houdt klussen eerlijk, betrouwbaar en ruzievrij.",
+      ogTitle: "Deel de last. Red de liefde.",
+      ogDescription: "Geen wasruzie meer. Eerlijke klussen, betrouwbaar en ruzievrij.",
+      headline: "Deel de last. Red de liefde.",
+      subheadline: "Geen wasruzie meer of drama over wie de kinderen ophaalt. Onze app houdt klussen eerlijk, betrouwbaar en ruzievrij.",
+      ctaStart: "Plan je eerlijke week nu",
       privacy: "Privacy",
       login: "Inloggen",
-      bullets: [
-        "• Nederlands als standaard",
-        "• 24-uurs tijden en €",
-        "• Eerlijke verdeling",
-        "• GDPR-conform",
+      heroAlt: "Gelukkig stel met peuter, huishoudklussen zweven eromheen",
+      
+      // Pain → Promise section
+      painTitle: "Moe van het 'ik doe meer dan jij' argument?",
+      painText: "De meeste stellen kennen hun klussen... maar niet hoe eerlijk het werkelijk voelt. Wij houden de inspanning bij, zorgen voor zachte balans, en stoppen het eindeloze gezeur over wie meer doet.",
+      
+      // Core Value Props
+      valueProps: {
+        fairness: {
+          title: "Eerlijkheid zonder ruzies",
+          text: "Wij tellen minuten × inspanning, zodat beide partners zien dat de last gedeeld wordt."
+        },
+        reliability: {
+          title: "Mis nooit meer de belangrijke dingen",
+          text: "Kritieke taken (zoals rekeningen, kinderopvang, afval) krijgen zachte boosts & backups — geen paniek meer."
+        },
+        adaptive: {
+          title: "Leert jouw ritme",
+          text: "Als bedtijd steeds uitloopt, of een partner reist — het plan past zich aan, zeurt niet."
+        }
+      },
+      
+      // Feature Highlight
+      featureTitle: "Klussen die meetbuigen met je week",
+      featureText: "Voeg taken toe of sla ze over in seconden. Eenmaal, deze week, deze maand, of voor altijd. Het systeem past zich aan en houdt dingen eerlijk zonder dat je Excel hoeft aan te raken.",
+      
+      // Social Proof
+      testimonialTitle: "Stellen zeggen...",
+      testimonials: [
+        "Eindelijk gestopt met ruziën over de afwas.",
+        "Eerlijkheidsscore voelt als therapie zonder de therapeut.",
+        "We kregen twee avonden per week terug voor onszelf."
       ],
-      heroAlt: "Gezin plant huishoudklussen met kalender en telefoon",
+      
+      // Seasonal section
+      seasonalTitle: "Wij onthouden wat jij vergeet.",
+      seasonalText: "Nederlandse afval ophaal dagen? Check. Lente tuin voorbereidingen? Check. Feestdagen chaos? Wij dekken je.",
+      
+      // Final CTA
+      finalHeadline: "Verander klussen in teamwork.",
+      finalSubheadline: "Probeer het gratis — want het leven is te kort voor afwas ruzies.",
+      finalCta: "Start mijn eerlijke week",
+      
+      // Footer
+      footerTagline: "Gemaakt voor drukke Nederlandse gezinnen — eerlijk, betrouwbaar, en een beetje brutaal."
     },
     setup: {
       title: "Setup wizard – Eerlijke huishoudplanner",
@@ -518,24 +554,60 @@ export const dictionaries = {
       backHome: "Back to home",
     },
     index: {
-      title: "Fair household planner for families",
-      metaDescription:
-        "Create fair weekly chore plans, reduce mental load, and get simple reminders. Dutch-first, GDPR-friendly.",
-      ogTitle: "Fair household planner for families",
-      ogDescription: "Plan fair chores and receive reminders via email/WhatsApp.",
-      headline: "Fair household planner for young families",
-      lead:
-        "Generate a fair weekly plan, respect preferences, and get reminders by email or WhatsApp. Less mental load, more calm.",
-      ctaStart: "Start now without account",
+      title: "Share the load. Save the love.",
+      metaDescription: "No more laundry fights or who-picks-up-the-kid drama. Our app keeps chores fair, reliable, and argument-free.",
+      ogTitle: "Share the load. Save the love.",
+      ogDescription: "No more laundry fights. Fair chores, reliable and argument-free.",
+      headline: "Share the load. Save the love.",
+      subheadline: "No more laundry fights or who-picks-up-the-kid drama. Our app keeps chores fair, reliable, and argument-free.",
+      ctaStart: "Plan your fair week now",
       privacy: "Privacy",
-      login: "Log in",
-      bullets: [
-        "• Dutch by default",
-        "• 24-hour time and €",
-        "• Fair distribution",
-        "• GDPR-compliant",
+      login: "Login",
+      heroAlt: "Happy couple with toddler, household chores floating around",
+      
+      // Pain → Promise section
+      painTitle: "Tired of the 'I do more than you' argument?",
+      painText: "Most couples know their chores... but not how fair it really feels. We track the effort, balance it gently, and stop the endless bickering about who does more.",
+      
+      // Core Value Props
+      valueProps: {
+        fairness: {
+          title: "Fairness without fights",
+          text: "We count minutes × effort, so both partners see the load is shared."
+        },
+        reliability: {
+          title: "Never miss the big stuff",
+          text: "Critical tasks (like bills, daycare, waste) get gentle boosts & backups — no more panics."
+        },
+        adaptive: {
+          title: "Learns your rhythm",
+          text: "If bedtime keeps slipping, or one partner travels — the plan adapts, not nags."
+        }
+      },
+      
+      // Feature Highlight
+      featureTitle: "Chores that flex with your week",
+      featureText: "Add or skip tasks in seconds. Once, this week, this month, or forever. The system adapts and keeps things fair without you touching Excel again.",
+      
+      // Social Proof
+      testimonialTitle: "Couples say...",
+      testimonials: [
+        "Finally stopped arguing about the dishes.",
+        "Fairness score feels like therapy without the therapist.",
+        "We got back two evenings a week just for us."
       ],
-      heroAlt: "Family planning chores with calendar and phone",
+      
+      // Seasonal section
+      seasonalTitle: "We remember what you forget.",
+      seasonalText: "Dutch waste pickup days? Check. Spring garden prep? Check. Holiday chaos? We've got your back.",
+      
+      // Final CTA
+      finalHeadline: "Turn chores into teamwork.",
+      finalSubheadline: "Try it free — because life's too short for dish arguments.",
+      finalCta: "Start my fair week",
+      
+      // Footer
+      footerTagline: "Built for busy Dutch families — fair, reliable, and a little cheeky."
     },
     setup: {
       title: "Setup wizard – Fair household planner",
