@@ -5,12 +5,20 @@ import { Card } from "@/components/ui/card";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Filter
+  Filter,
+  CalendarPlus
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { CalendarFilters } from "@/components/calendar/CalendarFilters";
 import { DayDrawer } from "@/components/calendar/DayDrawer";
+import { SeasonalTasksToggle } from "@/components/calendar/SeasonalTasksToggle";
+import { FrequencyFilter, FrequencyType } from "@/components/calendar/FrequencyFilter";
+import { YearPlanGenerator } from "@/components/calendar/YearPlanGenerator";
+import { LongTermFairnessChart } from "@/components/calendar/LongTermFairnessChart";
 import { useCalendarData } from "@/hooks/useCalendarData";
+import { useLongTermFairness } from "@/hooks/useLongTermFairness";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { 
   format, 
   startOfYear, 
@@ -32,6 +40,10 @@ const CalendarYear = () => {
   // State
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSeasonal, setShowSeasonal] = useState(true);
+  const [selectedFrequencies, setSelectedFrequencies] = useState<FrequencyType[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showFairnessChart, setShowFairnessChart] = useState(false);
   
   // URL state
   const currentYear = useMemo(() => {
@@ -46,11 +58,44 @@ const CalendarYear = () => {
     showBoosts: searchParams.get('boosts') === 'true'
   }), [searchParams]);
 
+  // Get current household
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.household_id;
+    },
+  });
+
+  // Get current season
+  const getCurrentSeason = () => {
+    const month = new Date().getMonth() + 1;
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    if (month >= 9 && month <= 11) return 'autumn';
+    return 'winter';
+  };
+
   // Data
-  const { occurrences, boosts, loading } = useCalendarData(
+  const { occurrences, boosts, loading, refetch } = useCalendarData(
     startOfYear(currentYear),
     endOfYear(currentYear),
     filters
+  );
+
+  // Long-term fairness data
+  const { data: fairnessMetrics = [] } = useLongTermFairness(
+    householdId,
+    currentYear.getFullYear()
   );
 
   // Navigation
@@ -66,12 +111,26 @@ const CalendarYear = () => {
     });
   };
 
+  // Filter occurrences by frequency
+  const filteredOccurrences = useMemo(() => {
+    if (selectedFrequencies.length === 0) return occurrences;
+    
+    return occurrences.filter(occ => 
+      selectedFrequencies.includes(occ.frequency_source as FrequencyType)
+    );
+  }, [occurrences, selectedFrequencies]);
+
   // Group data by date
   const dataByDate = useMemo(() => {
     const grouped: Record<string, { occurrences: any[], boosts: any[], points: number }> = {};
     
-    // Process occurrences
-    occurrences.forEach(occ => {
+    // Process filtered occurrences
+    filteredOccurrences.forEach(occ => {
+      // Filter seasonal tasks if toggle is off
+      if (!showSeasonal && occ.frequency_source === 'seasonal') {
+        return;
+      }
+      
       const dateKey = format(new Date(occ.date), 'yyyy-MM-dd');
       if (!grouped[dateKey]) {
         grouped[dateKey] = { occurrences: [], boosts: [], points: 0 };
@@ -91,7 +150,7 @@ const CalendarYear = () => {
     }
 
     return grouped;
-  }, [occurrences, boosts]);
+  }, [filteredOccurrences, boosts, showSeasonal]);
 
   // Get intensity level for points
   const getIntensityLevel = (points: number) => {
@@ -147,6 +206,21 @@ const CalendarYear = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          <YearPlanGenerator
+            year={currentYear.getFullYear()}
+            householdId={householdId}
+            onPlanGenerated={() => {
+              setRefreshKey(prev => prev + 1);
+              refetch?.();
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFairnessChart(!showFairnessChart)}
+          >
+            📊 Jaarlijkse Eerlijkheid
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -158,35 +232,66 @@ const CalendarYear = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Enhanced Filters */}
       {showFilters && (
-        <Card className="p-4">
-          <CalendarFilters
-            filters={filters}
-            onFiltersChange={(newFilters) => {
-              setSearchParams(prev => {
-                const newParams = new URLSearchParams(prev);
-                if (newFilters.persons.length > 0) {
-                  newParams.set('persons', newFilters.persons.join(','));
-                } else {
-                  newParams.delete('persons');
-                }
-                if (newFilters.categories.length > 0) {
-                  newParams.set('categories', newFilters.categories.join(','));
-                } else {
-                  newParams.delete('categories');
-                }
-                newParams.set('status', newFilters.status);
-                if (newFilters.showBoosts) {
-                  newParams.set('boosts', 'true');
-                } else {
-                  newParams.delete('boosts');
-                }
-                return newParams;
-              });
-            }}
-          />
-        </Card>
+        <div className="space-y-4">
+          <Card className="p-4">
+            <CalendarFilters
+              filters={filters}
+              onFiltersChange={(newFilters) => {
+                setSearchParams(prev => {
+                  const newParams = new URLSearchParams(prev);
+                  if (newFilters.persons.length > 0) {
+                    newParams.set('persons', newFilters.persons.join(','));
+                  } else {
+                    newParams.delete('persons');
+                  }
+                  if (newFilters.categories.length > 0) {
+                    newParams.set('categories', newFilters.categories.join(','));
+                  } else {
+                    newParams.delete('categories');
+                  }
+                  newParams.set('status', newFilters.status);
+                  if (newFilters.showBoosts) {
+                    newParams.set('boosts', 'true');
+                  } else {
+                    newParams.delete('boosts');
+                  }
+                  return newParams;
+                });
+              }}
+            />
+          </Card>
+          
+          <Card className="p-4">
+            <SeasonalTasksToggle
+              showSeasonal={showSeasonal}
+              onToggle={setShowSeasonal}
+              currentSeason={getCurrentSeason()}
+            />
+          </Card>
+          
+          <Card className="p-4">
+            <FrequencyFilter
+              selectedFrequencies={selectedFrequencies}
+              onFrequencyToggle={(frequency) => {
+                setSelectedFrequencies(prev => 
+                  prev.includes(frequency)
+                    ? prev.filter(f => f !== frequency)
+                    : [...prev, frequency]
+                );
+              }}
+            />
+          </Card>
+        </div>
+      )}
+
+      {/* Long-term Fairness Chart */}
+      {showFairnessChart && fairnessMetrics.length > 0 && (
+        <LongTermFairnessChart 
+          metrics={fairnessMetrics}
+          year={currentYear.getFullYear()}
+        />
       )}
 
       {/* Legend */}

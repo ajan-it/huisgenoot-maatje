@@ -244,6 +244,7 @@ export type Database = {
           difficulty_weight: number
           duration_min: number
           fairness_excused: boolean | null
+          frequency_source: Database["public"]["Enums"]["frequency_type"] | null
           has_backup: boolean | null
           id: string
           is_critical: boolean | null
@@ -264,6 +265,9 @@ export type Database = {
           difficulty_weight?: number
           duration_min?: number
           fairness_excused?: boolean | null
+          frequency_source?:
+            | Database["public"]["Enums"]["frequency_type"]
+            | null
           has_backup?: boolean | null
           id?: string
           is_critical?: boolean | null
@@ -284,6 +288,9 @@ export type Database = {
           difficulty_weight?: number
           duration_min?: number
           fairness_excused?: boolean | null
+          frequency_source?:
+            | Database["public"]["Enums"]["frequency_type"]
+            | null
           has_backup?: boolean | null
           id?: string
           is_critical?: boolean | null
@@ -440,6 +447,8 @@ export type Database = {
           id: string
           is_template: boolean
           name: string
+          preferred_month: number | null
+          seasonal_months: number[] | null
           tags: string[]
           updated_at: string
         }
@@ -454,6 +463,8 @@ export type Database = {
           id?: string
           is_template?: boolean
           name: string
+          preferred_month?: number | null
+          seasonal_months?: number[] | null
           tags?: string[]
           updated_at?: string
         }
@@ -468,6 +479,8 @@ export type Database = {
           id?: string
           is_template?: boolean
           name?: string
+          preferred_month?: number | null
+          seasonal_months?: number[] | null
           tags?: string[]
           updated_at?: string
         }
