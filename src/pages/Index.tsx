@@ -102,7 +102,8 @@ export default function Index() {
               <Button 
                 variant="outline" 
                 size="lg"
-                className="border-white/40 text-white hover:bg-white/15 hover:text-white text-lg px-10 py-6 rounded-2xl font-semibold backdrop-blur-sm border-2"
+                className="!border-white/60 !text-white hover:!bg-white/15 hover:!text-white text-lg px-10 py-6 rounded-2xl font-semibold backdrop-blur-sm border-2"
+                style={{ borderColor: 'rgba(255, 255, 255, 0.6)', color: 'white' }}
               >
                 {t('index.hero.ctaSecondary')}
               </Button>
