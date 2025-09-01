@@ -771,6 +771,35 @@ export const dictionaries = {
         apply: "Use {minutes} min",
       },
     },
+    time: {
+      minutes: {
+        help: "What's normal?",
+        hint: "With these minutes we aim for {split} distribution this week.",
+      },
+      chips: {
+        light: "Light",
+        normal: "Normal",
+        busy: "Busy",
+      },
+      tooltip: {
+        light: "minimal week (few evenings, many blackouts)",
+        normal: "average busyness level",
+        busy: "more cooking/laundry/errands or two small kids",
+      },
+      helper: {
+        title: "What's normal?",
+        body: [
+          "Single, no kids: 60–120 min per week.",
+          "Couple, both working, no kids: 75–120 min per adult.",
+          "Couple, 1 child: 120–180 min per adult.",
+          "Two working parents, 2 kids: 150–210 min per adult.",
+          "Single parent (1–2 kids): 180–240 min.",
+          "Housemates (2–3): 45–90 min per person.",
+          "These are guidelines for plannable tasks. You can always adjust later."
+        ],
+        note: "Based on Dutch time usage (SCP/CBS) and practical experience. It's a starting point, not an obligation.",
+      },
+    },
     auth: {
       title: "Login or signup – Fair household planner",
       metaDescription: "Log in or create an account to save your household and plans.",
