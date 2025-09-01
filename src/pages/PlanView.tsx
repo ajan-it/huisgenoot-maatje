@@ -12,12 +12,14 @@ import { EnhancedFairnessDrawer } from "@/components/plan/EnhancedFairnessDrawer
 import { RebalancePreview } from "@/components/RebalancePreview";
 import { WeeklyReflectionBanner } from "@/components/reflection/WeeklyReflectionBanner";
 import { DisruptionForm } from "@/components/reflection/DisruptionForm";
+import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
 import type { FairnessDetails } from "@/types/plan";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useDisruptions } from "@/hooks/useDisruptions";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Settings } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useQuery } from "@tanstack/react-query";
 
 const PlanView = () => {
   const { planId } = useParams();
@@ -35,9 +37,25 @@ const PlanView = () => {
   const [showReflectionForm, setShowReflectionForm] = useState(false);
   const { toast } = useToast();
   
-  // Demo household ID - in real app this would come from auth context
-  const householdId = "00000000-0000-4000-8000-000000000000";
-  const { disruptions, createDisruptions } = useDisruptions(householdId, plan?.week_start);
+  // Get current household - try from auth first, fallback to demo
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      
+      if (error || !data) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
+      return data.household_id;
+    },
+  });
+  
+  const { disruptions, createDisruptions } = useDisruptions(householdId || "00000000-0000-4000-8000-000000000000", plan?.week_start);
 
   useEffect(() => {
     try {
@@ -66,12 +84,14 @@ const PlanView = () => {
     
     setIsRebalancing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('plan-generate', {
+      const { data, error } = await supabase.functions.invoke('plan-generate-with-overrides', {
         body: {
-          tasks: plan.tasks,
-          people: plan.people,
-          week_start: plan.week_start,
           household_id: planId?.split('-')[0] || 'HH_LOCAL',
+          date_range: {
+            start: plan.week_start,
+            end: new Date(new Date(plan.week_start).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          },
+          context: 'week',
           mode: 'rebalance_soft',
           current_assignments: plan.assignments
         }
@@ -172,8 +192,17 @@ const PlanView = () => {
         <section className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                {L ? "Overview" : "Overzicht"}
+              <CardTitle className="flex items-center justify-between">
+                <span>{L ? "Overview" : "Overzicht"}</span>
+                {householdId && plan?.week_start && (
+                  <TaskQuickActions
+                    householdId={householdId}
+                    date={new Date(plan.week_start)}
+                    onTaskUpdate={() => window.location.reload()}
+                  />
+                )}
+              </CardTitle>
+              <div className="flex items-center gap-3">
                  <div className="flex items-center gap-2">
                     <FairnessBadge 
                       score={plan.fairness ?? 0}
@@ -198,11 +227,11 @@ const PlanView = () => {
                            <Sparkles className="h-3 w-3 mr-1" />
                            {L ? "Make it Fairer" : "Maak Eerlijker"}
                          </>
-                       )}
-                     </Button>
-                   )}
-                 </div>
-              </CardTitle>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -229,14 +258,26 @@ const PlanView = () => {
           </Card>
 
           {plan.assignments && plan.assignments.length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">{L ? "Weekly Schedule" : "Weekplanning"}</h2>
-              <PlanSchedule 
-                assignments={plan.assignments} 
-                people={plan.people || []} 
-                weekStart={plan.week_start} 
-              />
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{L ? "Weekly Schedule" : "Weekplanning"}</span>
+                  {householdId && (
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4 mr-2" />
+                      {L ? "Manage Tasks" : "Taken Beheren"}
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PlanSchedule 
+                  assignments={plan.assignments} 
+                  people={plan.people || []} 
+                  weekStart={plan.week_start} 
+                />
+              </CardContent>
+            </Card>
           )}
 
            <div className="flex flex-wrap gap-2">
@@ -251,14 +292,37 @@ const PlanView = () => {
             <CardHeader>
               <CardTitle>{L ? "Plan not found" : "Plan niet gevonden"}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-muted-foreground">
+            <CardContent className="space-y-4 text-muted-foreground">
               <p>
                 {L
-                  ? "We couldn't find this plan on this device. Create a new plan with the wizard."
-                  : "We konden dit plan niet vinden op dit apparaat. Maak een nieuw plan via de wizard."}
+                  ? "We couldn't find this plan on this device. You can create a new plan or manage tasks."
+                  : "We konden dit plan niet vinden op dit apparaat. Je kunt een nieuw plan maken of taken beheren."}
               </p>
+              
+              {/* Quick access to task management */}
+              {householdId && (
+                <Card className="border-dashed">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-foreground">{L ? "Quick Task Management" : "Snel Taken Beheren"}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {L ? "Add or remove tasks for this week" : "Taken toevoegen of verwijderen voor deze week"}
+                        </p>
+                      </div>
+                      <TaskQuickActions
+                        householdId={householdId}
+                        date={new Date(planId?.split('-')[1] || new Date().toISOString().split('T')[0])}
+                        onTaskUpdate={() => window.location.reload()}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               <div className="flex gap-2">
                 <Button onClick={() => navigate("/setup/1")}>{L ? "Start wizard" : "Start wizard"}</Button>
+                <Button variant="outline" onClick={() => navigate("/calendar/week")}>{L ? "View Calendar" : "Bekijk Kalender"}</Button>
                 <Button variant="secondary" onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
               </div>
             </CardContent>
