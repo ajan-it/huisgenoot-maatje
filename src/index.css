@@ -38,12 +38,18 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    /* Brand & motion tokens */
-    --brand-start: 264 84% 60%;
-    --brand-end: 200 94% 56%;
-    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
-    --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.25);
+    /* Brand & motion tokens - Premium & Sophisticated */
+    --brand-primary: 235 25% 25%;
+    --brand-accent: 215 28% 17%;
+    --brand-highlight: 45 93% 47%;
+    --brand-soft: 220 15% 95%;
+    --brand-warm: 25 35% 85%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(var(--brand-accent)));
+    --gradient-soft: linear-gradient(145deg, hsl(var(--brand-soft)), hsl(var(--brand-warm)));
+    --shadow-elegant: 0 25px 50px -12px hsl(var(--brand-accent) / 0.25);
+    --shadow-subtle: 0 4px 6px -1px hsl(var(--brand-accent) / 0.1);
     --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 0 0% 98%;
 
@@ -115,12 +121,18 @@ All colors MUST be HSL.
     --category-errands: 0 75% 55%;
     --category-safety: 160 50% 55%;
 
-    /* Brand & motion tokens (dark) */
-    --brand-start: 264 84% 70%;
-    --brand-end: 200 94% 64%;
-    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
-    --shadow-elevated: 0 20px 40px -12px hsl(var(--brand-end) / 0.35);
+    /* Brand & motion tokens (dark) - Premium & Sophisticated */
+    --brand-primary: 215 25% 85%;
+    --brand-accent: 215 28% 75%;
+    --brand-highlight: 45 93% 57%;
+    --brand-soft: 220 15% 15%;
+    --brand-warm: 25 15% 20%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(var(--brand-accent)));
+    --gradient-soft: linear-gradient(145deg, hsl(var(--brand-soft)), hsl(var(--brand-warm)));
+    --shadow-elegant: 0 25px 50px -12px hsl(var(--brand-accent) / 0.35);
+    --shadow-subtle: 0 4px 6px -1px hsl(var(--brand-accent) / 0.2);
     --transition-smooth: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 }
 
