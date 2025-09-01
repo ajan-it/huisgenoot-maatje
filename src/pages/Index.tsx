@@ -93,14 +93,14 @@ export default function Index() {
               <Button 
                 size="lg" 
                 onClick={() => navigate('/setup')}
-                className="bg-white text-brand-primary hover:bg-white/95 text-lg px-10 py-6 rounded-2xl font-medium shadow-2xl hover:shadow-2xl/75 transition-all duration-300 hover:scale-105 group border-0"
+                className="bg-white text-brand-primary hover:bg-white/95 hover:text-brand-accent text-lg px-10 py-6 rounded-2xl font-semibold shadow-2xl hover:shadow-2xl/75 transition-all duration-300 hover:scale-105 group border-0"
               >
                 {t('index.hero.cta')} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg"
-                className="border-white/30 text-white hover:bg-white/10 text-lg px-10 py-6 rounded-2xl font-medium backdrop-blur-sm border-2"
+                className="border-white/40 text-white hover:bg-white/15 hover:text-white text-lg px-10 py-6 rounded-2xl font-semibold backdrop-blur-sm border-2"
               >
                 {t('index.hero.ctaSecondary')}
               </Button>
