@@ -10,10 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { InfoIcon, FilterIcon, PackageIcon } from "lucide-react";
+import { InfoIcon, FilterIcon, PackageIcon, MoreHorizontal } from "lucide-react";
 import { SEED_TASKS } from "@/data/seeds";
 import { Frequency } from "@/types/models";
 import { useI18n } from "@/i18n/I18nProvider";
+import { ScopeMenu, ScopeOptions } from "@/components/tasks/ScopeMenu";
+import { TaskOverrideIndicator } from "@/components/tasks/TaskOverrideIndicator";
+import { BulkActionBar } from "@/components/tasks/BulkActionBar";
+import { ConfirmPill } from "@/components/tasks/ConfirmPill";
+import { useTaskOverrides } from "@/hooks/useTaskOverrides";
 
 interface TaskPickerProps {
   selectedTasks: Array<{
@@ -34,6 +39,9 @@ interface TaskPickerProps {
   }>) => void;
   adultsCount: number;
   totalMinutesBudget: number;
+  householdId?: string;
+  dateRange?: { start: Date; end: Date };
+  enableOverrides?: boolean;
 }
 
 const FREQUENCY_ORDER: Frequency[] = [
@@ -51,7 +59,15 @@ const TASK_PACKS = [
   "pack_season_spring", "pack_season_autumn"
 ];
 
-export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMinutesBudget }: TaskPickerProps) {
+export function TaskPicker({ 
+  selectedTasks, 
+  onTasksChange, 
+  adultsCount, 
+  totalMinutesBudget,
+  householdId,
+  dateRange,
+  enableOverrides = false
+}: TaskPickerProps) {
   const { t, lang } = useI18n();
   const [search, setSearch] = useState("");
   const [selectedFrequencies, setSelectedFrequencies] = useState<Frequency[]>([]);
@@ -60,6 +76,12 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [selectedPacks, setSelectedPacks] = useState<string[]>([]);
+  const [confirmPill, setConfirmPill] = useState<{ message: string; undo: () => void } | null>(null);
+
+  // Task overrides hook (only if enabled)
+  const { overrides, createOverride, deleteOverride, isTaskOverridden } = useTaskOverrides(
+    enableOverrides ? householdId : undefined
+  );
 
   const filteredTasks = useMemo(() => {
     let tasks = SEED_TASKS.filter(task => {
@@ -213,6 +235,106 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
   const minutesPerAdult = estimatedMinutesPerWeek / Math.max(adultsCount, 1);
   const fairnessScore = totalMinutesBudget > 0 ? Math.min(100, Math.round((minutesPerAdult / totalMinutesBudget) * 100)) : 0;
 
+  // Override handling functions
+  const handleTaskOverride = async (taskId: string, action: 'include' | 'exclude', options: ScopeOptions) => {
+    if (!enableOverrides || !householdId || !dateRange) return;
+
+    const task = SEED_TASKS.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const effectiveFrom = getEffectiveDate(options.scope, dateRange.start);
+      const effectiveTo = options.snoozeUntil || (options.scope === 'once' ? effectiveFrom : undefined);
+
+      await createOverride({
+        household_id: householdId,
+        task_id: taskId,
+        scope: options.scope,
+        effective_from: effectiveFrom.toISOString().split('T')[0],
+        effective_to: effectiveTo?.toISOString().split('T')[0],
+        action: action,
+      });
+
+      const actionText = action === 'include' ? 'Added' : 'Removed';
+      const scopeText = getScopeText(options.scope);
+      
+      setConfirmPill({
+        message: `${actionText} ${task.name} ${scopeText}`,
+        undo: () => {
+          // TODO: Implement undo by finding and deleting the override
+          setConfirmPill(null);
+        },
+      });
+    } catch (error) {
+      console.error('Failed to apply task override:', error);
+    }
+  };
+
+  const handleBulkOverride = async (action: 'include' | 'exclude' | 'frequency_change', options: ScopeOptions) => {
+    if (!enableOverrides || !householdId || !dateRange || bulkSelected.length === 0) return;
+
+    try {
+      const promises = bulkSelected.map(taskId => {
+        const effectiveFrom = getEffectiveDate(options.scope, dateRange.start);
+        const effectiveTo = options.snoozeUntil || (options.scope === 'once' ? effectiveFrom : undefined);
+
+        return createOverride({
+          household_id: householdId,
+          task_id: taskId,
+          scope: options.scope,
+          effective_from: effectiveFrom.toISOString().split('T')[0],
+          effective_to: effectiveTo?.toISOString().split('T')[0],
+          action: action,
+        });
+      });
+
+      await Promise.all(promises);
+
+      const actionText = action === 'include' ? 'Added' : action === 'exclude' ? 'Removed' : 'Changed frequency for';
+      const scopeText = getScopeText(options.scope);
+      
+      setConfirmPill({
+        message: `${actionText} ${bulkSelected.length} tasks ${scopeText}`,
+        undo: () => {
+          // TODO: Implement bulk undo
+          setConfirmPill(null);
+        },
+      });
+
+      setBulkSelected([]);
+    } catch (error) {
+      console.error('Failed to apply bulk override:', error);
+    }
+  };
+
+  const getEffectiveDate = (scope: string, baseDate: Date): Date => {
+    const date = new Date(baseDate);
+    
+    switch (scope) {
+      case 'week':
+        const dayOfWeek = date.getDay();
+        const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        return new Date(date.setDate(diff));
+      case 'month':
+        return new Date(date.getFullYear(), date.getMonth(), 1);
+      case 'always':
+        return new Date(2000, 0, 1);
+      default:
+        return date;
+    }
+  };
+
+  const getScopeText = (scope: string): string => {
+    switch (scope) {
+      case 'once': return 'this time only';
+      case 'week': return 'this week';
+      case 'month': return 'this month';
+      case 'always': return 'always';
+      case 'snooze': return 'until specified date';
+      default: return '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with search and filters */}
@@ -329,7 +451,21 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-sm">{task.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-sm">{task.name}</CardTitle>
+                      {enableOverrides && (
+                        <Checkbox
+                          checked={bulkSelected.includes(task.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setBulkSelected(prev => [...prev, task.id]);
+                            } else {
+                              setBulkSelected(prev => prev.filter(id => id !== task.id));
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                        <Badge variant="outline" className="text-xs">
                          {t(`tasks.${task.category}`)}
@@ -337,12 +473,30 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
                        <Badge variant="secondary" className="text-xs">
                          {t(`tasks.frequency.${config.frequency || task.frequency}`)}
                        </Badge>
+                       {enableOverrides && overrides.some(o => o.task_id === task.id) && (
+                         <TaskOverrideIndicator 
+                           override={overrides.find(o => o.task_id === task.id)!}
+                         />
+                       )}
                     </div>
                   </div>
-                  <Switch
-                    checked={config.active}
-                    onCheckedChange={(active) => updateTask(task.id, { active })}
-                  />
+                  <div className="flex items-center gap-2">
+                    {enableOverrides && (
+                      <ScopeMenu
+                        trigger={
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                        onSelect={(options) => handleTaskOverride(task.id, 'exclude', options)}
+                        currentDate={dateRange?.start}
+                      />
+                    )}
+                    <Switch
+                      checked={config.active}
+                      onCheckedChange={(active) => updateTask(task.id, { active })}
+                    />
+                  </div>
                 </div>
               </CardHeader>
               
@@ -416,6 +570,26 @@ export function TaskPicker({ selectedTasks, onTasksChange, adultsCount, totalMin
           );
         })}
       </div>
+
+      {/* Bulk Action Bar */}
+      {enableOverrides && (
+        <BulkActionBar
+          selectedCount={bulkSelected.length}
+          onInclude={(options) => handleBulkOverride('include', options)}
+          onExclude={(options) => handleBulkOverride('exclude', options)}
+          onChangeFrequency={(options) => handleBulkOverride('frequency_change', options)}
+          onClearSelection={() => setBulkSelected([])}
+        />
+      )}
+
+      {/* Confirm Pill */}
+      {confirmPill && (
+        <ConfirmPill
+          message={confirmPill.message}
+          onUndo={confirmPill.undo}
+          onDismiss={() => setConfirmPill(null)}
+        />
+      )}
 
       {/* Footer stats */}
       <Card>

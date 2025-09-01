@@ -435,6 +435,48 @@ export type Database = {
         }
         Relationships: []
       }
+      task_overrides: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string
+          effective_from: string
+          effective_to: string | null
+          frequency: string | null
+          household_id: string
+          id: string
+          scope: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string
+          effective_from: string
+          effective_to?: string | null
+          frequency?: string | null
+          household_id: string
+          id?: string
+          scope: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string
+          effective_from?: string
+          effective_to?: string | null
+          frequency?: string | null
+          household_id?: string
+          id?: string
+          scope?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           active: boolean
