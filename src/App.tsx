@@ -27,9 +27,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <LanguageToggle />
       <BrowserRouter>
         <div className="min-h-screen flex flex-col">
+          <LanguageToggle />
           <AppNavigation />
           <div className="flex-1">
             <Routes>

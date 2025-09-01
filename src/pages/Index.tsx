@@ -22,11 +22,11 @@ const Index = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   
-  // Fallback testimonials if translation isn't ready
+  // Get testimonials from translations
   const testimonials = [
-    "Finally stopped arguing about the dishes.",
-    "Fairness score feels like therapy without the therapist.", 
-    "We got back two evenings a week just for us."
+    t('index.testimonials.0') || "Finally stopped arguing about the dishes.",
+    t('index.testimonials.1') || "Fairness score feels like therapy without the therapist.", 
+    t('index.testimonials.2') || "We got back two evenings a week just for us."
   ];
 
   return (
