@@ -18,6 +18,7 @@ import CompareDashboard from "./pages/CompareDashboard";
 import CalendarMonth from "./pages/CalendarMonth";
 import CalendarYear from "./pages/CalendarYear";
 import BoostSettings from "./pages/BoostSettings";
+import SeasonalDashboard from "./pages/SeasonalDashboard";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
           {/* calendar views */}
           <Route path="/calendar/month" element={<CalendarMonth />} />
           <Route path="/calendar/year" element={<CalendarYear />} />
+          <Route path="/seasonal" element={<SeasonalDashboard />} />
           
           {/* boost settings */}
           <Route path="/boost-settings" element={<BoostSettings />} />
