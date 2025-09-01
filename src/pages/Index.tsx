@@ -54,9 +54,10 @@ export default function Index() {
             <img 
               src={mastheadImage} 
               alt="Happy couple working together in modern kitchen" 
-              className="w-full h-full object-cover opacity-15 mix-blend-soft-light"
+              className="w-full h-full object-cover opacity-60"
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-soft/80 to-brand-warm/60"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-primary/60 via-brand-primary/30 to-brand-accent/50"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
           </div>
           
           {/* Subtle geometric background */}
@@ -82,24 +83,24 @@ export default function Index() {
           </div>
           
           <div className="max-w-6xl mx-auto text-center relative z-30">
-            <h1 className="text-5xl md:text-7xl font-light mb-6 leading-tight text-brand-primary tracking-tight">
+            <h1 className="text-5xl md:text-7xl font-light mb-6 leading-tight text-white tracking-tight drop-shadow-lg">
               {t('index.hero.headline')}
             </h1>
-            <p className="text-xl md:text-2xl mb-12 max-w-4xl mx-auto text-brand-accent leading-relaxed font-light">
+            <p className="text-xl md:text-2xl mb-12 max-w-4xl mx-auto text-white/90 leading-relaxed font-light drop-shadow-md">
               {t('index.hero.subheadline')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button 
                 size="lg" 
                 onClick={() => navigate('/setup')}
-                className="bg-brand-primary hover:bg-brand-accent text-white text-lg px-10 py-6 rounded-2xl font-medium shadow-elegant hover:shadow-elegant/75 transition-all duration-300 hover:scale-105 group border-0"
+                className="bg-white text-brand-primary hover:bg-white/95 text-lg px-10 py-6 rounded-2xl font-medium shadow-2xl hover:shadow-2xl/75 transition-all duration-300 hover:scale-105 group border-0"
               >
                 {t('index.hero.cta')} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg"
-                className="border-brand-primary/20 text-brand-primary hover:bg-brand-primary/5 text-lg px-10 py-6 rounded-2xl font-medium backdrop-blur-sm"
+                className="border-white/30 text-white hover:bg-white/10 text-lg px-10 py-6 rounded-2xl font-medium backdrop-blur-sm border-2"
               >
                 {t('index.hero.ctaSecondary')}
               </Button>
