@@ -208,6 +208,7 @@ export type Database = {
           created_by: string
           id: string
           postcode: string | null
+          reminder_settings: Json | null
           settings: Json
           timezone: string
           updated_at: string
@@ -218,6 +219,7 @@ export type Database = {
           created_by?: string
           id?: string
           postcode?: string | null
+          reminder_settings?: Json | null
           settings?: Json
           timezone?: string
           updated_at?: string
@@ -228,6 +230,7 @@ export type Database = {
           created_by?: string
           id?: string
           postcode?: string | null
+          reminder_settings?: Json | null
           settings?: Json
           timezone?: string
           updated_at?: string
@@ -242,14 +245,18 @@ export type Database = {
           created_at: string
           date: string
           difficulty_weight: number
+          due_at: string | null
           duration_min: number
           fairness_excused: boolean | null
           frequency_source: Database["public"]["Enums"]["frequency_type"] | null
           has_backup: boolean | null
           id: string
           is_critical: boolean | null
+          last_reminded_at: string | null
           plan_id: string
           rationale: Json | null
+          reminder_level: number
+          reminder_policy: string
           start_time: string
           status: Database["public"]["Enums"]["occurrence_status"]
           task_id: string
@@ -263,6 +270,7 @@ export type Database = {
           created_at?: string
           date: string
           difficulty_weight?: number
+          due_at?: string | null
           duration_min?: number
           fairness_excused?: boolean | null
           frequency_source?:
@@ -271,8 +279,11 @@ export type Database = {
           has_backup?: boolean | null
           id?: string
           is_critical?: boolean | null
+          last_reminded_at?: string | null
           plan_id: string
           rationale?: Json | null
+          reminder_level?: number
+          reminder_policy?: string
           start_time?: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           task_id: string
@@ -286,6 +297,7 @@ export type Database = {
           created_at?: string
           date?: string
           difficulty_weight?: number
+          due_at?: string | null
           duration_min?: number
           fairness_excused?: boolean | null
           frequency_source?:
@@ -294,8 +306,11 @@ export type Database = {
           has_backup?: boolean | null
           id?: string
           is_critical?: boolean | null
+          last_reminded_at?: string | null
           plan_id?: string
           rationale?: Json | null
+          reminder_level?: number
+          reminder_policy?: string
           start_time?: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           task_id?: string

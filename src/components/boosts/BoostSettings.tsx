@@ -6,8 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Zap, Clock, MessageSquare, Mail, Smartphone } from "lucide-react";
+import { Zap, Clock, MessageSquare, Mail, Smartphone, Bell } from "lucide-react";
 import type { BoostSettings, BoostChannel } from "@/types/disruptions";
+import { useReminderSettings } from "@/hooks/useReminderSettings";
 
 interface BoostSettingsProps {
   settings: BoostSettings;
@@ -15,6 +16,7 @@ interface BoostSettingsProps {
 }
 
 export function BoostSettingsComponent({ settings, onUpdate }: BoostSettingsProps) {
+  const { settings: reminderSettings, updateSettings: updateReminderSettings } = useReminderSettings();
   const updateSetting = (key: keyof BoostSettings, value: any) => {
     onUpdate({ ...settings, [key]: value });
   };
@@ -176,6 +178,67 @@ export function BoostSettingsComponent({ settings, onUpdate }: BoostSettingsProp
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Email Reminders Section */}
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-blue-100">
+                  <Bell className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <Label className="font-medium">Email Reminders</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Get deadline reminders for critical tasks
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 ml-12">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="email-reminders" className="font-medium">
+                      Email reminders for critical tasks
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Get T-24h, T-2h, and overdue notifications via email
+                    </p>
+                  </div>
+                  <Switch
+                    id="email-reminders"
+                    checked={reminderSettings.email_enabled}
+                    onCheckedChange={(checked) => 
+                      updateReminderSettings({
+                        ...reminderSettings,
+                        email_enabled: checked
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="morning-helper" className="font-medium">
+                      Morning helper (07:00)
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Early reminders for same-day critical tasks
+                    </p>
+                  </div>
+                  <Switch
+                    id="morning-helper"
+                    checked={reminderSettings.morning_helper_enabled}
+                    onCheckedChange={(checked) => 
+                      updateReminderSettings({
+                        ...reminderSettings,
+                        morning_helper_enabled: checked
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
           </>

@@ -19,6 +19,7 @@ import CalendarMonth from "./pages/CalendarMonth";
 import CalendarYear from "./pages/CalendarYear";
 import BoostSettings from "./pages/BoostSettings";
 import SeasonalDashboard from "./pages/SeasonalDashboard";
+import RunRemindersPage from "./pages/dev/RunReminders";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,9 @@ const App = () => (
           
           {/* boost settings */}
           <Route path="/boost-settings" element={<BoostSettings />} />
+
+          {/* dev tools */}
+          <Route path="/dev/run-reminders" element={<RunRemindersPage />} />
 
           {/* wizard steps 1–8 only */}
           <Route path="/" element={<Index />} />
