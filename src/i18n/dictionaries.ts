@@ -10,53 +10,53 @@ export const dictionaries = {
     },
     index: {
       hero: {
-        headline: "Eerlijk verdelen. Liefde redden.",
-        subheadline: "Moe van het 'wie doet meer' argument? Onze app maakt taken eerlijk, betrouwbaar en ruzievrij — zodat je minder tijd besteedt aan punten tellen en meer tijd aan elkaar.",
-        cta: "Minder taken, meer wij",
+        headline: "Share the load. Keep the love.",
+        subheadline: "No more endless \"I do more than you\" talks. Our app helps you split chores fairly, so home feels lighter and love feels stronger.",
+        cta: "Lighten the week together",
         ctaSecondary: "Bekijk hoe het werkt"
       },
       problem: {
-        title: "Moe van het 'ik doe meer dan jij' gevecht?",
-        copy: "De meeste stellen kennen hun taken. Maar eerlijk gezegd — de inspanning voelt nooit gelijk. Wij volgen minuten × inspanning, balanceren het voorzichtig, en stoppen het eindeloze gekibbel over wie meer doet."
+        title: "Ever had the 'I do everything!' fight?",
+        copy: "You both help at home, but somehow it never feels equal. Our app tracks time and effort, so the balance is clear — and the fights don't even start."
       },
       solution: {
         title: "De Oplossing",
         fairness: {
-          title: "Eerlijkheid zonder ruzies",
-          description: "We meten inspanning, niet alleen taken. Beide partners zien dat de last gedeeld wordt."
+          title: "Fair feels fair",
+          description: "We look at effort, not just checklists. Both see the load, both share it."
         },
         reliability: {
-          title: "Mis nooit meer belangrijke dingen",
-          description: "Rekeningen, kinderopvang, afvaldagen? Zachte duwtjes + backup herinneringen = geen last-minute paniek meer."
+          title: "No more last-minute stress",
+          description: "Bills due, daycare days, trash pickup — gentle reminders keep things smooth."
         },
         adaptive: {
-          title: "Leert jouw ritme",
-          description: "Als bedtijd steeds uitloopt, of één partner reist, past het plan zich aan. Het zeurt niet — gewoon slim teamwork."
+          title: "It grows with your family",
+          description: "Bedtime running late? One of you traveling? The plan adjusts. It's not nagging — just smart teamwork."
         }
       },
       emotionalPayoff: {
-        title: "Meer tijd voor elkaar",
-        copy: "Wanneer de taken eerlijk voelen, verdwijnt wrok. Dat betekent minder ruzies, meer gelach, en ja — zelfs meer tijd voor date night."
+        title: "More love, less laundry talk.",
+        copy: "When chores are fair, there's less resentment and more room for fun, laughter, and yes… even date night."
       },
       howItWorks: {
-        title: "Taken die meebewegen met je week",
-        copy: "Voeg taken toe of sla ze over in seconden. Alleen deze keer, deze week, deze maand, of voor altijd. Het systeem past zich aan — eerlijkheid inbegrepen — geen Excel-vaardigheden vereist."
+        title: "Simple. Flexible. Fair.",
+        copy: "Add, skip, or swap chores in seconds. One-time or every week — the app keeps things balanced automatically. No Excel. No fights. Just fairness."
       },
       testimonials: {
-        title: "Stellen zeggen...",
-        0: "💬 \"Eindelijk gestopt met ruziën over de afwas.\"",
-        1: "💬 \"Eerlijkheidsscore voelt als therapie zonder therapeut.\"",
-        2: "💬 \"We kregen twee avonden per week terug voor onszelf.\""
+        title: "What Couples Say",
+        0: "💬 \"We finally stopped arguing about dishes.\"",
+        1: "💬 \"It feels like we're on the same team again.\"",
+        2: "💬 \"We actually have evenings free for each other.\""
       },
       seasonal: {
-        title: "Wij onthouden wat jij vergeet",
-        copy: "Nederlandse afvaldagen? Check. Lente tuinvoorbereiding? Check. Feestdagenchaos? Wij hebben je rug.",
+        title: "We remember the stuff you forget.",
+        copy: "Waste pickup days 🗑️ Spring garden prep 🌱 Holiday chaos 🎄 Every season, we've got your back.",
         seasons: "Lente 🌱 Zomer ☀️ Herfst 🍂 Winter ❄️"
       },
       finalCta: {
-        headline: "Maak van taken teamwork",
-        subheadline: "Probeer het gratis — want het leven is te kort voor afwasruzies",
-        cta: "Krijg je avonden terug"
+        headline: "Turn chores into teamwork.",
+        subheadline: "Try it free — because life's too short to argue about laundry.",
+        cta: "More love, less laundry"
       },
       footer: {
         tagline: "Gemaakt voor drukke Nederlandse gezinnen — eerlijk, betrouwbaar, en een beetje brutaal."
@@ -581,53 +581,53 @@ export const dictionaries = {
     },
     index: {
       hero: {
-        headline: "Share the load. Save the love.",
-        subheadline: "Tired of the 'who does more' argument? Our app makes chores fair, reliable, and fight-free — so you can spend less time keeping score and more time on each other.",
-        cta: "Less chores, more us",
+        headline: "Share the load. Keep the love.",
+        subheadline: "No more endless \"I do more than you\" talks. Our app helps you split chores fairly, so home feels lighter and love feels stronger.",
+        cta: "Lighten the week together",
         ctaSecondary: "See how it works"
       },
       problem: {
-        title: "Tired of the 'I do more than you' fight?",
-        copy: "Most couples know their chores. But let's be real — the effort never feels equal. We track minutes × effort, balance it gently, and stop the endless bickering about who does more."
+        title: "Ever had the 'I do everything!' fight?",
+        copy: "You both help at home, but somehow it never feels equal. Our app tracks time and effort, so the balance is clear — and the fights don't even start."
       },
       solution: {
         title: "The Solution",
         fairness: {
-          title: "Fairness without fights",
-          description: "We measure effort, not just tasks. Both partners see the load is shared."
+          title: "Fair feels fair",
+          description: "We look at effort, not just checklists. Both see the load, both share it."
         },
         reliability: {
-          title: "Never miss the big stuff",
-          description: "Bills, daycare, waste days? Gentle nudges + backup reminders = no more last-minute panics."
+          title: "No more last-minute stress",
+          description: "Bills due, daycare days, trash pickup — gentle reminders keep things smooth."
         },
         adaptive: {
-          title: "Learns your rhythm",
-          description: "If bedtime keeps slipping, or one partner travels, the plan adapts. It's not nagging — just smart teamwork."
+          title: "It grows with your family",
+          description: "Bedtime running late? One of you traveling? The plan adjusts. It's not nagging — just smart teamwork."
         }
       },
       emotionalPayoff: {
-        title: "More time for each other",
-        copy: "When the chores feel fair, resentment fades. That means fewer arguments, more laughs, and yes — even more time for date night."
+        title: "More love, less laundry talk.",
+        copy: "When chores are fair, there's less resentment and more room for fun, laughter, and yes… even date night."
       },
       howItWorks: {
-        title: "Chores that flex with your week",
-        copy: "Add or skip tasks in seconds. Just this time, this week, this month, or forever. The system adapts — fairness included — no Excel skills required."
+        title: "Simple. Flexible. Fair.",
+        copy: "Add, skip, or swap chores in seconds. One-time or every week — the app keeps things balanced automatically. No Excel. No fights. Just fairness."
       },
       testimonials: {
-        title: "Couples say...",
-        0: "💬 \"Finally stopped arguing about the dishes.\"",
-        1: "💬 \"Fairness score feels like therapy without the therapist.\"",
-        2: "💬 \"We got back two evenings a week just for us.\""
+        title: "What Couples Say",
+        0: "💬 \"We finally stopped arguing about dishes.\"",
+        1: "💬 \"It feels like we're on the same team again.\"",
+        2: "💬 \"We actually have evenings free for each other.\""
       },
       seasonal: {
-        title: "We remember what you forget",
-        copy: "Dutch waste pickup days? Check. Spring garden prep? Check. Holiday chaos? We've got your back.",
+        title: "We remember the stuff you forget.",
+        copy: "Waste pickup days 🗑️ Spring garden prep 🌱 Holiday chaos 🎄 Every season, we've got your back.",
         seasons: "Spring 🌱 Summer ☀️ Autumn 🍂 Winter ❄️"
       },
       finalCta: {
-        headline: "Turn chores into teamwork",
-        subheadline: "Try it free — because life's too short for dish arguments",
-        cta: "Get your evenings back"
+        headline: "Turn chores into teamwork.",
+        subheadline: "Try it free — because life's too short to argue about laundry.",
+        cta: "More love, less laundry"
       },
       footer: {
         tagline: "Built for busy Dutch families — fair, reliable, and a little cheeky."
