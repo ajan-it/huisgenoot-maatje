@@ -12,51 +12,46 @@ type Props = {
   onSelectMinutes: (minutes: number) => void;
 };
 
-function chipMinutesForAdult(hh: { adults: number; children: number }, which: ChipType) {
-  // base ranges by family type
-  let L = 60, N = 90, B = 120; // default: couple/no kids or single no kids
-
-  if (hh.children >= 1 && hh.adults === 1) {        // single parent
-    L = 180; N = 210; B = 240;
-  } else if (hh.children >= 2) {                     // 2+ kids, two adults
-    L = 150; N = 180; B = 210;
-  } else if (hh.children >= 1) {                     // 1 kid, two adults
-    L = 120; N = 150; B = 180;
-  } else {                                           // no kids
-    L = 60; N = 90; B = 120;
-  }
-
-  return which === "light" ? L : which === "busy" ? B : N;
-}
-
 export default function MinutesQuickChips({ adultsCount, childrenCount, currentMinutes, onSelectMinutes }: Props) {
   const { t } = useI18n();
   
-  const household = { adults: adultsCount, children: childrenCount };
-  const lightMinutes = chipMinutesForAdult(household, "light");
-  const normalMinutes = chipMinutesForAdult(household, "normal");
-  const busyMinutes = chipMinutesForAdult(household, "busy");
+  // Updated preset values
+  const lightMinutes = 120;   // Light load → 120 min/week, 20 min per weeknight
+  const regularMinutes = 150; // Regular load → 150 min/week, 30 min per weeknight  
+  const heavyMinutes = 180;   // Heavy load → 180 min/week, 40 min per weeknight
 
   const getSelectedChip = (): ChipType | null => {
     if (!currentMinutes) return null;
     if (currentMinutes === lightMinutes) return "light";
-    if (currentMinutes === normalMinutes) return "normal";
-    if (currentMinutes === busyMinutes) return "busy";
+    if (currentMinutes === regularMinutes) return "normal";
+    if (currentMinutes === heavyMinutes) return "busy";
     return null;
   };
 
   const selectedChip = getSelectedChip();
 
-  const chips: Array<{ type: ChipType; minutes: number; tooltipKey: string }> = [
-    { type: "light", minutes: lightMinutes, tooltipKey: "time.tooltip.light" },
-    { type: "normal", minutes: normalMinutes, tooltipKey: "time.tooltip.normal" },
-    { type: "busy", minutes: busyMinutes, tooltipKey: "time.tooltip.busy" },
+  const chips: { type: ChipType; minutes: number; label: string }[] = [
+    { 
+      type: "light", 
+      minutes: lightMinutes, 
+      label: "I can help a little (about 2h/week)"
+    },
+    { 
+      type: "normal", 
+      minutes: regularMinutes, 
+      label: "I can help a fair amount (about 2.5h/week)"
+    },
+    { 
+      type: "busy", 
+      minutes: heavyMinutes, 
+      label: "I can carry more (about 3h/week)"
+    },
   ];
 
   return (
     <TooltipProvider>
       <div className="flex flex-wrap gap-2 mt-2">
-        {chips.map(({ type, minutes, tooltipKey }) => (
+        {chips.map(({ type, minutes, label }) => (
           <Tooltip key={type}>
             <TooltipTrigger asChild>
               <Button
@@ -69,11 +64,11 @@ export default function MinutesQuickChips({ adultsCount, childrenCount, currentM
                 }`}
                 onClick={() => onSelectMinutes(minutes)}
               >
-                {t(`time.chips.${type}`)} ({minutes})
+                {label}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs">{t(tooltipKey)}</p>
+              <p className="text-xs">{minutes} minutes per week</p>
             </TooltipContent>
           </Tooltip>
         ))}

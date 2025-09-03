@@ -14,6 +14,8 @@ import MinutesHelperSheet from "@/components/setup/MinutesHelperSheet";
 import MinutesQuickChips from "@/components/setup/MinutesQuickChips";
 import WorkContextInputs from "@/components/setup/WorkContextInputs";
 import OwnershipSelector from "@/components/setup/OwnershipSelector";
+import DislikedTasksSelector from "@/components/setup/DislikedTasksSelector";
+import CantDoTasksSelector from "@/components/setup/CantDoTasksSelector";
 import { TaskPicker } from "@/components/setup/TaskPicker";
 import { Info } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -103,7 +105,7 @@ export default function SetupFlow() {
         return;
       }
     }
-    if (step === 3) {
+    if (step === 4) {
       const missing = draft.people.filter((p) => p.role === "adult").some((p) => p.weekly_time_budget === undefined || p.weekly_time_budget === null);
       if (missing) {
         toast({ title: lang === "en" ? "Minutes per week missing" : "Minuten per week ontbreekt", description: lang === "en" ? "Enter the weekly time budget for all adults." : "Vul het wekelijkse tijdsbudget in voor alle volwassenen." });
@@ -470,7 +472,7 @@ export default function SetupFlow() {
           </Card>
         )}
 
-        {step === 5 && (
+        {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
@@ -545,7 +547,7 @@ export default function SetupFlow() {
           </Card>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <Card>
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
@@ -606,7 +608,7 @@ export default function SetupFlow() {
                         onUpdateBudget={() => setEstimatorOpenFor(p.id)}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        {t("setupFlow.timePrefs.minutesPerWeekHelp")}
+                        How much time can you realistically spend on household tasks each week? Example: 2–3 hours/day = ~900 minutes. This number helps us balance chores fairly.
                       </p>
                     </div>
                     
@@ -628,82 +630,21 @@ export default function SetupFlow() {
                         }}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        {t("setupFlow.timePrefs.maxWeeknightMinutesHelp")}
+                        To avoid evening stress, set how many minutes of chores you'd like to do on a weeknight (18:00–21:30).
                       </p>
                     </div>
                   </div>
                    
-                  <div>
-                    <Label>{t("setupFlow.timePrefs.dislikedTags")}</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {t("setupFlow.timePrefs.dislikedTagsHelp")}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {allTags.map((tag) => {
-                        const active = (p.disliked_tags || []).includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            type="button"
-                            className={`px-3 py-1 rounded-full border text-sm ${active ? "bg-primary/10 border-primary" : "opacity-70"}`}
-                            onClick={() =>
-                              setDraft((d) => ({
-                                ...d,
-                                people: d.people.map((pp) =>
-                                  pp.id === p.id
-                                    ? {
-                                        ...pp,
-                                        disliked_tags: active
-                                          ? (pp.disliked_tags || []).filter((t) => t !== tag)
-                                          : [...(pp.disliked_tags || []), tag],
-                                      }
-                                    : pp
-                                ),
-                              }))
-                            }
-                          >
-                            {tag}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                   <DislikedTasksSelector
+                     person={p}
+                     onUpdate={(updates) => updatePerson(p.id, updates)}
+                   />
 
-                  <div>
-                    <Label>{t("setupFlow.timePrefs.noGoTasks")}</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {t("setupFlow.timePrefs.noGoTasksHelp")}
-                    </p>
-                    <div className="grid sm:grid-cols-2 gap-2 max-h-64 overflow-auto pr-1">
-                      {SEED_TASKS.map((t) => {
-                        const checked = (p.no_go_tasks || []).includes(t.id);
-                        return (
-                          <label key={t.id} className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) =>
-                                setDraft((d) => ({
-                                  ...d,
-                                  people: d.people.map((pp) =>
-                                    pp.id === p.id
-                                      ? {
-                                          ...pp,
-                                          no_go_tasks: e.target.checked
-                                            ? [...(pp.no_go_tasks || []), t.id]
-                                            : (pp.no_go_tasks || []).filter((x) => x !== t.id),
-                                        }
-                                      : pp
-                                  ),
-                                }))
-                              }
-                            />
-                            <span>{t.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
+                   <CantDoTasksSelector
+                     person={p}
+                     onUpdate={(updates) => updatePerson(p.id, updates)}
+                     allPeople={draft.people}
+                   />
                   </div>
                 </Fragment>
               ))}
@@ -745,7 +686,7 @@ export default function SetupFlow() {
           onOpenChange={setHelperSheetOpen}
         />
 
-        {step === 4 && (
+        {step === 5 && (
           <Card>
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>

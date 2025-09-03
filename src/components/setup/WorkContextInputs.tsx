@@ -103,46 +103,7 @@ export default function WorkContextInputs({ person, onUpdate, onUpdateBudget }: 
         </div>
       </div>
 
-      <div className="space-y-3 pt-2 border-t">
-        <h5 className="font-medium text-sm text-muted-foreground">
-          {t("setupFlow.psychology.title")}
-        </h5>
-        
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <Label>{t("setupFlow.psychology.incomeAsymmetry")}</Label>
-            <p className="text-xs text-muted-foreground">
-              {t("setupFlow.psychology.incomeAsymmetryHelp")}
-            </p>
-          </div>
-          <Switch
-            checked={person.income_asymmetry_ack || false}
-            onCheckedChange={(checked) => onUpdate({ income_asymmetry_ack: checked })}
-          />
-        </div>
-
-        {person.income_asymmetry_ack && (
-          <div>
-            <Label>
-              {t("setupFlow.psychology.fairnessStyle")}: α = {((person.fairness_style_alpha || 0.15) * 100).toFixed(0)}%
-            </Label>
-            <div className="px-2">
-              <Slider
-                value={[(person.fairness_style_alpha || 0.15) * 100]}
-                onValueChange={handleFairnessStyleChange}
-                min={0}
-                max={30}
-                step={5}
-                className="mt-2"
-              />
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>{t("setupFlow.psychology.strict5050")}</span>
-              <span>{t("setupFlow.psychology.recognizesBreadwinner")}</span>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Income Asymmetry - Hidden by default per requirements */}
 
       <Button 
         variant="outline" 
