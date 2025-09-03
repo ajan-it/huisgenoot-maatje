@@ -105,10 +105,16 @@ export default function SetupFlow() {
         return;
       }
     }
-    if (step === 4) {
+    if (step === 3) {
       const missing = draft.people.filter((p) => p.role === "adult").some((p) => p.weekly_time_budget === undefined || p.weekly_time_budget === null);
       if (missing) {
         toast({ title: lang === "en" ? "Minutes per week missing" : "Minuten per week ontbreekt", description: lang === "en" ? "Enter the weekly time budget for all adults." : "Vul het wekelijkse tijdsbudget in voor alle volwassenen." });
+        return;
+      }
+    }
+    if (step === 4) {
+      if (draft.tasks.filter(t => t.active).length === 0) {
+        toast({ title: lang === "en" ? "No tasks selected" : "Geen taken geselecteerd", description: lang === "en" ? "Select at least one task to continue." : "Selecteer minstens één taak om door te gaan." });
         return;
       }
     }
@@ -477,81 +483,6 @@ export default function SetupFlow() {
             <CardHeader>
               <CardTitle>{steps[step - 1]}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <TaskPicker
-                selectedTasks={draft.tasks}
-                onTasksChange={(tasks) => setDraft(d => ({ ...d, tasks }))}
-                adultsCount={adultsCount}
-                totalMinutesBudget={draft.people.filter(p => p.role === "adult").reduce((sum, p) => sum + (p.weekly_time_budget || 0), 0)}
-              />
-              
-              <div className="flex items-center justify-between pt-6">
-                <Button variant="outline" onClick={onBack}>
-                  {t("setupFlow.household.back")}
-                </Button>
-                <Button 
-                  onClick={onNext}
-                  disabled={draft.tasks.filter(t => t.active).length === 0}
-                >
-                  {t("setupFlow.household.next")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === 8 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{steps[step - 1]}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Personen: {draft.people.length} • Volwassenen: {adultsCount} • Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="privacy" checked={privacyAccepted} onCheckedChange={(v) => setPrivacyAccepted(Boolean(v))} />
-                  <Label htmlFor="privacy">Ik ga akkoord met de <a href="/privacy" className="underline">privacyverklaring</a>.</Label>
-                </div>
-              </div>
-
-              {errorMsg && (
-                <Alert variant="destructive">
-                  <AlertTitle>Kon plan niet aanmaken</AlertTitle>
-                  <AlertDescription>{errorMsg}</AlertDescription>
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" onClick={generatePlan} disabled={generating}>Opnieuw proberen</Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        try {
-                          navigator.clipboard.writeText(JSON.stringify(lastPayloadRef.current, null, 2));
-                          toast({ title: "Payload gekopieerd", description: "Plak deze in je bericht aan support." });
-                        } catch {}
-                      }}
-                    >
-                      Payload kopiëren
-                    </Button>
-                  </div>
-                </Alert>
-              )}
-
-              <div className="flex items-center justify-between pt-2">
-                <Button variant="outline" onClick={onBack} disabled={generating}>
-                  {t("setupFlow.household.back")}
-                </Button>
-                <Button onClick={generatePlan} disabled={!privacyAccepted || generating}>
-                  {generating ? "Bezig..." : "Genereer weekplan"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === 4 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{steps[step - 1]}</CardTitle>
-            </CardHeader>
             <CardContent className="space-y-6">
               {draft.people.filter((p) => p.role === "adult").map((p, index) => (
                 <Fragment key={p.id}>
@@ -659,6 +590,81 @@ export default function SetupFlow() {
                   {t("setupFlow.household.back")}
                 </Button>
                 <Button onClick={onNext}>
+                  {t("setupFlow.household.next")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 8 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Personen: {draft.people.length} • Volwassenen: {adultsCount} • Actieve taken: {draft.tasks.filter((t) => t.active).length}</div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="privacy" checked={privacyAccepted} onCheckedChange={(v) => setPrivacyAccepted(Boolean(v))} />
+                  <Label htmlFor="privacy">Ik ga akkoord met de <a href="/privacy" className="underline">privacyverklaring</a>.</Label>
+                </div>
+              </div>
+
+              {errorMsg && (
+                <Alert variant="destructive">
+                  <AlertTitle>Kon plan niet aanmaken</AlertTitle>
+                  <AlertDescription>{errorMsg}</AlertDescription>
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="secondary" onClick={generatePlan} disabled={generating}>Opnieuw proberen</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(JSON.stringify(lastPayloadRef.current, null, 2));
+                          toast({ title: "Payload gekopieerd", description: "Plak deze in je bericht aan support." });
+                        } catch {}
+                      }}
+                    >
+                      Payload kopiëren
+                    </Button>
+                  </div>
+                </Alert>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" onClick={onBack} disabled={generating}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button onClick={generatePlan} disabled={!privacyAccepted || generating}>
+                  {generating ? "Bezig..." : "Genereer weekplan"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{steps[step - 1]}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TaskPicker
+                selectedTasks={draft.tasks}
+                onTasksChange={(tasks) => setDraft(d => ({ ...d, tasks }))}
+                adultsCount={adultsCount}
+                totalMinutesBudget={draft.people.filter(p => p.role === "adult").reduce((sum, p) => sum + (p.weekly_time_budget || 0), 0)}
+              />
+              
+              <div className="flex items-center justify-between pt-6">
+                <Button variant="outline" onClick={onBack}>
+                  {t("setupFlow.household.back")}
+                </Button>
+                <Button 
+                  onClick={onNext}
+                  disabled={draft.tasks.filter(t => t.active).length === 0}
+                >
                   {t("setupFlow.household.next")}
                 </Button>
               </div>
