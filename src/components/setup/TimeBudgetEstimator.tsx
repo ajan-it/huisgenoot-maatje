@@ -86,7 +86,8 @@ export default function TimeBudgetEstimator({ open, onOpenChange, personName, in
           {/* Result */}
           <div className="rounded-md border p-3 bg-muted/40">
             <div className="text-sm">{t("setupFlow.timeEstimator.estimate")}</div>
-            <div className="text-2xl font-semibold">{total} min / {t("setupFlow.timeEstimator.week")}</div>
+            <div className="text-2xl font-semibold">{(total / 60).toFixed(1)} hours / {t("setupFlow.timeEstimator.week")}</div>
+            <div className="text-sm text-muted-foreground">= {total} minutes per week</div>
             <div className="text-xs text-muted-foreground">
               {t("setupFlow.timeEstimator.calculation").replace("{base}", base.toString()).replace("{modifier}", modifier.toFixed(2))}
             </div>
@@ -95,7 +96,7 @@ export default function TimeBudgetEstimator({ open, onOpenChange, personName, in
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("setupFlow.timeEstimator.cancel")}</Button>
-          <Button onClick={() => { onApply(total); onOpenChange(false); }}>{t("setupFlow.timeEstimator.apply").replace("{minutes}", total.toString())}</Button>
+          <Button onClick={() => { onApply(total); onOpenChange(false); }}>Apply {(total / 60).toFixed(1)} hours ({total} min)</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

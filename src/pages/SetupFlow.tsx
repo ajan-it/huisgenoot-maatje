@@ -492,7 +492,7 @@ export default function SetupFlow() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <Label htmlFor={`min-week-${p.id}`}>{t("setupFlow.timePrefs.minutesPerWeek")}</Label>
+                        <Label htmlFor={`min-week-${p.id}`}>Weekly time budget (hours)</Label>
                         <div className="flex gap-1">
                           <Button 
                             variant="ghost" 
@@ -516,17 +516,26 @@ export default function SetupFlow() {
                         id={`min-week-${p.id}`}
                         type="number"
                         min={0}
-                        max={600}
-                        placeholder="90"
-                        value={p.weekly_time_budget ?? ""}
+                        max={10}
+                        step={0.5}
+                        placeholder="1.5"
+                        value={p.weekly_time_budget ? (p.weekly_time_budget / 60).toString() : ""}
                         onChange={(e) => {
-                          const v = e.target.value === "" ? undefined : Math.max(0, Math.min(600, Number(e.target.value)));
-                          updatePerson(p.id, { weekly_time_budget: v as any });
+                          const hours = e.target.value === "" ? undefined : Math.max(0, Math.min(10, Number(e.target.value)));
+                          const minutes = hours ? Math.round(hours * 60) : undefined;
+                          updatePerson(p.id, { weekly_time_budget: minutes as any });
                         }}
                         onBlur={(e) => {
-                          if (e.currentTarget.value === "") updatePerson(p.id, { weekly_time_budget: 90 });
+                          if (e.currentTarget.value === "") {
+                            updatePerson(p.id, { weekly_time_budget: 90 }); // 1.5 hours default
+                          }
                         }}
                       />
+                      {p.weekly_time_budget && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          = {p.weekly_time_budget} minutes per week
+                        </p>
+                      )}
                       <MinutesQuickChips
                         adultsCount={adultsCount}
                         childrenCount={draft.people.filter(p => p.role === "child").length}
@@ -534,7 +543,7 @@ export default function SetupFlow() {
                         onSelectMinutes={(minutes) => updatePerson(p.id, { weekly_time_budget: minutes })}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        How much time can you realistically spend on household tasks each week? Example: 2–3 hours/day = ~900 minutes. This number helps us balance chores fairly.
+                        How many hours per week can you realistically spend on household tasks? Example: 30 min/weeknight = 2.5 hours/week.
                       </p>
                     </div>
                     

@@ -34,17 +34,17 @@ export default function MinutesQuickChips({ adultsCount, childrenCount, currentM
     { 
       type: "light", 
       minutes: lightMinutes, 
-      label: "I can help a little (about 2h/week)"
+      label: "Light (2h/week)"
     },
     { 
       type: "normal", 
       minutes: regularMinutes, 
-      label: "I can help a fair amount (about 2.5h/week)"
+      label: "Regular (2.5h/week)"
     },
     { 
       type: "busy", 
       minutes: heavyMinutes, 
-      label: "I can carry more (about 3h/week)"
+      label: "Heavy (3h/week)"
     },
   ];
 
