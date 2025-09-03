@@ -205,27 +205,6 @@ export const dictionaries = {
       targetSplit: {
         text: "Doelverdeling met deze invoer:",
       },
-      workContext: {
-        title: "Werkcontext",
-        workplace: "Werkplek",
-        office: "Kantoor",
-        hybrid: "Hybride",
-        home: "Thuis",
-        paidHours: "Betaalde uren/week",
-        commuteMinutes: "Reistijd per werkdag (min)",
-        flexibility: "Flexibiliteit overdag",
-        notFlexible: "Niet flexibel",
-        veryFlexible: "Heel flexibel",
-        updateEstimate: "Schatting bijwerken",
-      },
-      psychology: {
-        title: "Psychologie & afspraak",
-        incomeAsymmetry: "Erkennen we inkomensasymmetrie?",
-        incomeAsymmetryHelp: "De kostwinner krijgt een kleine planning-compensatie; we blijven wel zichtbaar verdelen.",
-        fairnessStyle: "Fairness-stijl",
-        strict5050: "Strikt 50/50",
-        recognizesBreadwinner: "Erkent kostwinner",
-      },
       ownership: {
         title: "Eigenaarschap",
         help: "Kies max 3 anker-routines die je graag wilt behouden (bijv. 'Do-avond bedtijd', 'Zaterdag boodschappen').",

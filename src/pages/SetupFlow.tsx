@@ -12,7 +12,7 @@ import TimeBudgetEstimator from "@/components/setup/TimeBudgetEstimator";
 import TargetSplitHint from "@/components/setup/TargetSplitHint";
 import MinutesHelperSheet from "@/components/setup/MinutesHelperSheet";
 import MinutesQuickChips from "@/components/setup/MinutesQuickChips";
-import WorkContextInputs from "@/components/setup/WorkContextInputs";
+
 import OwnershipSelector from "@/components/setup/OwnershipSelector";
 import DislikedTasksSelector from "@/components/setup/DislikedTasksSelector";
 import CantDoTasksSelector from "@/components/setup/CantDoTasksSelector";
@@ -532,11 +532,6 @@ export default function SetupFlow() {
                         childrenCount={draft.people.filter(p => p.role === "child").length}
                         currentMinutes={p.weekly_time_budget}
                         onSelectMinutes={(minutes) => updatePerson(p.id, { weekly_time_budget: minutes })}
-                      />
-                      <WorkContextInputs
-                        person={p}
-                        onUpdate={(updates) => updatePerson(p.id, updates)}
-                        onUpdateBudget={() => setEstimatorOpenFor(p.id)}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         How much time can you realistically spend on household tasks each week? Example: 2–3 hours/day = ~900 minutes. This number helps us balance chores fairly.

@@ -28,15 +28,8 @@ export interface SetupDraftPerson {
   disliked_tags?: string[]; // step 3
   no_go_tasks?: string[]; // step 3
   
-  // Work context (adults only)
-  work_location?: "office" | "hybrid" | "home";
-  paid_hours_per_week?: number;        // 0..50
-  commute_min_per_day?: number;        // 0..120
+  // General flexibility
   flexibility_score?: number;          // 1..5
-  
-  // Psychology & fairness
-  income_asymmetry_ack?: boolean;      // toggle
-  fairness_style_alpha?: number;       // 0.0..0.3 (default 0.15)
   
   // Task preferences
   no_go_tags?: string[];               // hard avoid
