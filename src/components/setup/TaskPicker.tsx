@@ -1,3 +1,4 @@
+// Legacy TaskPicker - now redirects to EnhancedTaskPicker for setup flow
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { InfoIcon, FilterIcon, PackageIcon, MoreHorizontal } from "lucide-react";
 import { SEED_TASKS } from "@/data/seeds";
@@ -19,6 +19,7 @@ import { TaskOverrideIndicator } from "@/components/tasks/TaskOverrideIndicator"
 import { BulkActionBar } from "@/components/tasks/BulkActionBar";
 import { ConfirmPill } from "@/components/tasks/ConfirmPill";
 import { useTaskOverrides } from "@/hooks/useTaskOverrides";
+import { EnhancedTaskPicker } from "./EnhancedTaskPicker";
 
 interface TaskPickerProps {
   selectedTasks: Array<{
@@ -68,20 +69,30 @@ export function TaskPicker({
   dateRange,
   enableOverrides = false
 }: TaskPickerProps) {
-  const { t, lang } = useI18n();
+  // For setup flow, use the enhanced experience
+  if (!enableOverrides) {
+    return (
+      <EnhancedTaskPicker
+        selectedTasks={selectedTasks}
+        onTasksChange={onTasksChange}
+        adultsCount={adultsCount}
+        totalMinutesBudget={totalMinutesBudget}
+      />
+    );
+  }
+
+  // For advanced features (overrides), keep the full legacy version
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [selectedFrequencies, setSelectedFrequencies] = useState<Frequency[]>([]);
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
   const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
-  const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [selectedPacks, setSelectedPacks] = useState<string[]>([]);
   const [confirmPill, setConfirmPill] = useState<{ message: string; undo: () => void } | null>(null);
 
-  // Task overrides hook (only if enabled)
-  const { overrides, createOverride, deleteOverride, isTaskOverridden } = useTaskOverrides(
-    enableOverrides ? householdId : undefined
-  );
+  // Task overrides hook
+  const { overrides, createOverride } = useTaskOverrides(householdId);
 
   const filteredTasks = useMemo(() => {
     let tasks = SEED_TASKS.filter(task => {
@@ -237,7 +248,7 @@ export function TaskPicker({
 
   // Override handling functions
   const handleTaskOverride = async (taskId: string, action: 'include' | 'exclude', options: ScopeOptions) => {
-    if (!enableOverrides || !householdId || !dateRange) return;
+    if (!householdId || !dateRange) return;
 
     const task = SEED_TASKS.find(t => t.id === taskId);
     if (!task) return;
@@ -261,7 +272,6 @@ export function TaskPicker({
       setConfirmPill({
         message: `${actionText} ${task.name} ${scopeText}`,
         undo: () => {
-          // TODO: Implement undo by finding and deleting the override
           setConfirmPill(null);
         },
       });
@@ -271,7 +281,7 @@ export function TaskPicker({
   };
 
   const handleBulkOverride = async (action: 'include' | 'exclude' | 'frequency_change', options: ScopeOptions) => {
-    if (!enableOverrides || !householdId || !dateRange || bulkSelected.length === 0) return;
+    if (!householdId || !dateRange || bulkSelected.length === 0) return;
 
     try {
       const promises = bulkSelected.map(taskId => {
@@ -296,7 +306,6 @@ export function TaskPicker({
       setConfirmPill({
         message: `${actionText} ${bulkSelected.length} tasks ${scopeText}`,
         undo: () => {
-          // TODO: Implement bulk undo
           setConfirmPill(null);
         },
       });
@@ -453,18 +462,16 @@ export function TaskPicker({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-sm">{task.name}</CardTitle>
-                      {enableOverrides && (
-                        <Checkbox
-                          checked={bulkSelected.includes(task.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setBulkSelected(prev => [...prev, task.id]);
-                            } else {
-                              setBulkSelected(prev => prev.filter(id => id !== task.id));
-                            }
-                          }}
-                        />
-                      )}
+                      <Checkbox
+                        checked={bulkSelected.includes(task.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setBulkSelected(prev => [...prev, task.id]);
+                          } else {
+                            setBulkSelected(prev => prev.filter(id => id !== task.id));
+                          }
+                        }}
+                      />
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                        <Badge variant="outline" className="text-xs">
@@ -473,7 +480,7 @@ export function TaskPicker({
                        <Badge variant="secondary" className="text-xs">
                          {t(`tasks.frequency.${config.frequency || task.frequency}`)}
                        </Badge>
-                       {enableOverrides && overrides.some(o => o.task_id === task.id) && (
+                       {overrides.some(o => o.task_id === task.id) && (
                          <TaskOverrideIndicator 
                            override={overrides.find(o => o.task_id === task.id)!}
                          />
@@ -481,17 +488,15 @@ export function TaskPicker({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {enableOverrides && (
-                      <ScopeMenu
-                        trigger={
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        }
-                        onSelect={(options) => handleTaskOverride(task.id, 'exclude', options)}
-                        currentDate={dateRange?.start}
-                      />
-                    )}
+                    <ScopeMenu
+                      trigger={
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      }
+                      onSelect={(options) => handleTaskOverride(task.id, 'exclude', options)}
+                      currentDate={dateRange?.start}
+                    />
                     <Switch
                       checked={config.active}
                       onCheckedChange={(active) => updateTask(task.id, { active })}
@@ -572,15 +577,13 @@ export function TaskPicker({
       </div>
 
       {/* Bulk Action Bar */}
-      {enableOverrides && (
-        <BulkActionBar
-          selectedCount={bulkSelected.length}
-          onInclude={(options) => handleBulkOverride('include', options)}
-          onExclude={(options) => handleBulkOverride('exclude', options)}
-          onChangeFrequency={(options) => handleBulkOverride('frequency_change', options)}
-          onClearSelection={() => setBulkSelected([])}
-        />
-      )}
+      <BulkActionBar
+        selectedCount={bulkSelected.length}
+        onInclude={(options) => handleBulkOverride('include', options)}
+        onExclude={(options) => handleBulkOverride('exclude', options)}
+        onChangeFrequency={(options) => handleBulkOverride('frequency_change', options)}
+        onClearSelection={() => setBulkSelected([])}
+      />
 
       {/* Confirm Pill */}
       {confirmPill && (
