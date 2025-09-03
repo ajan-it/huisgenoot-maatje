@@ -548,24 +548,33 @@ export default function SetupFlow() {
                     </div>
                     
                     <div>
-                      <Label htmlFor={`cap-weeknight-${p.id}`}>{t("setupFlow.timePrefs.maxWeeknightMinutes")}</Label>
+                      <Label htmlFor={`cap-weeknight-${p.id}`}>Max per weeknight (hours)</Label>
                       <Input
                         id={`cap-weeknight-${p.id}`}
                         type="number"
                         min={0}
-                        max={300}
-                        placeholder="30"
-                        value={p.weeknight_cap ?? ""}
+                        max={5}
+                        step={0.25}
+                        placeholder="0.5"
+                        value={p.weeknight_cap ? (p.weeknight_cap / 60).toString() : ""}
                         onChange={(e) => {
-                          const v = e.target.value === "" ? undefined : Math.max(0, Math.min(300, Number(e.target.value)));
-                          updatePerson(p.id, { weeknight_cap: v as any });
+                          const hours = e.target.value === "" ? undefined : Math.max(0, Math.min(5, Number(e.target.value)));
+                          const minutes = hours ? Math.round(hours * 60) : undefined;
+                          updatePerson(p.id, { weeknight_cap: minutes as any });
                         }}
                         onBlur={(e) => {
-                          if (e.currentTarget.value === "") updatePerson(p.id, { weeknight_cap: 30 });
+                          if (e.currentTarget.value === "") {
+                            updatePerson(p.id, { weeknight_cap: 30 }); // 0.5 hours default
+                          }
                         }}
                       />
+                      {p.weeknight_cap && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          = {p.weeknight_cap} minutes per weeknight
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground mt-1">
-                        To avoid evening stress, set how many minutes of chores you'd like to do on a weeknight (18:00–21:30).
+                        To avoid evening stress, set how many hours of chores you'd like to do on a weeknight (6–9:30 PM).
                       </p>
                     </div>
                   </div>
