@@ -30,8 +30,30 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const t = useMemo(() => {
     return (key: string) => {
-      const dict = dictionaries[lang] || dictionaries.nl;
-      return key.split(".").reduce<any>((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), dict) ?? key;
+      const primaryDict = dictionaries[lang] || dictionaries.nl;
+      const fallbackDict = dictionaries[lang === "nl" ? "en" : "nl"];
+      
+      // Try primary language first
+      const primaryResult = key.split(".").reduce<any>((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), primaryDict);
+      
+      if (primaryResult !== undefined) {
+        return primaryResult;
+      }
+      
+      // Try fallback language
+      const fallbackResult = key.split(".").reduce<any>((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), fallbackDict);
+      
+      if (fallbackResult !== undefined) {
+        return fallbackResult;
+      }
+      
+      // Development warning for missing translations
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Missing translation for key: ${key} in both ${lang} and fallback language`);
+      }
+      
+      // Last resort: return the key
+      return key;
     };
   }, [lang]);
 
