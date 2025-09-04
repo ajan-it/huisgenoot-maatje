@@ -138,6 +138,19 @@ const AppNavigation = () => {
                   }
                 </p>
               </div>
+              {import.meta.env.VITE_ENABLE_REMINDER_TESTER === 'true' && (
+                <div
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  onClick={() => handleNavigation('/dev/reminders')}
+                >
+                  <div className="text-sm font-medium leading-none">
+                    🧪 Reminder Tester
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Test reminder engine safely (Admin only)
+                  </p>
+                </div>
+              )}
             </div>
           </PopoverContent>
         </Popover>
