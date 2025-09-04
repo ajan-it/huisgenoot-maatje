@@ -19,6 +19,32 @@ interface ReminderData {
   reminder_level: number;
 }
 
+// Helper function to get active status values from database
+async function getActiveStatuses(client: ReturnType<typeof createClient>): Promise<string[]> {
+  try {
+    const { data, error } = await client.rpc('get_occurrence_status_labels');
+    
+    if (error) {
+      console.error('Error fetching occurrence status labels:', error);
+      // Fallback to known active status
+      return ['scheduled'];
+    }
+    
+    // Define statuses that represent "finished" work that shouldn't get reminders
+    const FINISHED_STATUSES = new Set(['done', 'moved', 'backlog', 'completed', 'cancelled', 'skipped', 'archived']);
+    
+    const labels: string[] = data || [];
+    const activeStatuses = labels.filter(label => !FINISHED_STATUSES.has(label.toLowerCase()));
+    
+    // If all statuses are filtered out, return all labels as fallback
+    return activeStatuses.length > 0 ? activeStatuses : labels;
+  } catch (error) {
+    console.error('Error in getActiveStatuses:', error);
+    // Fallback to known active status
+    return ['scheduled'];
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -92,6 +118,10 @@ const handler = async (req: Request): Promise<Response> => {
 async function processHouseholdReminders(householdId: string, now: Date, isQuietHours: boolean): Promise<number> {
   let sentCount = 0;
   
+  // Get active statuses from database
+  const activeStatuses = await getActiveStatuses(supabase);
+  console.log(`reminders-run: active statuses for household ${householdId}:`, activeStatuses);
+  
   // Calculate time windows
   const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const twentySixHoursFromNow = new Date(now.getTime() + 26 * 60 * 60 * 1000);
@@ -113,11 +143,12 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
     .eq('reminder_level', 0)
     .gte('due_at', twentyFourHoursFromNow.toISOString())
     .lte('due_at', twentySixHoursFromNow.toISOString())
-    .neq('status', 'completed');
+    .in('status', activeStatuses);
     
   if (t24hError) {
     console.error('Error fetching T-24h occurrences:', t24hError);
   } else if (t24hOccurrences?.length) {
+    console.log(`Found ${t24hOccurrences.length} T-24h occurrences for household ${householdId}`);
     for (const occ of t24hOccurrences) {
       if (!isQuietHours) {
         await sendReminderEmail(occ, 1, householdId);
@@ -125,6 +156,8 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
         sentCount++;
       }
     }
+  } else {
+    console.log(`reminders-run: no T-24h occurrences matched window + active statuses for household ${householdId}`);
   }
   
   // T-2h reminders (level 2)
@@ -141,11 +174,12 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
     .lt('reminder_level', 2)
     .gte('due_at', twoHoursFromNow.toISOString())
     .lte('due_at', threeHoursFromNow.toISOString())
-    .neq('status', 'completed');
+    .in('status', activeStatuses);
     
   if (t2hError) {
     console.error('Error fetching T-2h occurrences:', t2hError);
   } else if (t2hOccurrences?.length) {
+    console.log(`Found ${t2hOccurrences.length} T-2h occurrences for household ${householdId}`);
     for (const occ of t2hOccurrences) {
       if (!isQuietHours) {
         await sendReminderEmail(occ, 2, householdId);
@@ -153,6 +187,8 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
         sentCount++;
       }
     }
+  } else {
+    console.log(`reminders-run: no T-2h occurrences matched window + active statuses for household ${householdId}`);
   }
   
   // Overdue reminders (level 3)
@@ -168,11 +204,12 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
     .eq('is_critical', true)
     .lt('reminder_level', 3)
     .lt('due_at', twentyFourHoursAgo.toISOString())
-    .neq('status', 'completed');
+    .in('status', activeStatuses);
     
   if (overdueError) {
     console.error('Error fetching overdue occurrences:', overdueError);
   } else if (overdueOccurrences?.length) {
+    console.log(`Found ${overdueOccurrences.length} overdue occurrences for household ${householdId}`);
     for (const occ of overdueOccurrences) {
       if (!isQuietHours) {
         await sendReminderEmail(occ, 3, householdId);
@@ -180,6 +217,8 @@ async function processHouseholdReminders(householdId: string, now: Date, isQuiet
         sentCount++;
       }
     }
+  } else {
+    console.log(`reminders-run: no overdue occurrences matched window + active statuses for household ${householdId}`);
   }
   
   return sentCount;

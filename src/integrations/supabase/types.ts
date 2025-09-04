@@ -584,6 +584,10 @@ export type Database = {
         Args: { occurrence_id: string }
         Returns: boolean
       }
+      get_occurrence_status_labels: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
       is_household_member: {
         Args: { _household_id: string }
         Returns: boolean
