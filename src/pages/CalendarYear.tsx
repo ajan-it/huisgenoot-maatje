@@ -223,6 +223,22 @@ const CalendarYear = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Quick navigation to data-rich period */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchParams(prev => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('year', '2025'); // 2025 where seeded data exists
+                return newParams;
+              });
+            }}
+            className="text-blue-600 dark:text-blue-400"
+          >
+            📅 Go to 2025
+          </Button>
+          
           {planSelection?.householdId && (
             <YearlyTaskPicker
               householdId={planSelection.householdId}

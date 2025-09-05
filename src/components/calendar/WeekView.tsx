@@ -144,6 +144,23 @@ const WeekView = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Quick navigation to data-rich period */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const septWeek = new Date(2025, 8, 1); // September 1, 2025
+              setSearchParams(prev => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('week', format(septWeek, 'yyyy-MM-dd'));
+                return newParams;
+              });
+            }}
+            className="text-blue-600 dark:text-blue-400"
+          >
+            📅 Go to Sept 2025
+          </Button>
+          
           {planSelection?.householdId && (
             <TaskQuickActions
               householdId={planSelection.householdId}
