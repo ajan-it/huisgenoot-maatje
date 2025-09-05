@@ -16,7 +16,7 @@ import { FrequencyFilter, FrequencyType } from "@/components/calendar/FrequencyF
 import { YearPlanGenerator } from "@/components/calendar/YearPlanGenerator";
 import { LongTermFairnessChart } from "@/components/calendar/LongTermFairnessChart";
 import { YearlyTaskPicker } from "@/components/calendar/YearlyTaskPicker";
-import { useCalendarData } from "@/hooks/useCalendarData";
+import { useUnifiedPlanData } from "@/hooks/useUnifiedPlanData";
 import { useLongTermFairness } from "@/hooks/useLongTermFairness";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -86,8 +86,8 @@ const CalendarYear = () => {
     return 'winter';
   };
 
-  // Data
-  const { occurrences, boosts, loading, refetch } = useCalendarData(
+  // Data - using unified plan data
+  const { occurrences, boosts, loading, refetch, planSelection, debugInfo } = useUnifiedPlanData(
     startOfYear(currentYear),
     endOfYear(currentYear),
     filters
@@ -95,7 +95,7 @@ const CalendarYear = () => {
 
   // Long-term fairness data
   const { data: fairnessMetrics = [] } = useLongTermFairness(
-    householdId,
+    planSelection?.householdId,
     currentYear.getFullYear()
   );
 
@@ -207,9 +207,9 @@ const CalendarYear = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          {householdId && (
+          {planSelection?.householdId && (
             <YearlyTaskPicker
-              householdId={householdId}
+              householdId={planSelection.householdId}
               year={currentYear.getFullYear()}
               onTasksUpdate={() => {
                 setRefreshKey(prev => prev + 1);
@@ -219,7 +219,7 @@ const CalendarYear = () => {
           )}
           <YearPlanGenerator
             year={currentYear.getFullYear()}
-            householdId={householdId}
+            householdId={planSelection?.householdId}
             onPlanGenerated={() => {
               setRefreshKey(prev => prev + 1);
               refetch?.();
@@ -240,6 +240,13 @@ const CalendarYear = () => {
             <Filter className="h-4 w-4 mr-2" />
             {t('filters')}
           </Button>
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <details className="text-xs bg-muted p-2 rounded">
+              <summary>Debug Info</summary>
+              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+            </details>
+          )}
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
+import { PersonNameDisplay } from "./PersonNameDisplay";
 import { ScopeMenu, ScopeOptions } from "@/components/tasks/ScopeMenu";
 import { ConfirmPill } from "@/components/tasks/ConfirmPill";
 import { FairnessHint } from "@/components/tasks/FairnessHint";
@@ -196,7 +197,11 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
                             {occ.people?.first_name?.charAt(0) || '?'}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm">{occ.people?.first_name || 'Unknown'}</span>
+                        <PersonNameDisplay 
+                          person={occ.people} 
+                          fallback="Unknown"
+                          className="text-sm"
+                        />
                         
                         {/* Backup person */}
                         {occ.has_backup && occ.backup_person_id && (

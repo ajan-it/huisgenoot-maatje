@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 interface CalendarFilters {
@@ -18,10 +19,33 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
   const [isRequestInProgress, setIsRequestInProgress] = useState(false);
   const { toast } = useToast();
 
-  // Using the first household ID from the database
-  const householdId = "1b2dc522-7093-4b62-9c40-ce031c527066";
+  // Get current household dynamically
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      
+      if (error || !data) return null;
+      return data.household_id;
+    },
+  });
 
   useEffect(() => {
+    // Only fetch if we have a household ID
+    if (!householdId) {
+      setOccurrences([]);
+      setBoosts([]);
+      setLoading(false);
+      return;
+    }
+
     // Prevent duplicate requests
     if (isRequestInProgress) {
       console.log('Request already in progress, skipping duplicate');
@@ -41,11 +65,11 @@ export function useCalendarData(startDate: Date, endDate: Date, filters: Calenda
     return () => {
       isCancelled = true;
     };
-  }, [startDate, endDate, filters]);
+  }, [householdId, startDate, endDate, filters]);
 
   const fetchData = async () => {
-    if (isRequestInProgress) {
-      console.log('Fetch already in progress, aborting duplicate request');
+    if (isRequestInProgress || !householdId) {
+      console.log('Fetch already in progress or no household ID, aborting request');
       return;
     }
 

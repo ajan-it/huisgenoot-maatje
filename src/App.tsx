@@ -18,6 +18,7 @@ import MyTasks from "./pages/MyTasks";
 import CompareDashboard from "./pages/CompareDashboard";
 import CalendarMonth from "./pages/CalendarMonth";
 import CalendarYear from "./pages/CalendarYear";
+import WeekView from "./components/calendar/WeekView";
 import BoostSettings from "./pages/BoostSettings";
 import SeasonalDashboard from "./pages/SeasonalDashboard";
 import RunRemindersPage from "./pages/dev/RunReminders";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/compare" element={<CompareDashboard />} />
           
           {/* calendar views */}
+          <Route path="/calendar/week" element={<WeekView />} />
           <Route path="/calendar/month" element={<CalendarMonth />} />
           <Route path="/calendar/year" element={<CalendarYear />} />
           <Route path="/seasonal" element={<SeasonalDashboard />} />

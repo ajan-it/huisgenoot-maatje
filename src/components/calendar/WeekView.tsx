@@ -1,28 +1,31 @@
 import React, { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Users, 
-  Calendar as CalendarIcon,
-  Filter,
-  Settings
+  Filter
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { CalendarFilters } from "@/components/calendar/CalendarFilters";
 import { DayDrawer } from "@/components/calendar/DayDrawer";
-import { MonthlyTaskPicker } from "@/components/calendar/MonthlyTaskPicker";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
 import { useUnifiedPlanData } from "@/hooks/useUnifiedPlanData";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from "date-fns";
+import { PersonNameDisplay } from "@/components/calendar/PersonNameDisplay";
+import { 
+  format, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  addWeeks, 
+  subWeeks,
+  isSameDay
+} from "date-fns";
 import { nl, enUS } from "date-fns/locale";
 
-const CalendarMonth = () => {
+const WeekView = () => {
   const { t, lang } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -30,11 +33,13 @@ const CalendarMonth = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   
-  // URL state
-  const currentDate = useMemo(() => {
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString());
-    return new Date(year, month - 1, 1);
+  // URL state - get week start from URL or default to current week
+  const currentWeek = useMemo(() => {
+    const weekStr = searchParams.get('week');
+    if (weekStr) {
+      return startOfWeek(new Date(weekStr), { weekStartsOn: 1 });
+    }
+    return startOfWeek(new Date(), { weekStartsOn: 1 });
   }, [searchParams]);
 
   const filters = useMemo(() => ({
@@ -44,57 +49,33 @@ const CalendarMonth = () => {
     showBoosts: searchParams.get('boosts') === 'true'
   }), [searchParams]);
 
-  // Get current household
-  const { data: householdId } = useQuery({
-    queryKey: ['current-household'],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return null;
-      
-      const { data, error } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', session.user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.household_id;
-    },
-  });
-
   // Data - using unified plan data
   const { occurrences, loading, planSelection, debugInfo } = useUnifiedPlanData(
-    startOfMonth(currentDate),
-    endOfMonth(currentDate),
+    startOfWeek(currentWeek, { weekStartsOn: 1 }),
+    endOfWeek(currentWeek, { weekStartsOn: 1 }),
     filters
   );
 
   // Navigation
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = direction === 'prev' 
-      ? subMonths(currentDate, 1) 
-      : addMonths(currentDate, 1);
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeek = direction === 'prev' 
+      ? subWeeks(currentWeek, 1) 
+      : addWeeks(currentWeek, 1);
     
     setSearchParams(prev => {
       const newParams = new URLSearchParams(prev);
-      newParams.set('year', newDate.getFullYear().toString());
-      newParams.set('month', (newDate.getMonth() + 1).toString());
+      newParams.set('week', format(newWeek, 'yyyy-MM-dd'));
       return newParams;
     });
   };
 
-  // Generate calendar grid
-  const calendarDays = useMemo(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
-    const days = eachDayOfInterval({ start, end });
-    
-    // Add padding days for the first week
-    const firstDay = getDay(start);
-    const paddingStart = Array.from({ length: firstDay === 0 ? 6 : firstDay - 1 }, (_, i) => null);
-    
-    return [...paddingStart, ...days];
-  }, [currentDate]);
+  // Generate week days
+  const weekDays = useMemo(() => {
+    return eachDayOfInterval({ 
+      start: startOfWeek(currentWeek, { weekStartsOn: 1 }), 
+      end: endOfWeek(currentWeek, { weekStartsOn: 1 }) 
+    });
+  }, [currentWeek]);
 
   // Group occurrences by date
   const occurrencesByDate = useMemo(() => {
@@ -107,7 +88,7 @@ const CalendarMonth = () => {
     return grouped;
   }, [occurrences]);
 
-  // Category colors using design system
+  // Get category color using design system
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       cleaning: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
@@ -130,19 +111,19 @@ const CalendarMonth = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigateMonth('prev')}
+            onClick={() => navigateWeek('prev')}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
           <h1 className="text-2xl font-semibold">
-            {format(currentDate, 'MMMM yyyy', { locale })}
+            {format(currentWeek, "'Week of' MMMM d, yyyy", { locale })}
           </h1>
           
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigateMonth('next')}
+            onClick={() => navigateWeek('next')}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -150,10 +131,10 @@ const CalendarMonth = () => {
 
         <div className="flex items-center space-x-2">
           {planSelection?.householdId && (
-            <MonthlyTaskPicker
+            <TaskQuickActions
               householdId={planSelection.householdId}
-              currentDate={currentDate}
-              onTasksUpdate={() => window.location.reload()}
+              date={currentWeek}
+              onTaskUpdate={() => window.location.reload()}
             />
           )}
           <Button
@@ -205,80 +186,90 @@ const CalendarMonth = () => {
         </Card>
       )}
 
-      {/* Calendar Grid */}
-      <Card className="p-6">
-        {/* Week headers */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-            <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-              {t(day.toLowerCase())}
-            </div>
-          ))}
-        </div>
+      {/* Week Grid */}
+      <div className="grid grid-cols-7 gap-4">
+        {weekDays.map(day => {
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const dayOccurrences = occurrencesByDate[dateKey] || [];
+          const isToday = isSameDay(day, new Date());
+          const totalTasks = dayOccurrences.length;
+          const completedTasks = dayOccurrences.filter(occ => occ.status === 'done').length;
 
-        {/* Calendar days */}
-        <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((day, index) => {
-            if (!day) {
-              return <div key={index} className="h-24" />;
-            }
-
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const dayOccurrences = occurrencesByDate[dateKey] || [];
-            const criticalCount = dayOccurrences.filter(occ => occ.is_critical).length;
-            const totalTasks = dayOccurrences.length;
-            const completedTasks = dayOccurrences.filter(occ => occ.status === 'completed').length;
-
-            return (
-              <div
-                key={dateKey}
-                className="h-24 border rounded-lg p-2 cursor-pointer hover:bg-accent/50 transition-colors relative"
-                onClick={() => setSelectedDate(day)}
-              >
-                {/* Date number */}
-                <div className="text-sm font-medium mb-1">
+          return (
+            <Card 
+              key={dateKey} 
+              className={`p-4 cursor-pointer hover:bg-accent/50 transition-colors ${isToday ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => setSelectedDate(day)}
+            >
+              {/* Day header */}
+              <div className="text-center mb-3">
+                <div className="text-sm font-medium text-muted-foreground uppercase">
+                  {format(day, 'EEE', { locale })}
+                </div>
+                <div className={`text-2xl font-bold ${isToday ? 'text-primary' : ''}`}>
                   {format(day, 'd')}
                 </div>
-
-                {/* Task chips (max 3) */}
-                <div className="space-y-1">
-                  {dayOccurrences.slice(0, 3).map((occ, i) => (
-                    <div
-                      key={i}
-                      className={`text-xs px-2 py-0.5 rounded-full truncate relative ${getCategoryColor(occ.tasks?.category || 'other')}`}
-                      title={`${occ.tasks?.name || 'Unknown Task'} - ${occ.people?.first_name || 'Unassigned'}`}
-                    >
-                      {occ.tasks?.name || 'Unknown Task'}
-                      {occ.is_critical && (
-                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
-                      )}
-                    </div>
-                  ))}
-                  
-                  {/* Overflow indicator */}
-                  {totalTasks > 3 && (
-                    <div className="text-xs text-muted-foreground">
-                      +{totalTasks - 3} more
-                    </div>
-                  )}
+                <div className="text-xs text-muted-foreground">
+                  {format(day, 'MMM', { locale })}
                 </div>
+              </div>
 
-                {/* Completion indicator */}
-                {totalTasks > 0 && (
-                  <div className="absolute bottom-1 right-1 text-xs text-muted-foreground">
-                    ✓ {completedTasks}/{totalTasks}
+              {/* Tasks list */}
+              <div className="space-y-2">
+                {dayOccurrences.slice(0, 4).map((occ, i) => (
+                  <div
+                    key={i}
+                    className={`text-xs p-2 rounded border-l-2 border-l-primary/20 bg-card hover:bg-accent/30 transition-colors`}
+                  >
+                    <div className="font-medium truncate mb-1">
+                      {occ.tasks?.name || 'Unknown Task'}
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <PersonNameDisplay 
+                        person={occ.people} 
+                        fallback="Unassigned"
+                        className="text-xs truncate"
+                      />
+                      <div className="flex items-center space-x-1">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs px-1 ${getCategoryColor(occ.tasks?.category || 'other')}`}
+                        >
+                          {occ.tasks?.category || 'other'}
+                        </Badge>
+                        {occ.is_critical && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Overflow indicator */}
+                {totalTasks > 4 && (
+                  <div className="text-xs text-muted-foreground text-center py-1">
+                    +{totalTasks - 4} more tasks
                   </div>
                 )}
-
-                {/* Critical indicator */}
-                {criticalCount > 0 && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                
+                {/* No tasks message */}
+                {totalTasks === 0 && (
+                  <div className="text-xs text-muted-foreground text-center py-4 italic">
+                    {t('no_tasks')}
+                  </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </Card>
+
+              {/* Summary */}
+              {totalTasks > 0 && (
+                <div className="mt-3 pt-2 border-t text-xs text-muted-foreground text-center">
+                  ✓ {completedTasks}/{totalTasks} {t('completed')}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Day Drawer */}
       <DayDrawer
@@ -291,4 +282,4 @@ const CalendarMonth = () => {
   );
 };
 
-export default CalendarMonth;
+export default WeekView;
