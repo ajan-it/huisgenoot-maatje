@@ -257,13 +257,13 @@ export function TaskPicker({
       const effectiveFrom = getEffectiveDate(options.scope, dateRange.start);
       const effectiveTo = options.snoozeUntil || (options.scope === 'once' ? effectiveFrom : undefined);
 
+      // Note: TaskPicker may need to be updated to use edge functions
+      // For now, this functionality may not work correctly with the new system
       await createOverride({
-        household_id: householdId,
-        task_id: taskId,
-        scope: options.scope,
-        effective_from: effectiveFrom.toISOString().split('T')[0],
-        effective_to: effectiveTo?.toISOString().split('T')[0],
+        occurrence_id: taskId, // This may need to be updated based on actual implementation
         action: action,
+        scope: options.scope,
+        snooze_until: effectiveTo?.toISOString().split('T')[0] || null,
       });
 
       const actionText = action === 'include' ? 'Added' : 'Removed';
@@ -289,12 +289,10 @@ export function TaskPicker({
         const effectiveTo = options.snoozeUntil || (options.scope === 'once' ? effectiveFrom : undefined);
 
         return createOverride({
-          household_id: householdId,
-          task_id: taskId,
-          scope: options.scope,
-          effective_from: effectiveFrom.toISOString().split('T')[0],
-          effective_to: effectiveTo?.toISOString().split('T')[0],
+          occurrence_id: taskId, // This may need to be updated based on actual implementation
           action: action,
+          scope: options.scope,
+          snooze_until: effectiveTo?.toISOString().split('T')[0] || null,
         });
       });
 

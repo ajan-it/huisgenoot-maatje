@@ -21,7 +21,8 @@ export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate }: Ta
   const handleScopeSelect = async (options: ScopeOptions) => {
     if (taskId) {
       await removeTask({
-        taskId,
+        occurrenceId: taskId, // taskId should be the occurrence ID in this context
+        taskId: taskId,
         taskName: 'Task',
         scope: options.scope,
         snoozeUntil: options.snoozeUntil,

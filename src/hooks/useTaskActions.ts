@@ -14,6 +14,7 @@ export interface TaskActionState {
 }
 
 export interface TaskActionOptions {
+  occurrenceId: string;
   taskId: string;
   taskName: string;
   scope: 'once' | 'week' | 'month' | 'always' | 'snooze';
@@ -79,7 +80,7 @@ export function useTaskActions(householdId: string) {
   };
 
   const removeTask = async (options: TaskActionOptions) => {
-    const { taskId, taskName, scope, snoozeUntil, baseDate } = options;
+    const { occurrenceId, taskId, taskName, scope, snoozeUntil, baseDate } = options;
     
     // Check for demo mode
     if (isDemoMode(householdId)) {
@@ -92,32 +93,32 @@ export function useTaskActions(householdId: string) {
     }
     
     try {
-      const { from, to } = getEffectiveDates(scope, baseDate, snoozeUntil);
-      
-      const overrideParams: CreateOverrideParams = {
-        household_id: householdId,
-        task_id: taskId,
-        scope,
-        effective_from: from,
-        effective_to: to,
+      // Create the override via edge function
+      const override = await createOverride({
+        occurrence_id: occurrenceId,
         action: 'exclude',
-      };
+        scope,
+        snooze_until: snoozeUntil?.toISOString().split('T')[0] || null
+      });
 
-      const override = await createOverride(overrideParams);
-
-      // Generate new plan to get diff_summary
-      const planResponse = await generatePlan({
+      // Generate new plan
+      const result = await generatePlan({
         household_id: householdId,
         date_range: {
-          start: from,
-          end: to || from
+          start: new Date().toISOString().split('T')[0],
+          end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         },
         context: 'week'
       });
+      
+      if (!result.success) {
+        throw new Error('Failed to regenerate plan');
+      }
 
-      const shiftedPointsObj = planResponse.diff_summary?.shifted_points_by_person || {};
+      // Calculate points difference from server response
+      const pointsDiff = override.diff_summary?.shifted_points_by_person || {};
       const shiftedPoints = Math.abs(
-        Object.values(shiftedPointsObj)
+        Object.values(pointsDiff)
           .map(points => Number(points) || 0)
           .reduce((total, points) => total + Math.abs(points), 0)
       );
@@ -126,7 +127,7 @@ export function useTaskActions(householdId: string) {
       setActionState({
         confirmPill: {
           message: `Removed ${taskName} ${getScopeDescription(scope)}.`,
-          overrideId: override.id,
+          overrideId: override.override_id,
           shiftedPoints
         }
       });
@@ -136,7 +137,7 @@ export function useTaskActions(householdId: string) {
         setActionState({ confirmPill: null });
       }, 30000);
 
-      return planResponse;
+      return result;
     } catch (error) {
       console.error('Remove task error:', error);
       toast({

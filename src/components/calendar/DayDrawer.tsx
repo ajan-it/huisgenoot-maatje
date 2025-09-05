@@ -61,6 +61,7 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
     if (!householdId) return;
     
     await removeTask({
+      occurrenceId: occurrence.id,
       taskId: occurrence.task_id,
       taskName: occurrence.tasks?.name || 'Unknown Task',
       scope: options.scope,

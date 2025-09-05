@@ -69,6 +69,7 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
     if (!householdId) return;
     
     await removeTask({
+      occurrenceId: assignment.id || assignment.task_id, // Use assignment id as occurrence ID
       taskId: assignment.task_id,
       taskName: assignment.task_name,
       scope: options.scope,

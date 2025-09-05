@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { isDemoMode } from '@/lib/demo-utils';
 
 export interface TaskOverride {
   id: string;
@@ -17,12 +18,10 @@ export interface TaskOverride {
 }
 
 export interface CreateOverrideParams {
-  household_id: string;
-  task_id: string;
-  scope: 'once' | 'week' | 'month' | 'always' | 'snooze';
-  effective_from: string;
-  effective_to?: string;
+  occurrence_id: string;
   action: 'include' | 'exclude' | 'frequency_change';
+  scope: 'once' | 'week' | 'month' | 'always' | 'snooze';
+  snooze_until?: string | null;
   frequency?: string;
 }
 
@@ -53,57 +52,26 @@ export function useTaskOverrides(householdId?: string) {
     mutationFn: async (params: CreateOverrideParams) => {
       console.log('Creating task override with params:', params);
       
-      // Validate household ID format
-      if (!params.household_id || params.household_id === 'HH_LOCAL' || !params.household_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        console.error('Invalid household_id for task override:', params.household_id);
-        throw new Error('Cannot create task overrides for demo/local plans. Please create a real household first.');
-      }
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user for override:', user?.id);
-      if (!user) {
-        console.error('No authenticated user found');
-        throw new Error('User not authenticated');
+      // Check for demo mode
+      if (isDemoMode(householdId)) {
+        throw new Error('Demo mode - task removal not available');
       }
 
-      // Verify user is household member
-      const { data: membership, error: membershipError } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('household_id', params.household_id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (membershipError) {
-        console.error('Error checking household membership:', membershipError);
-        throw new Error('Failed to verify household membership');
-      }
-      
-      if (!membership) {
-        console.error('User is not a member of household:', params.household_id);
-        throw new Error('You are not a member of this household');
-      }
+      const { data, error } = await supabase.functions.invoke('override-create', {
+        body: params
+      });
 
-      const overrideData = {
-        ...params,
-        created_by: user.id
-      };
-
-      console.log('Inserting override data:', overrideData);
-      const { data, error } = await supabase
-        .from('task_overrides')
-        .insert(overrideData)
-        .select()
-        .single();
-      
       if (error) {
-        console.error('Task override creation error:', error);
-        console.error('Override data that failed:', overrideData);
+        console.error('Edge function error:', error);
         throw error;
       }
+
+      if (!data.ok) {
+        console.error('Override creation failed:', data);
+        throw new Error(data.message || 'Failed to create override');
+      }
       
-      console.log('Successfully created task override:', data);
+      console.log('Successfully created task override:', data.override_id);
       return data;
     },
     onSuccess: () => {
@@ -133,12 +101,19 @@ export function useTaskOverrides(householdId?: string) {
   // Delete override mutation
   const deleteOverride = useMutation({
     mutationFn: async (overrideId: string) => {
-      const { error } = await supabase
-        .from('task_overrides')
-        .delete()
-        .eq('id', overrideId);
-      
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke('override-delete', {
+        body: { override_id: overrideId }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (!data.ok) {
+        console.error('Override deletion failed:', data);
+        throw new Error(data.message || 'Failed to delete override');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-overrides', householdId] });
