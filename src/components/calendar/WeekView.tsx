@@ -105,6 +105,20 @@ const WeekView = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Dev Banner */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+          <div className="text-sm font-medium text-green-900 dark:text-green-100">
+            📅 Week View: Plan {debugInfo.selectedPlanId?.slice(0, 8)}... | 
+            Range: {debugInfo.dateRange} | 
+            Count: {debugInfo.fetchedCount} occurrences
+            {debugInfo.isFallback && (
+              <span className="ml-2 text-red-600 dark:text-red-400">⚠️ Fallback Plan</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -134,7 +148,10 @@ const WeekView = () => {
             <TaskQuickActions
               householdId={planSelection.householdId}
               date={currentWeek}
-              onTaskUpdate={() => window.location.reload()}
+              onTaskUpdate={() => {
+                // Tasks will automatically refresh via React Query cache invalidation
+                console.log('✅ Tasks updated, cache should refresh automatically');
+              }}
             />
           )}
           <Button
@@ -145,12 +162,19 @@ const WeekView = () => {
             <Filter className="h-4 w-4 mr-2" />
             {t('filters')}
           </Button>
-          {/* Debug info in development */}
+          {/* Debug info and fallback warning in development */}
           {process.env.NODE_ENV === 'development' && (
-            <details className="text-xs bg-muted p-2 rounded">
-              <summary>Debug Info</summary>
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </details>
+            <div className="space-y-2">
+              {debugInfo.isFallback && (
+                <Badge variant="destructive" className="text-xs">
+                  Fallback Plan (no occurrences in range)
+                </Badge>
+              )}
+              <details className="text-xs bg-muted p-2 rounded">
+                <summary>Debug Info</summary>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+              </details>
+            </div>
           )}
         </div>
       </div>

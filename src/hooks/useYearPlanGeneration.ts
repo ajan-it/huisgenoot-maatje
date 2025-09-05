@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useInvalidateOccurrences } from '@/hooks/useOccurrences';
 
 interface GenerateYearPlanParams {
   household_id: string;
@@ -17,6 +18,7 @@ interface GenerateYearPlanParams {
 export function useYearPlanGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const invalidateOccurrences = useInvalidateOccurrences();
 
   const generateYearPlan = async (params: GenerateYearPlanParams) => {
     setIsGenerating(true);
@@ -48,6 +50,9 @@ export function useYearPlanGeneration() {
         title: "Year Plan Generated",
         description: `Successfully created ${data.occurrences_count} tasks for ${params.year}`,
       });
+
+      // Invalidate cache to refresh all views
+      invalidateOccurrences(params.household_id);
 
       return data;
     } catch (error: any) {
