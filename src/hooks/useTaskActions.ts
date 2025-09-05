@@ -86,7 +86,7 @@ export function useTaskActions(householdId: string) {
     if (isDemoMode(householdId)) {
       toast({
         title: "Demo Mode",
-        description: "Task removal is not available in demo mode. Please sign in to use full features.",
+        description: "Sign in and open a real plan to change tasks.",
         variant: "destructive",
       });
       return;

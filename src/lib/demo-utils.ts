@@ -1,5 +1,8 @@
 export function isDemoMode(householdId?: string | null): boolean {
-  return !householdId || householdId === 'HH_LOCAL' || householdId.startsWith('HH_LOCAL');
+  return !householdId || 
+         householdId === 'HH_LOCAL' || 
+         householdId.startsWith('HH_LOCAL') ||
+         householdId === '00000000-0000-4000-8000-000000000000';
 }
 
 export function isValidUuid(str: string): boolean {

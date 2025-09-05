@@ -12,8 +12,10 @@ import {
   ArrowUpDown, 
   MoveRight,
   Zap,
-  MoreHorizontal
+  MoreHorizontal,
+  Lock
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n/I18nProvider";
 import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
 import { PersonNameDisplay } from "./PersonNameDisplay";
@@ -55,7 +57,7 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
     },
   });
 
-  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing } = useTaskActions(householdId || "");
+  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing, isDemoMode } = useTaskActions(householdId || "");
 
   const handleRemoveTask = async (occurrence: any, options: ScopeOptions) => {
     if (!householdId) return;
@@ -268,20 +270,40 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
                       </div>
 
                       {/* Remove Task Menu */}
-                      <ScopeMenu
-                        trigger={
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={isProcessing}
-                          >
-                            <MoreHorizontal className="h-3 w-3 mr-1" />
-                            Remove
-                          </Button>
-                        }
-                        onSelect={(options) => handleRemoveTask(occ, options)}
-                        currentDate={date}
-                      />
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {isDemoMode ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                              >
+                                <Lock className="h-3 w-3 mr-1" />
+                                Remove
+                              </Button>
+                            ) : (
+                              <ScopeMenu
+                                trigger={
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isProcessing}
+                                  >
+                                    <MoreHorizontal className="h-3 w-3 mr-1" />
+                                    Remove
+                                  </Button>
+                                }
+                                onSelect={(options) => handleRemoveTask(occ, options)}
+                                currentDate={date}
+                              />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isDemoMode ? "Sign in and open a real plan to change tasks" : "Remove task"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                 );

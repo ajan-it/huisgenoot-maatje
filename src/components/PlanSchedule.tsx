@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, User, Clock, MoreHorizontal } from "lucide-react";
+import { CheckCircle2, Circle, User, Clock, MoreHorizontal, Lock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ScopeMenu, ScopeOptions } from "@/components/tasks/ScopeMenu";
 import { ConfirmPill } from "@/components/tasks/ConfirmPill";
@@ -63,7 +64,7 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
     },
   });
 
-  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing } = useTaskActions(householdId || "");
+  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing, isDemoMode } = useTaskActions(householdId || "");
 
   const handleRemoveTask = async (assignment: Assignment, options: ScopeOptions) => {
     if (!householdId) return;
@@ -189,20 +190,40 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
                       </div>
                       
                       {/* Task Actions Menu */}
-                      <ScopeMenu
-                        trigger={
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                            disabled={isProcessing}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        }
-                        onSelect={(options) => handleRemoveTask(assignment, options)}
-                        currentDate={new Date(assignment.date)}
-                      />
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {isDemoMode ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                                disabled
+                              >
+                                <Lock className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <ScopeMenu
+                                trigger={
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                                    disabled={isProcessing}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                }
+                                onSelect={(options) => handleRemoveTask(assignment, options)}
+                                currentDate={new Date(assignment.date)}
+                              />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isDemoMode ? "Sign in and open a real plan to change tasks" : "Reschedule task"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   ))
                 )}

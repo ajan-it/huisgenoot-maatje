@@ -43,7 +43,7 @@ serve(async (req) => {
     const requestData: CreateOverrideRequest = await req.json()
     const { occurrence_id, action, scope, snooze_until, frequency } = requestData
 
-    console.log('Creating override:', { occurrence_id, action, scope, user_id: user.id })
+    console.log('Creating override:', { occurrence_id, action, scope, user_id: user.id, plan_id: null, household_id: null })
 
     // Get occurrence details and validate
     const { data: occurrence, error: occError } = await supabase
@@ -73,10 +73,10 @@ serve(async (req) => {
 
     // Check if this is a demo/local plan
     if (!household_id || household_id.startsWith('HH_LOCAL') || household_id === '00000000-0000-4000-8000-000000000000') {
-      console.error('Demo plan detected:', household_id)
+      console.log('Demo/local plan detected:', { household_id, plan_id: occurrence.plan_id, occurrence_id, user_id: user.id })
       return new Response(
-        JSON.stringify({ ok: false, code: 'DEMO_MODE', message: 'Task removal is not available for demo plans. Please sign in to use full features.' }),
-        { status:400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, code: 'DEMO_MODE', message: 'Sign in and open a real plan to change tasks.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -164,7 +164,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('Override created successfully:', override.id)
+    console.log('Override created successfully:', { override_id: override.id, household_id, plan_id: occurrence.plan_id, task_id: occurrence.task_id, action, scope })
 
     return new Response(
       JSON.stringify({ 
