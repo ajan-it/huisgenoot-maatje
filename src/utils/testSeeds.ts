@@ -121,15 +121,23 @@ export async function seedTestHousehold() {
 
     // Generate September 2025 plan for the current household
     console.log('🎯 Generating plan for household:', householdId);
-    const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate-with-overrides', {
+    
+    // Use the newer plan-generate function which works with existing data
+    const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate', {
       body: {
+        event: "generate_plan",
+        version: "2025-08-11",
         household_id: householdId,
-        date_range: {
-          start: '2025-09-01',
-          end: '2025-09-30'
-        },
-        context: 'monthly_test',
-        selected_tasks: [] // Use default tasks
+        week_start: "2025-09-01", // Start of September 2025
+        timezone: "Europe/Amsterdam",
+        locale: "nl",
+        requested_by_person_id: people?.[0]?.id || currentSession.user.id,
+        dry_run: false,
+        idempotency_key: `${householdId}-2025-09-01`,
+        settings: {
+          lighten_weekdays: false,
+          kids_weekends_only: false
+        }
       }
     });
 
@@ -140,20 +148,77 @@ export async function seedTestHousehold() {
 
     console.log('✅ Generated September 2025 plan:', planData);
 
+    // Also generate for the rest of September if needed
+    const { data: planData2, error: planError2 } = await supabase.functions.invoke('plan-generate', {
+      body: {
+        event: "generate_plan",
+        version: "2025-08-11",
+        household_id: householdId,
+        week_start: "2025-09-08", // Second week
+        timezone: "Europe/Amsterdam",
+        locale: "nl",
+        requested_by_person_id: people?.[0]?.id || currentSession.user.id,
+        dry_run: false,
+        idempotency_key: `${householdId}-2025-09-08`,
+        settings: {
+          lighten_weekdays: false,
+          kids_weekends_only: false
+        }
+      }
+    });
+
+    // Third week
+    const { data: planData3, error: planError3 } = await supabase.functions.invoke('plan-generate', {
+      body: {
+        event: "generate_plan",
+        version: "2025-08-11",
+        household_id: householdId,
+        week_start: "2025-09-15", // Third week
+        timezone: "Europe/Amsterdam",
+        locale: "nl",
+        requested_by_person_id: people?.[0]?.id || currentSession.user.id,
+        dry_run: false,
+        idempotency_key: `${householdId}-2025-09-15`,
+        settings: {
+          lighten_weekdays: false,
+          kids_weekends_only: false
+        }
+      }
+    });
+
+    // Fourth week
+    const { data: planData4, error: planError4 } = await supabase.functions.invoke('plan-generate', {
+      body: {
+        event: "generate_plan",
+        version: "2025-08-11",
+        household_id: householdId,
+        week_start: "2025-09-22", // Fourth week
+        timezone: "Europe/Amsterdam",
+        locale: "nl",
+        requested_by_person_id: people?.[0]?.id || currentSession.user.id,
+        dry_run: false,
+        idempotency_key: `${householdId}-2025-09-22`,
+        settings: {
+          lighten_weekdays: false,
+          kids_weekends_only: false
+        }
+      }
+    });
+
     // Verify occurrences were created
     const { data: verifyOccurrences, error: verifyError } = await supabase
       .from('occurrences')
       .select('id, date, tasks(name), people(first_name)')
       .gte('date', '2025-09-01')
       .lte('date', '2025-09-30')
-      .limit(5);
+      .limit(10);
 
     if (verifyError) {
       console.error('❌ Failed to verify occurrences:', verifyError);
     } else {
       console.log('✅ Verified occurrences created:', {
         count: verifyOccurrences?.length || 0,
-        samples: verifyOccurrences?.slice(0, 3).map(o => ({
+        samples: verifyOccurrences?.slice(0, 5).map(o => ({
           date: o.date,
           task: (o as any).tasks?.name,
           person: (o as any).people?.first_name
@@ -161,7 +226,12 @@ export async function seedTestHousehold() {
       });
     }
 
-    return { householdId, people, planData, occurrenceCount: verifyOccurrences?.length || 0 };
+    return { 
+      householdId, 
+      people, 
+      planData: [planData, planData2, planData3, planData4], 
+      occurrenceCount: verifyOccurrences?.length || 0 
+    };
 
   } catch (error) {
     console.error('❌ Error seeding test household:', error);

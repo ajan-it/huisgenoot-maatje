@@ -32,20 +32,27 @@ export function usePlanSelection({ dateRange }: UsePlanSelectionParams) {
         return { householdId: null, selectedPlanId: null, plans: [], isFallback: false };
       }
       
-      // Get household
-      const { data: household, error: householdError } = await supabase
+      // Get user's household memberships - handle multiple households
+      const { data: memberships, error: membershipError } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
+        .eq('user_id', session.user.id);
       
-      if (householdError || !household) {
-        console.log('❌ No household found:', householdError);
+      if (membershipError) {
+        console.log('❌ Error fetching household memberships:', membershipError);
         return { householdId: null, selectedPlanId: null, plans: [], isFallback: false };
       }
 
-      const householdId = household.household_id;
-      console.log('🏠 Found household:', householdId);
+      if (!memberships || memberships.length === 0) {
+        console.log('❌ User has no household memberships');
+        return { householdId: null, selectedPlanId: null, plans: [], isFallback: false };
+      }
+
+      console.log('🏠 User belongs to households:', memberships.map(m => m.household_id));
+
+      // For now, use the first household - later we can add household selection logic
+      const householdId = memberships[0].household_id;
+      console.log('🎯 Selected household for plan lookup:', householdId);
 
       // Get all plans for this household
       const { data: allPlans, error: plansError } = await supabase

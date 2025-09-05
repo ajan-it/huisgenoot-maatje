@@ -60,21 +60,22 @@ const CalendarYear = () => {
     showBoosts: searchParams.get('boosts') === 'true'
   }), [searchParams]);
 
-  // Get current household
+  // Get current household - handle multiple households
   const { data: householdId } = useQuery({
     queryKey: ['current-household'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return null;
       
-      const { data, error } = await supabase
+      const { data: memberships, error } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('user_id', session.user.id)
-        .single();
+        .eq('user_id', session.user.id);
       
       if (error) throw error;
-      return data?.household_id;
+      
+      // Use first household if multiple exist
+      return memberships?.[0]?.household_id || null;
     },
   });
 

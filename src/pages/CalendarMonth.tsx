@@ -44,21 +44,22 @@ const CalendarMonth = () => {
     showBoosts: searchParams.get('boosts') === 'true'
   }), [searchParams]);
 
-  // Get current household
+  // Get current household - handle multiple households  
   const { data: householdId } = useQuery({
     queryKey: ['current-household'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return null;
       
-      const { data, error } = await supabase
+      const { data: memberships, error } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('user_id', session.user.id)
-        .single();
+        .eq('user_id', session.user.id);
       
       if (error) throw error;
-      return data?.household_id;
+      
+      // Use first household if multiple exist
+      return memberships?.[0]?.household_id || null;
     },
   });
 
@@ -128,12 +129,18 @@ const CalendarMonth = () => {
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-            📊 Month View: Plan {debugInfo.selectedPlanId?.slice(0, 8)}... | 
+            📊 Month View Debug - Household: {debugInfo.householdId?.slice(0, 8)}... | 
+            Plan: {debugInfo.selectedPlanId?.slice(0, 8)}... | 
             Range: {debugInfo.dateRange} | 
-            Count: {debugInfo.fetchedCount} occurrences
+            Count: {debugInfo.fetchedCount} occurrences |
+            Plans: {debugInfo.planCount}
             {debugInfo.isFallback && (
               <span className="ml-2 text-red-600 dark:text-red-400">⚠️ Fallback Plan</span>
             )}
+          </div>
+          <div className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+            Query: {loading ? 'Loading...' : 'Complete'} |
+            First 3 IDs: {debugInfo.firstThreeOccurrenceIds?.join(', ') || 'none'}
           </div>
           {!planSelection?.householdId && (
             <div className="mt-2 text-xs text-red-600 dark:text-red-400">
@@ -198,27 +205,40 @@ const CalendarMonth = () => {
                 <summary>Debug Info</summary>
                 <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
               </details>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const { seedTestHousehold, runCalendarTests } = await import('@/utils/testSeeds');
-                  try {
-                    const result = await seedTestHousehold();
-                    if (result) {
-                      console.log('✅ Seeded test data, running tests...');
-                      await runCalendarTests(result.householdId);
-                      // Force refresh the queries
-                      window.location.reload();
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const { debugOccurrences } = await import('@/utils/debugOccurrences');
+                    await debugOccurrences();
+                  }}
+                  className="text-xs"
+                >
+                  🔍 Debug Data
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const { seedTestHousehold, runCalendarTests } = await import('@/utils/testSeeds');
+                    try {
+                      const result = await seedTestHousehold();
+                      if (result) {
+                        console.log('✅ Seeded test data, running tests...');
+                        await runCalendarTests(result.householdId);
+                        // Force complete refresh of all queries
+                        window.location.reload();
+                      }
+                    } catch (error) {
+                      console.error('❌ Seed failed:', error);
                     }
-                  } catch (error) {
-                    console.error('❌ Seed failed:', error);
-                  }
-                }}
-                className="text-xs"
-              >
-                🧪 Seed Test Data & Login
-              </Button>
+                  }}
+                  className="text-xs"
+                >
+                  🧪 Seed Test Data & Login
+                </Button>
+              </div>
             </div>
           )}
         </div>
