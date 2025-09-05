@@ -1,8 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, User, Clock } from "lucide-react";
+import { CheckCircle2, Circle, User, Clock, MoreHorizontal } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { ScopeMenu, ScopeOptions } from "@/components/tasks/ScopeMenu";
+import { ConfirmPill } from "@/components/tasks/ConfirmPill";
+import { FairnessHint } from "@/components/tasks/FairnessHint";
+import { useTaskActions } from "@/hooks/useTaskActions";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Assignment {
   id: string;
@@ -38,6 +44,38 @@ const categoryColors: Record<string, string> = {
 export default function PlanSchedule({ assignments, people, weekStart }: PlanScheduleProps) {
   const { lang } = useI18n();
   const L = lang === "en";
+
+  // Get current household
+  const { data: householdId } = useQuery({
+    queryKey: ['current-household'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
+      
+      const { data, error } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      
+      if (error || !data) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
+      return data.household_id;
+    },
+  });
+
+  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing } = useTaskActions(householdId || "");
+
+  const handleRemoveTask = async (assignment: Assignment, options: ScopeOptions) => {
+    if (!householdId) return;
+    
+    await removeTask({
+      taskId: assignment.task_id,
+      taskName: assignment.task_name,
+      scope: options.scope,
+      snoozeUntil: options.snoozeUntil,
+      baseDate: new Date(assignment.date)
+    });
+  };
 
   // Group assignments by date
   const assignmentsByDate = assignments.reduce((acc, assignment) => {
@@ -109,7 +147,7 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
                   dateAssignments.map(assignment => (
                     <div
                       key={assignment.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      className="group flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                     >
                       <Button
                         variant="ghost"
@@ -148,6 +186,22 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Task Actions Menu */}
+                      <ScopeMenu
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                            disabled={isProcessing}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                        onSelect={(options) => handleRemoveTask(assignment, options)}
+                        currentDate={new Date(assignment.date)}
+                      />
                     </div>
                   ))
                 )}
@@ -156,6 +210,23 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
           );
         })}
       </div>
+
+      {/* Fairness Hint */}
+      {actionState.confirmPill && actionState.confirmPill.shiftedPoints >= 30 && (
+        <FairnessHint
+          shiftedPoints={actionState.confirmPill.shiftedPoints}
+          className="mb-4"
+        />
+      )}
+
+      {/* Confirm Pill */}
+      {actionState.confirmPill && (
+        <ConfirmPill
+          message={actionState.confirmPill.message}
+          onUndo={undoRemove}
+          onDismiss={dismissConfirmPill}
+        />
+      )}
     </div>
   );
 }

@@ -11,10 +11,15 @@ import {
   CheckCircle, 
   ArrowUpDown, 
   MoveRight,
-  Zap
+  Zap,
+  MoreHorizontal
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { TaskQuickActions } from "@/components/calendar/TaskQuickActions";
+import { ScopeMenu, ScopeOptions } from "@/components/tasks/ScopeMenu";
+import { ConfirmPill } from "@/components/tasks/ConfirmPill";
+import { FairnessHint } from "@/components/tasks/FairnessHint";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { format } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +53,20 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
       return data?.household_id;
     },
   });
+
+  const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing } = useTaskActions(householdId || "");
+
+  const handleRemoveTask = async (occurrence: any, options: ScopeOptions) => {
+    if (!householdId) return;
+    
+    await removeTask({
+      taskId: occurrence.task_id,
+      taskName: occurrence.tasks?.name || 'Unknown Task',
+      scope: options.scope,
+      snoozeUntil: options.snoozeUntil,
+      baseDate: date
+    });
+  };
 
   if (!date) return null;
 
@@ -199,51 +218,87 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center space-x-2 pt-2">
-                      {occ.status !== 'done' && (
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center space-x-2">
+                        {occ.status !== 'done' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleTaskAction(occ.id, 'complete')}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            {t('mark_done')}
+                          </Button>
+                        )}
+                        
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleTaskAction(occ.id, 'complete')}
+                          onClick={() => handleTaskAction(occ.id, 'swap')}
                         >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          {t('mark_done')}
+                          <ArrowUpDown className="h-3 w-3 mr-1" />
+                          {t('swap')}
                         </Button>
-                      )}
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleTaskAction(occ.id, 'swap')}
-                      >
-                        <ArrowUpDown className="h-3 w-3 mr-1" />
-                        {t('swap')}
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleTaskAction(occ.id, 'move')}
-                      >
-                        <MoveRight className="h-3 w-3 mr-1" />
-                        {t('move')}
-                      </Button>
-                      
-                      {occ.is_critical && (
+                        
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleTaskAction(occ.id, 'boost')}
+                          onClick={() => handleTaskAction(occ.id, 'move')}
                         >
-                          <Zap className="h-3 w-3 mr-1" />
-                          {t('boost')}
+                          <MoveRight className="h-3 w-3 mr-1" />
+                          {t('move')}
                         </Button>
-                      )}
+                        
+                        {occ.is_critical && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleTaskAction(occ.id, 'boost')}
+                          >
+                            <Zap className="h-3 w-3 mr-1" />
+                            {t('boost')}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Remove Task Menu */}
+                      <ScopeMenu
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isProcessing}
+                          >
+                            <MoreHorizontal className="h-3 w-3 mr-1" />
+                            Remove
+                          </Button>
+                        }
+                        onSelect={(options) => handleRemoveTask(occ, options)}
+                        currentDate={date}
+                      />
                     </div>
                   </div>
                 );
               })}
           </div>
+        )}
+
+        {/* Fairness Hint */}
+        {actionState.confirmPill && actionState.confirmPill.shiftedPoints >= 30 && (
+          <div className="mt-4">
+            <FairnessHint
+              shiftedPoints={actionState.confirmPill.shiftedPoints}
+            />
+          </div>
+        )}
+
+        {/* Confirm Pill */}
+        {actionState.confirmPill && (
+          <ConfirmPill
+            message={actionState.confirmPill.message}
+            onUndo={undoRemove}
+            onDismiss={dismissConfirmPill}
+          />
         )}
       </SheetContent>
     </Sheet>

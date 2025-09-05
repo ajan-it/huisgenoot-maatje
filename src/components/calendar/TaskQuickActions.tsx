@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TaskPickerPanel } from '@/components/tasks/TaskPickerPanel';
 import { ScopeMenu, ScopeOptions } from '@/components/tasks/ScopeMenu';
+import { useTaskActions } from '@/hooks/useTaskActions';
 
 interface TaskQuickActionsProps {
   householdId: string;
@@ -14,11 +15,19 @@ interface TaskQuickActionsProps {
 
 export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate }: TaskQuickActionsProps) {
   const [showTaskPicker, setShowTaskPicker] = useState(false);
+  const { removeTask } = useTaskActions(householdId);
 
   const handleScopeSelect = async (options: ScopeOptions) => {
-    // Handle task removal/modification
-    console.log('Task scope action:', options);
-    onTaskUpdate?.();
+    if (taskId) {
+      await removeTask({
+        taskId,
+        taskName: 'Task',
+        scope: options.scope,
+        snoozeUntil: options.snoozeUntil,
+        baseDate: date
+      });
+      onTaskUpdate?.();
+    }
   };
 
   return (
