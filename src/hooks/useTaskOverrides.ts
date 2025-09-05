@@ -51,13 +51,25 @@ export function useTaskOverrides(householdId?: string) {
   // Create override mutation
   const createOverride = useMutation({
     mutationFn: async (params: CreateOverrideParams) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const overrideData = {
+        ...params,
+        created_by: user.id
+      };
+
       const { data, error } = await supabase
         .from('task_overrides')
-        .insert(params)
+        .insert(overrideData)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Task override creation error:', error);
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
