@@ -135,6 +135,11 @@ const CalendarMonth = () => {
               <span className="ml-2 text-red-600 dark:text-red-400">⚠️ Fallback Plan</span>
             )}
           </div>
+          {!planSelection?.householdId && (
+            <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+              ⚠️ No household found - user may need to authenticate or join a household
+            </div>
+          )}
         </div>
       )}
 
@@ -203,6 +208,8 @@ const CalendarMonth = () => {
                     if (result) {
                       console.log('✅ Seeded test data, running tests...');
                       await runCalendarTests(result.householdId);
+                      // Force refresh the queries
+                      window.location.reload();
                     }
                   } catch (error) {
                     console.error('❌ Seed failed:', error);
@@ -210,7 +217,7 @@ const CalendarMonth = () => {
                 }}
                 className="text-xs"
               >
-                🧪 Seed Test Data
+                🧪 Seed Test Data & Login
               </Button>
             </div>
           )}

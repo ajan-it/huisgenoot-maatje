@@ -21,6 +21,12 @@ export function usePlanSelection({ dateRange }: UsePlanSelectionParams) {
     queryKey: ['plan-selection', format(dateRange.start, 'yyyy-MM-dd'), format(dateRange.end, 'yyyy-MM-dd')],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔐 Authentication check:', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user, 
+        userId: session?.user?.id 
+      });
+      
       if (!session?.user) {
         console.log('❌ No authenticated user');
         return { householdId: null, selectedPlanId: null, plans: [], isFallback: false };

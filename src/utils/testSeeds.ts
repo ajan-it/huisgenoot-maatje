@@ -2,18 +2,58 @@ import { supabase } from "@/integrations/supabase/client";
 
 export async function seedTestHousehold() {
   try {
-    // Check if we already have a test household
+    // First check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
+    
     if (!session?.user) {
-      console.error('No authenticated user for seeding');
-      return null;
+      // For development: try to sign in as a test user or create one
+      console.log('🔐 No authenticated user, attempting to create/sign in test user...');
+      
+      const testEmail = 'test@example.com';
+      const testPassword = 'testpassword123';
+      
+      // Try to sign in first
+      let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: testEmail,
+        password: testPassword,
+      });
+      
+      if (signInError && signInError.message?.includes('Invalid login credentials')) {
+        // User doesn't exist, create them
+        console.log('👤 Creating test user...');
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: testEmail,
+          password: testPassword,
+        });
+        
+        if (signUpError) {
+          console.error('❌ Failed to create test user:', signUpError);
+          throw signUpError;
+        }
+        
+        signInData = signUpData;
+      } else if (signInError) {
+        console.error('❌ Failed to sign in test user:', signInError);
+        throw signInError;
+      }
+      
+      console.log('✅ Test user authenticated:', signInData.user?.email);
+      
+      // Wait a moment for session to be established
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // Get fresh session after authentication
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (!currentSession?.user) {
+      throw new Error('Failed to establish authenticated session');
     }
 
     // Get or create household
     let { data: existingMember } = await supabase
       .from('household_members')
       .select('household_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', currentSession.user.id)
       .maybeSingle();
 
     let householdId: string;
