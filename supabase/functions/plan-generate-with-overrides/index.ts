@@ -16,6 +16,12 @@ interface GenerateRequest {
   selected_tasks?: string[]
 }
 
+interface DiffSummary {
+  added: number
+  removed: number
+  shifted_points_by_person: Record<string, number>
+}
+
 interface TaskOverride {
   id: string
   household_id: string
@@ -92,8 +98,9 @@ serve(async (req) => {
 
     console.log('Generated occurrences:', occurrences.length)
 
-    // Calculate fairness impact
+    // Calculate fairness impact and diff summary
     const fairnessImpact = calculateFairnessImpact(occurrences, people)
+    const diffSummary = calculateDiffSummary(effectiveTasks, allTasks, overrides as TaskOverride[], people)
 
     return new Response(
       JSON.stringify({
@@ -101,9 +108,11 @@ serve(async (req) => {
         occurrences_count: occurrences.length,
         fairness_impact: fairnessImpact,
         overrides_applied: overrides.length,
+        diff_summary: diffSummary,
         data: {
           occurrences,
-          fairness_impact: fairnessImpact
+          fairness_impact: fairnessImpact,
+          diff_summary: diffSummary
         }
       }),
       { 
@@ -324,4 +333,52 @@ function calculateFairnessImpact(occurrences: any[], people: any[]): any {
   })
   
   return impact
+}
+
+function calculateDiffSummary(
+  effectiveTasks: any[], 
+  originalTasks: any[], 
+  overrides: TaskOverride[], 
+  people: any[]
+): DiffSummary {
+  const originalActiveTasks = originalTasks.filter(task => task.active)
+  
+  // Count additions and removals
+  const added = effectiveTasks.filter(task => 
+    !originalActiveTasks.find(orig => orig.id === task.id)
+  ).length
+  
+  const removed = originalActiveTasks.filter(orig => 
+    !effectiveTasks.find(task => task.id === orig.id)
+  ).length
+  
+  // Calculate shifted points by person based on overrides
+  const shiftedPointsByPerson: Record<string, number> = {}
+  people.forEach(person => {
+    shiftedPointsByPerson[person.id] = 0
+  })
+  
+  // Simple estimation: assume each override shifts points proportionally
+  overrides.forEach(override => {
+    const task = originalTasks.find(t => t.id === override.task_id)
+    if (task) {
+      const taskPoints = (task.default_duration || 30) * (task.difficulty || 1)
+      const pointShift = override.action === 'exclude' ? -taskPoints : taskPoints
+      
+      // Distribute the shift across people (simplified)
+      const personIds = people.map(p => p.id)
+      if (personIds.length > 0) {
+        const shiftPerPerson = pointShift / personIds.length
+        personIds.forEach(personId => {
+          shiftedPointsByPerson[personId] += shiftPerPerson
+        })
+      }
+    }
+  })
+  
+  return {
+    added,
+    removed,
+    shifted_points_by_person: shiftedPointsByPerson
+  }
 }

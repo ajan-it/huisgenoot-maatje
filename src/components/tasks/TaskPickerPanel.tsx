@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScopeMenu, ScopeOptions } from './ScopeMenu';
 import { BulkActionBar } from './BulkActionBar';
 import { ConfirmPill } from './ConfirmPill';
+import { FairnessHint } from './FairnessHint';
 
 interface TaskPickerPanelProps {
   householdId: string;
@@ -27,7 +28,11 @@ interface TaskAction {
 export function TaskPickerPanel({ householdId, dateRange, onClose }: TaskPickerPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-  const [confirmPill, setConfirmPill] = useState<{ message: string; undo: () => void } | null>(null);
+  const [confirmPill, setConfirmPill] = useState<{ 
+    message: string; 
+    undo: () => void;
+    shiftedPoints?: number;
+  } | null>(null);
   const [pendingActions, setPendingActions] = useState<TaskAction[]>([]);
 
   // Fetch available tasks
@@ -91,9 +96,13 @@ export function TaskPickerPanel({ householdId, dateRange, onClose }: TaskPickerP
     const actionText = action === 'include' ? 'Added' : 'Removed';
     const scopeText = getScopeText(options.scope);
     
+    const taskPoints = (task.default_duration || 30) * (task.difficulty || 1);
+    const shiftedPoints = action === 'exclude' ? -taskPoints : taskPoints;
+    
     setConfirmPill({
       message: `${actionText} ${task.name} ${scopeText}`,
       undo: () => undoAction(newAction),
+      shiftedPoints,
     });
   };
 
@@ -109,9 +118,17 @@ export function TaskPickerPanel({ householdId, dateRange, onClose }: TaskPickerP
     const actionText = action === 'include' ? 'Added' : action === 'exclude' ? 'Removed' : 'Changed frequency for';
     const scopeText = getScopeText(options.scope);
     
+    // Calculate total shifted points for bulk actions
+    const totalShiftedPoints = actions.reduce((sum, taskAction) => {
+      const task = filteredTasks.find(t => t.id === taskAction.taskId);
+      const taskPoints = task ? (task.default_duration || 30) * (task.difficulty || 1) : 0;
+      return sum + (taskAction.action === 'exclude' ? -taskPoints : taskPoints);
+    }, 0);
+    
     setConfirmPill({
       message: `${actionText} ${selectedTasks.size} tasks ${scopeText}`,
       undo: () => Promise.all(actions.map(undoAction)),
+      shiftedPoints: totalShiftedPoints,
     });
     
     setSelectedTasks(new Set());
@@ -297,6 +314,18 @@ export function TaskPickerPanel({ householdId, dateRange, onClose }: TaskPickerP
         onChangeFrequency={(options) => handleBulkAction('frequency_change', options)}
         onClearSelection={() => setSelectedTasks(new Set())}
       />
+
+      {/* Fairness Hint */}
+      {confirmPill?.shiftedPoints && (
+        <FairnessHint
+          shiftedPoints={confirmPill.shiftedPoints}
+          onRebalance={() => {
+            // TODO: Implement rebalance functionality
+            console.log('Rebalance requested');
+          }}
+          className="mb-4"
+        />
+      )}
 
       {/* Confirm Pill */}
       {confirmPill && (
