@@ -23,9 +23,10 @@ interface ScopeMenuProps {
   trigger: React.ReactNode;
   onSelect: (options: ScopeOptions) => void;
   currentDate?: Date;
+  disabled?: boolean;
 }
 
-export function ScopeMenu({ trigger, onSelect, currentDate = new Date() }: ScopeMenuProps) {
+export function ScopeMenu({ trigger, onSelect, currentDate = new Date(), disabled = false }: ScopeMenuProps) {
   const [snoozeDate, setSnoozeDate] = useState<Date>();
   const [showSnoozeCalendar, setShowSnoozeCalendar] = useState(false);
 
@@ -39,7 +40,7 @@ export function ScopeMenu({ trigger, onSelect, currentDate = new Date() }: Scope
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={disabled}>
         {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">

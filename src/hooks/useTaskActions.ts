@@ -3,6 +3,7 @@ import { useTaskOverrides, CreateOverrideParams } from './useTaskOverrides';
 import { usePlanGeneration } from './usePlanGeneration';
 import { useToast } from './use-toast';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { isDemoMode } from '@/lib/demo-utils';
 
 export interface TaskActionState {
   confirmPill: {
@@ -79,6 +80,16 @@ export function useTaskActions(householdId: string) {
 
   const removeTask = async (options: TaskActionOptions) => {
     const { taskId, taskName, scope, snoozeUntil, baseDate } = options;
+    
+    // Check for demo mode
+    if (isDemoMode(householdId)) {
+      toast({
+        title: "Demo Mode",
+        description: "Task removal is not available in demo mode. Please sign in to use full features.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       const { from, to } = getEffectiveDates(scope, baseDate, snoozeUntil);
@@ -179,5 +190,6 @@ export function useTaskActions(householdId: string) {
     dismissConfirmPill,
     actionState,
     isProcessing: isCreating || isGenerating,
+    isDemoMode: isDemoMode(householdId),
   };
 }

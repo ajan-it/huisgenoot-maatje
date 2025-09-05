@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus, MoreHorizontal } from 'lucide-react';
+import { Plus, MoreHorizontal, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TaskPickerPanel } from '@/components/tasks/TaskPickerPanel';
 import { ScopeMenu, ScopeOptions } from '@/components/tasks/ScopeMenu';
 import { useTaskActions } from '@/hooks/useTaskActions';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TaskQuickActionsProps {
   householdId: string;
@@ -15,7 +16,7 @@ interface TaskQuickActionsProps {
 
 export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate }: TaskQuickActionsProps) {
   const [showTaskPicker, setShowTaskPicker] = useState(false);
-  const { removeTask } = useTaskActions(householdId);
+  const { removeTask, isDemoMode } = useTaskActions(householdId);
 
   const handleScopeSelect = async (options: ScopeOptions) => {
     if (taskId) {
@@ -53,15 +54,29 @@ export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate }: Ta
 
       {/* Task Options (if taskId provided) */}
       {taskId && (
-        <ScopeMenu
-          trigger={
-            <Button variant="ghost" size="sm">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          }
-          onSelect={handleScopeSelect}
-          currentDate={date}
-        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <ScopeMenu
+                  trigger={
+                    <Button variant="ghost" size="sm" disabled={isDemoMode}>
+                      {isDemoMode ? <Lock className="h-4 w-4" /> : <MoreHorizontal className="h-4 w-4" />}
+                    </Button>
+                  }
+                  onSelect={handleScopeSelect}
+                  currentDate={date}
+                  disabled={isDemoMode}
+                />
+              </div>
+            </TooltipTrigger>
+            {isDemoMode && (
+              <TooltipContent>
+                <p>Sign in to remove tasks</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );
