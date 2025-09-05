@@ -51,15 +51,46 @@ export function useTaskOverrides(householdId?: string) {
   // Create override mutation
   const createOverride = useMutation({
     mutationFn: async (params: CreateOverrideParams) => {
+      console.log('Creating task override with params:', params);
+      
+      // Validate household ID format
+      if (!params.household_id || params.household_id === 'HH_LOCAL' || !params.household_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.error('Invalid household_id for task override:', params.household_id);
+        throw new Error('Cannot create task overrides for demo/local plans. Please create a real household first.');
+      }
+      
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      console.log('Current user for override:', user?.id);
+      if (!user) {
+        console.error('No authenticated user found');
+        throw new Error('User not authenticated');
+      }
+
+      // Verify user is household member
+      const { data: membership, error: membershipError } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('household_id', params.household_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (membershipError) {
+        console.error('Error checking household membership:', membershipError);
+        throw new Error('Failed to verify household membership');
+      }
+      
+      if (!membership) {
+        console.error('User is not a member of household:', params.household_id);
+        throw new Error('You are not a member of this household');
+      }
 
       const overrideData = {
         ...params,
         created_by: user.id
       };
 
+      console.log('Inserting override data:', overrideData);
       const { data, error } = await supabase
         .from('task_overrides')
         .insert(overrideData)
@@ -68,8 +99,11 @@ export function useTaskOverrides(householdId?: string) {
       
       if (error) {
         console.error('Task override creation error:', error);
+        console.error('Override data that failed:', overrideData);
         throw error;
       }
+      
+      console.log('Successfully created task override:', data);
       return data;
     },
     onSuccess: () => {
@@ -77,12 +111,22 @@ export function useTaskOverrides(householdId?: string) {
       queryClient.invalidateQueries({ queryKey: ['occurrences'] });
     },
     onError: (error) => {
+      console.error('Create override error:', error);
+      let errorMessage = "Failed to apply task override";
+      
+      if (error.message?.includes('demo/local plans')) {
+        errorMessage = "Task removal is not available for demo plans. Please create a real household first.";
+      } else if (error.message?.includes('not authenticated')) {
+        errorMessage = "Please log in to remove tasks";
+      } else if (error.message?.includes('not a member')) {
+        errorMessage = "You don't have permission to modify this household's tasks";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to apply task override",
+        description: errorMessage,
         variant: "destructive",
       });
-      console.error('Create override error:', error);
     },
   });
 
