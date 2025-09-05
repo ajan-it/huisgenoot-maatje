@@ -119,7 +119,8 @@ export async function seedTestHousehold() {
 
     console.log('✅ Created test people:', people?.map(p => p.first_name));
 
-    // Generate September 2025 plan
+    // Generate September 2025 plan for the current household
+    console.log('🎯 Generating plan for household:', householdId);
     const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate-with-overrides', {
       body: {
         household_id: householdId,
@@ -132,11 +133,35 @@ export async function seedTestHousehold() {
       }
     });
 
-    if (planError) throw planError;
+    if (planError) {
+      console.error('❌ Plan generation failed:', planError);
+      throw planError;
+    }
 
     console.log('✅ Generated September 2025 plan:', planData);
 
-    return { householdId, people, planData };
+    // Verify occurrences were created
+    const { data: verifyOccurrences, error: verifyError } = await supabase
+      .from('occurrences')
+      .select('id, date, tasks(name), people(first_name)')
+      .gte('date', '2025-09-01')
+      .lte('date', '2025-09-30')
+      .limit(5);
+
+    if (verifyError) {
+      console.error('❌ Failed to verify occurrences:', verifyError);
+    } else {
+      console.log('✅ Verified occurrences created:', {
+        count: verifyOccurrences?.length || 0,
+        samples: verifyOccurrences?.slice(0, 3).map(o => ({
+          date: o.date,
+          task: (o as any).tasks?.name,
+          person: (o as any).people?.first_name
+        }))
+      });
+    }
+
+    return { householdId, people, planData, occurrenceCount: verifyOccurrences?.length || 0 };
 
   } catch (error) {
     console.error('❌ Error seeding test household:', error);
