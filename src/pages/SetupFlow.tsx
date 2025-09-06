@@ -24,6 +24,7 @@ import { PLAN_WEBHOOK_URL, PLAN_WEBHOOK_SECRET, TIMEZONE } from "@/config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TOTAL_STEPS = 8;
 
@@ -63,6 +64,7 @@ export default function SetupFlow() {
   const navigate = useNavigate();
   const { draft, setDraft, setHousehold, addPerson, updatePerson, removePerson, adultsCount, toggleEmailConsent, toggleSmsConsent } = useSetupDraft();
   const { t, lang } = useI18n();
+  const { user } = useAuth();
   const steps = (t("setupFlow.steps") as unknown as string[]) || [];
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -191,10 +193,154 @@ export default function SetupFlow() {
     return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
   };
 
+  const createRealHousehold = async () => {
+    if (!user) return null;
+
+    try {
+      // Create household
+      const { data: household, error: householdError } = await supabase
+        .from('households')
+        .insert({
+          postcode: draft.household.postcode || null,
+          timezone: TIMEZONE,
+          settings: {
+            lighten_weekdays: !!draft.household.settings?.lighten_weekdays,
+            kids_weekends_only: !!draft.household.settings?.kids_weekends_only,
+          }
+        })
+        .select()
+        .single();
+
+      if (householdError) throw householdError;
+
+      // Create people records
+      const peopleToInsert = draft.people.map(person => ({
+        household_id: household.id,
+        first_name: person.first_name,
+        role: person.role,
+        locale: person.locale,
+        weekly_time_budget: person.weekly_time_budget || 0,
+        contact: {
+          email: person.email || '',
+          phone: person.phone || ''
+        },
+        disliked_tasks: person.disliked_tags || [],
+        no_go_tasks: person.no_go_tasks || [],
+      }));
+
+      const { data: people, error: peopleError } = await supabase
+        .from('people')
+        .insert(peopleToInsert)
+        .select();
+
+      if (peopleError) throw peopleError;
+
+      // Create blackout slots
+      if (draft.blackouts.length > 0) {
+        const blackoutsToInsert = draft.blackouts.map(blackout => {
+          const person = people.find(p => p.id === blackout.person_id);
+          return {
+            person_id: person?.id,
+            days: blackout.days,
+            start: blackout.start,
+            end: blackout.end,
+            label: blackout.label || '',
+            description: blackout.note,
+          };
+        }).filter(b => b.person_id);
+
+        if (blackoutsToInsert.length > 0) {
+          const { error: blackoutError } = await supabase
+            .from('blackout_slots')
+            .insert(blackoutsToInsert);
+
+          if (blackoutError) throw blackoutError;
+        }
+      }
+
+      // Create tasks
+      if (draft.tasks.length > 0) {
+        const tasksToInsert = draft.tasks
+          .filter(task => task.active)
+          .map(task => {
+            const seedTask = SEED_TASKS.find(s => s.id === task.id);
+            if (!seedTask) return null;
+            
+            // Map category to allowed values, default to 'cleaning' for unmapped categories
+            const allowedCategories = ['kitchen', 'bathroom', 'cleaning', 'admin', 'childcare', 'errands', 'maintenance', 'selfcare', 'social', 'garden', 'outdoor', 'organizing', 'health', 'safety'];
+            const mappedCategory = allowedCategories.includes(seedTask.category) ? seedTask.category : 'cleaning';
+            
+            // Map frequency to allowed database values
+            const frequencyMap: Record<string, string> = {
+              'two_per_week': 'weekly',
+              'three_per_week': 'weekly',
+              'biweekly': 'weekly',
+              'custom': 'monthly'
+            };
+            const mappedFrequency = frequencyMap[seedTask.frequency] || seedTask.frequency;
+            
+            return {
+              household_id: household.id,
+              name: seedTask.name,
+              category: mappedCategory as any,
+              default_duration: seedTask.default_duration,
+              difficulty: seedTask.difficulty,
+              frequency: mappedFrequency as any,
+              tags: seedTask.tags || [],
+              seasonal_months: (seedTask as any).seasonal_months || null,
+              is_template: false,
+              active: true,
+            };
+          })
+          .filter(Boolean);
+
+        if (tasksToInsert.length > 0) {
+          const { error: tasksError } = await supabase
+            .from('tasks')
+            .insert(tasksToInsert);
+
+          if (tasksError) throw tasksError;
+        }
+      }
+
+      return { household, people };
+    } catch (error) {
+      console.error('Failed to create real household:', error);
+      throw error;
+    }
+  };
+
   const generatePlan = async () => {
     const week_start = nextMondayISO();
-    const household_id = "HH_LOCAL"; // local draft id placeholder
-    const requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
+    let household_id = "HH_LOCAL"; // fallback for demo mode
+    let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
+    
+    // If user is authenticated, create real household
+    if (user) {
+      try {
+        const realHousehold = await createRealHousehold();
+        if (realHousehold) {
+          household_id = realHousehold.household.id;
+          requested_by_person_id = realHousehold.people.find(p => p.role === 'adult')?.id || realHousehold.people[0]?.id;
+          
+          // Clear demo data from localStorage after successful real household creation
+          localStorage.removeItem('setupDraft');
+          
+          toast({ 
+            title: lang === "en" ? "Household created" : "Huishouden aangemaakt", 
+            description: lang === "en" ? "Your real household has been created" : "Je echte huishouden is aangemaakt" 
+          });
+        }
+      } catch (error) {
+        console.error('Failed to create real household, falling back to demo mode:', error);
+        toast({ 
+          title: lang === "en" ? "Using demo mode" : "Demo modus wordt gebruikt", 
+          description: lang === "en" ? "Failed to create household, using demo data" : "Kon huishouden niet aanmaken, demo data wordt gebruikt",
+          variant: "destructive"
+        });
+      }
+    }
+
     const locale = draft.people[0]?.locale || (lang as any);
     const payload = {
       event: "generate_plan",

@@ -46,8 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // Clear any cached plan data
+    // Clear any cached plan data and setup drafts
     localStorage.removeItem('lastPlanResponse');
+    localStorage.removeItem('setupDraft');
   };
 
   const value = {
