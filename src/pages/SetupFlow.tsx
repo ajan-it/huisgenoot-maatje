@@ -67,7 +67,7 @@ export default function SetupFlow() {
   const navigate = useNavigate();
   const { draft, setDraft, setHousehold, addPerson, updatePerson, removePerson, adultsCount, toggleEmailConsent, toggleSmsConsent } = useSetupDraft();
   const { t, lang } = useI18n();
-  const { user, session } = useAuth();
+  const { user, session, loading } = useAuth();
   
   // Resolve real context for this setup flow
   const realContext = resolveRealContext({
@@ -207,6 +207,12 @@ export default function SetupFlow() {
     if (import.meta.env.DEV) {
       console.log('Creating household for user:', userId.slice(0, 8) + '...');
     }
+    
+    // Verify we have auth context before attempting database operations
+    const { data: currentUser, error: userError } = await supabase.auth.getUser();
+    if (userError || !currentUser?.user || currentUser.user.id !== userId) {
+      throw new Error(`Auth context invalid: ${userError?.message || 'User mismatch'}`);
+    }
 
     try {
       // Create household with explicit created_by to satisfy RLS
@@ -328,17 +334,33 @@ export default function SetupFlow() {
     let household_id = "HH_LOCAL"; // fallback for demo mode
     let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
     
-    // Check authentication directly instead of using realContext.isDemo
-    const userId = session?.user?.id;
+    // Force session refresh to ensure we have valid auth state
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
     
     if (import.meta.env.DEV) {
-      console.log('[Auth] session?.user?.id', session?.user?.id);
-      console.log('[Flow] real vs demo branch taken:', !!session?.user?.id ? 'REAL' : 'DEMO');
+      console.log('🔄 Session refresh result:', {
+        userId: userId?.slice(0, 8) + '...',
+        hasSession: !!sessionData?.session,
+        sessionError,
+        accessToken: sessionData?.session?.access_token ? 'present' : 'missing'
+      });
+      console.log('[Flow] real vs demo branch taken:', !!userId ? 'REAL' : 'DEMO');
     }
     
     // If user is authenticated, ALWAYS create real household
-    if (userId) {
+    if (userId && sessionData?.session) {
       try {
+        // Verify auth state with a simple auth test
+        const { data: authTest, error: authError } = await supabase.auth.getUser();
+        if (authError || !authTest?.user) {
+          throw new Error(`Auth verification failed: ${authError?.message || 'No user'}`);
+        }
+        
+        if (import.meta.env.DEV) {
+          console.log('✅ Auth verification passed for user:', authTest.user.id.slice(0, 8) + '...');
+        }
+        
         const realHousehold = await createRealHousehold(userId);
         if (realHousehold) {
           household_id = realHousehold.household.id;
@@ -356,12 +378,14 @@ export default function SetupFlow() {
             title: lang === "en" ? "Household created" : "Huishouden aangemaakt", 
             description: lang === "en" ? "Your real household has been created" : "Je echte huishouden is aangemaakt" 
           });
+        } else {
+          throw new Error('createRealHousehold returned null');
         }
       } catch (error) {
         console.error('[Household RLS]', error);
         toast({ 
           title: "Failed to create household", 
-          description: error instanceof Error ? error.message : "Authentication or permission error",
+          description: error instanceof Error ? error.message : "Authentication or permission error. Please try refreshing the page.",
           variant: "destructive"
         });
         setGenerating(false);
@@ -889,8 +913,8 @@ export default function SetupFlow() {
                 <Button variant="outline" onClick={onBack} disabled={generating}>
                   {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={generatePlan} disabled={!privacyAccepted || generating}>
-                  {generating ? "Bezig..." : "Genereer weekplan"}
+                <Button onClick={generatePlan} disabled={!privacyAccepted || generating || loading}>
+                  {generating ? "Bezig..." : loading ? "Authenticatie laden..." : "Genereer weekplan"}
                 </Button>
               </div>
             </CardContent>
