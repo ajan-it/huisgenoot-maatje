@@ -36,6 +36,14 @@ export const UserMenu = () => {
         size="sm"
         onClick={() => navigate('/auth')}
         className="border-border hover:bg-accent hover:text-accent-foreground min-w-[80px]"
+        style={{ 
+          backgroundColor: '#FF0000 !important',
+          color: '#FFFFFF !important',
+          border: '3px solid black !important',
+          fontSize: '16px !important',
+          fontWeight: 'bold !important',
+          zIndex: 9999
+        }}
       >
         {lang === 'nl' ? 'Inloggen' : 'Sign In'}
       </Button>
@@ -64,18 +72,51 @@ export const UserMenu = () => {
   };
 
   return (
-    <div className="flex items-center">
+    <div 
+      className="flex items-center z-50" 
+      style={{ 
+        backgroundColor: 'red', 
+        border: '3px solid blue', 
+        padding: '4px',
+        minWidth: '50px',
+        minHeight: '40px'
+      }}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Button 
+            variant="ghost" 
+            className="relative h-8 w-8 rounded-full bg-yellow-500 hover:bg-yellow-400"
+            style={{ 
+              backgroundColor: '#FFD700 !important',
+              border: '2px solid black',
+              zIndex: 9999
+            }}
+          >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+              <AvatarFallback 
+                className="text-xs font-bold text-black"
+                style={{ 
+                  backgroundColor: '#00FF00 !important',
+                  color: '#000000 !important',
+                  border: '1px solid black'
+                }}
+              >
                 {getInitials(user.email || 'U')}
               </AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent 
+        className="w-56 bg-white border-2 border-black shadow-lg" 
+        align="end" 
+        forceMount
+        style={{ 
+          backgroundColor: '#FFFFFF !important',
+          border: '2px solid black !important',
+          zIndex: 9999
+        }}
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
