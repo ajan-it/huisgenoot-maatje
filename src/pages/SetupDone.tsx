@@ -9,6 +9,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 function useLastPlan() {
   const [plan, setPlan] = useState<null | any>(null);
   useEffect(() => {
@@ -64,11 +66,59 @@ const SetupDone = () => {
   const navigate = useNavigate();
   const h1Ref = useRef<HTMLHeadingElement>(null);
   const { lang, t } = useI18n();
+  const { session } = useAuth();
   const L = lang === "en";
 
   useEffect(() => {
     h1Ref.current?.focus();
   }, []);
+
+  // If user is authenticated, redirect to their latest real plan instead of using localStorage
+  useEffect(() => {
+    if (!session?.user) return; // guests keep demo behavior
+
+    (async () => {
+      try {
+        if (import.meta.env.DEV) {
+          console.log('🔍 SetupDone: Authenticated user, checking for real plans');
+        }
+        
+        // resolve latest household for this user (owner/member)
+        const { data: hhList, error: hhErr } = await supabase
+          .from("household_members")
+          .select("household_id")
+          .eq("user_id", session.user.id)
+          .limit(1);
+
+        if (hhErr || !hhList?.length) {
+          if (import.meta.env.DEV) {
+            console.log('⚠️ SetupDone: No household found for user');
+          }
+          return;
+        }
+
+        const householdId = hhList[0].household_id;
+
+        // get most-recent plan week_start for this household
+        const { data: planList } = await supabase
+          .from("plans")
+          .select("week_start")
+          .eq("household_id", householdId)
+          .order("week_start", { ascending: false })
+          .limit(1);
+
+        if (planList?.[0]?.week_start) {
+          const realPlanRoute = `/plan/${householdId}-${planList[0].week_start}`;
+          if (import.meta.env.DEV) {
+            console.log('🎯 SetupDone: Redirecting to real plan:', realPlanRoute);
+          }
+          navigate(realPlanRoute);
+        }
+      } catch (error) {
+        console.error('❌ SetupDone: Error checking for real plans:', error);
+      }
+    })();
+  }, [session?.user, navigate]);
 
   const weekStartStr = plan?.week_start as string | undefined;
   const fairness = plan?.fairness ?? 0;

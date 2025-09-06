@@ -325,8 +325,18 @@ export default function SetupFlow() {
     let household_id = "HH_LOCAL"; // fallback for demo mode
     let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
     
-    // If user is authenticated and not in demo mode, create real household
-    if (!realContext.isDemo && realContext.userId) {
+    // Check authentication directly instead of using realContext.isDemo
+    const userId = session?.user?.id;
+    
+    if (import.meta.env.DEV) {
+      console.log('🔄 SetupFlow generatePlan:', {
+        userId: userId?.slice(0, 8) + '...',
+        hasSession: !!session
+      });
+    }
+    
+    // If user is authenticated, ALWAYS create real household
+    if (userId) {
       try {
         const realHousehold = await createRealHousehold();
         if (realHousehold) {
@@ -335,6 +345,11 @@ export default function SetupFlow() {
           
           // Clear demo data from localStorage after successful real household creation
           localStorage.removeItem('setupDraft');
+          localStorage.removeItem('lastPlanResponse');
+          
+          if (import.meta.env.DEV) {
+            console.log('✅ Real household created:', household_id);
+          }
           
           toast({ 
             title: lang === "en" ? "Household created" : "Huishouden aangemaakt", 
@@ -342,12 +357,18 @@ export default function SetupFlow() {
           });
         }
       } catch (error) {
-        console.error('Failed to create real household, falling back to demo mode:', error);
+        console.error('❌ Failed to create real household:', error);
         toast({ 
-          title: lang === "en" ? "Using demo mode" : "Demo modus wordt gebruikt", 
-          description: lang === "en" ? "Failed to create household, using demo data" : "Kon huishouden niet aanmaken, demo data wordt gebruikt",
+          title: lang === "en" ? "Failed to create household" : "Kon huishouden niet aanmaken", 
+          description: lang === "en" ? "Please try again or contact support" : "Probeer het opnieuw of neem contact op",
           variant: "destructive"
         });
+        setGenerating(false);
+        return;
+      }
+    } else {
+      if (import.meta.env.DEV) {
+        console.log('👻 No user session, using demo mode');
       }
     }
 
@@ -387,28 +408,62 @@ export default function SetupFlow() {
         const plan_id = (data as any)?.plan_id || `DEV-${Math.random().toString(36).slice(2, 8)}`;
         const occurrences = (data as any)?.occurrences ?? 0;
         const fairness = (data as any)?.fairness ?? 0;
-        localStorage.setItem(
-          "lastPlanResponse",
-          JSON.stringify({ ...(data as any), plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
-        );
+        
+        // Store plan data - only in localStorage for demo mode
+        if (household_id.startsWith('HH_LOCAL')) {
+          localStorage.setItem(
+            "lastPlanResponse",
+            JSON.stringify({ ...(data as any), plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
+          );
+          if (import.meta.env.DEV) {
+            console.log('💾 Demo plan stored in localStorage (supabase function)');
+          }
+        } else {
+          // For real plans, clear any demo data and don't store in localStorage
+          localStorage.removeItem('lastPlanResponse');
+          localStorage.removeItem('setupDraft');
+          if (import.meta.env.DEV) {
+            console.log('🧹 Real plan created via supabase function, cleared localStorage');
+          }
+        }
+        
         toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
         track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
         track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
         setGenerating(false);
-        navigate("/setup/done");
+        
+        // Navigate to the appropriate plan URL
+        navigate(`/plan/${plan_id}`);
         return;
       } catch (err: any) {
         console.error("plan-generate failed, using fallback", err);
         const fake = { plan_id: `DEV-${Math.random().toString(36).slice(2, 8)}`, occurrences: 42, fairness: 86 };
-        localStorage.setItem(
-          "lastPlanResponse",
-          JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
-        );
+        
+        // Store plan data - only in localStorage for demo mode (fallback)
+        if (household_id.startsWith('HH_LOCAL')) {
+          localStorage.setItem(
+            "lastPlanResponse",
+            JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
+          );
+          if (import.meta.env.DEV) {
+            console.log('💾 Demo fallback plan stored in localStorage');
+          }
+        } else {
+          // For real plans, clear any demo data even in fallback
+          localStorage.removeItem('lastPlanResponse');
+          localStorage.removeItem('setupDraft');
+          if (import.meta.env.DEV) {
+            console.log('🧹 Real plan fallback, cleared localStorage');
+          }
+        }
+        
         toast({ title: lang === "en" ? "Plan created (fallback)" : "Weekplan aangemaakt (fallback)", description: lang === "en" ? `Plan ${fake.plan_id} • tasks: ${fake.occurrences} • fairness: ${fake.fairness}` : `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
         track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
         track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
         setGenerating(false);
-        navigate("/setup/done");
+        
+        // Navigate to the appropriate plan URL
+        navigate(`/plan/${fake.plan_id}`);
         return;
       }
     }
@@ -440,14 +495,20 @@ export default function SetupFlow() {
             "lastPlanResponse",
             JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
           );
+          if (import.meta.env.DEV) {
+            console.log('💾 Demo plan stored in localStorage');
+          }
         } else {
-          // For real plans, clear any demo data
+          // For real plans, clear any demo data and don't store in localStorage
           localStorage.removeItem('lastPlanResponse');
           localStorage.removeItem('setupDraft');
+          if (import.meta.env.DEV) {
+            console.log('🧹 Real plan created, cleared localStorage');
+          }
         }
         
         toast({ 
-          title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", 
+          title: lang === "en" ? "Plan created" : "Weekplan aangemaakt",
           description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` 
         });
         track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
