@@ -1,7 +1,25 @@
 project_id = "qagrkfveezgdjgmziabn"
 
 [functions.plan-generate]
-verify_jwt = false
+verify_jwt = true
+
+[functions.plan-generate-with-overrides]
+verify_jwt = true
+
+[functions.override-create]
+verify_jwt = true
+
+[functions.override-delete]
+verify_jwt = true
+
+[functions.boost-trigger]
+verify_jwt = true
+
+[functions.boost-response]
+verify_jwt = true
+
+[functions.plan-generate-year]
+verify_jwt = true
 
 [functions.reminders-run]
 verify_jwt = true

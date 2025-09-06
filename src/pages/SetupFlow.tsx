@@ -205,32 +205,43 @@ export default function SetupFlow() {
 
   const createRealHousehold = async (userId: string) => {
     if (import.meta.env.DEV) {
-      console.log('Creating household for user:', userId.slice(0, 8) + '...');
-    }
-    
-    // Verify we have auth context before attempting database operations
-    const { data: currentUser, error: userError } = await supabase.auth.getUser();
-    if (userError || !currentUser?.user || currentUser.user.id !== userId) {
-      throw new Error(`Auth context invalid: ${userError?.message || 'User mismatch'}`);
+      console.log('🏠 Creating household via secure RPC for user:', userId.slice(0, 8) + '...');
     }
 
     try {
-      // Create household with explicit created_by to satisfy RLS
-      const { data: household, error: householdError } = await supabase
+      // Use secure RPC to create household - eliminates auth context issues
+      const { data: result, error: rpcError } = await supabase.rpc('rpc_create_household', {
+        household_name: 'My Household', // We can make this configurable later
+        household_timezone: TIMEZONE,
+        household_settings: {
+          lighten_weekdays: !!draft.household.settings?.lighten_weekdays,
+          kids_weekends_only: !!draft.household.settings?.kids_weekends_only,
+        },
+        household_postcode: draft.household.postcode || null,
+      });
+
+      if (rpcError) {
+        console.error('🚨 RPC household creation failed:', rpcError);
+        throw new Error(`Failed to create household: ${rpcError.message}`);
+      }
+
+      if (!result || result.length === 0) {
+        throw new Error('RPC returned no data - authentication may have failed');
+      }
+
+      const householdId = result[0].household_id;
+      if (import.meta.env.DEV) {
+        console.log('✅ Created household via RPC:', householdId);
+      }
+
+      // Fetch the created household to return it
+      const { data: household, error: fetchError } = await supabase
         .from('households')
-        .insert({
-          postcode: draft.household.postcode || null,
-          timezone: TIMEZONE,
-          created_by: userId, // Explicit to satisfy RLS policy
-          settings: {
-            lighten_weekdays: !!draft.household.settings?.lighten_weekdays,
-            kids_weekends_only: !!draft.household.settings?.kids_weekends_only,
-          }
-        })
         .select()
+        .eq('id', householdId)
         .single();
 
-      if (householdError) throw householdError;
+      if (fetchError) throw fetchError;
 
       // Create people records
       const peopleToInsert = draft.people.map(person => ({
@@ -334,33 +345,21 @@ export default function SetupFlow() {
     let household_id = "HH_LOCAL"; // fallback for demo mode
     let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
     
-    // Force session refresh to ensure we have valid auth state
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
+    // Use session from useAuth() context - no additional auth calls
+    const userId = session?.user?.id;
     
     if (import.meta.env.DEV) {
-      console.log('🔄 Session refresh result:', {
+      console.log('🔄 Auth state from context:', {
         userId: userId?.slice(0, 8) + '...',
-        hasSession: !!sessionData?.session,
-        sessionError,
-        accessToken: sessionData?.session?.access_token ? 'present' : 'missing'
+        hasSession: !!session,
+        sessionLoading: loading
       });
       console.log('[Flow] real vs demo branch taken:', !!userId ? 'REAL' : 'DEMO');
     }
     
-    // If user is authenticated, ALWAYS create real household
-    if (userId && sessionData?.session) {
+    // If user is authenticated, ALWAYS create real household - NO demo fallback
+    if (userId && session) {
       try {
-        // Verify auth state with a simple auth test
-        const { data: authTest, error: authError } = await supabase.auth.getUser();
-        if (authError || !authTest?.user) {
-          throw new Error(`Auth verification failed: ${authError?.message || 'No user'}`);
-        }
-        
-        if (import.meta.env.DEV) {
-          console.log('✅ Auth verification passed for user:', authTest.user.id.slice(0, 8) + '...');
-        }
-        
         const realHousehold = await createRealHousehold(userId);
         if (realHousehold) {
           household_id = realHousehold.household.id;
@@ -382,14 +381,14 @@ export default function SetupFlow() {
           throw new Error('createRealHousehold returned null');
         }
       } catch (error) {
-        console.error('[Household RLS]', error);
+        console.error('🚨 Household creation failed:', error);
         toast({ 
           title: "Failed to create household", 
-          description: error instanceof Error ? error.message : "Authentication or permission error. Please try refreshing the page.",
+          description: error instanceof Error ? error.message : "Authentication error. Please refresh the page and try again.",
           variant: "destructive"
         });
         setGenerating(false);
-        return; // ❗ do NOT fall back to demo here
+        return; // STOP - no demo fallback for authenticated users
       }
     } else {
       if (import.meta.env.DEV) {
