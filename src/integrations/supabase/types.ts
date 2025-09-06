@@ -610,7 +610,7 @@ export type Database = {
               household_settings?: Json
               household_timezone?: string
             }
-          | { p_name: string; p_postcode?: string; p_timezone?: string }
+          | { p_name?: string; p_postcode?: string; p_timezone?: string }
         Returns: string
       }
     }
