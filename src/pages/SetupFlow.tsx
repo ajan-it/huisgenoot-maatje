@@ -25,6 +25,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { resolveRealContext } from "@/lib/resolve-real-context";
 
 const TOTAL_STEPS = 8;
 
@@ -64,7 +67,14 @@ export default function SetupFlow() {
   const navigate = useNavigate();
   const { draft, setDraft, setHousehold, addPerson, updatePerson, removePerson, adultsCount, toggleEmailConsent, toggleSmsConsent } = useSetupDraft();
   const { t, lang } = useI18n();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  
+  // Resolve real context for this setup flow
+  const realContext = resolveRealContext({
+    session,
+    route: { planId: null },
+    local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
+  });
   const steps = (t("setupFlow.steps") as unknown as string[]) || [];
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -315,8 +325,8 @@ export default function SetupFlow() {
     let household_id = "HH_LOCAL"; // fallback for demo mode
     let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
     
-    // If user is authenticated, create real household
-    if (user) {
+    // If user is authenticated and not in demo mode, create real household
+    if (!realContext.isDemo && realContext.userId) {
       try {
         const realHousehold = await createRealHousehold();
         if (realHousehold) {
@@ -423,15 +433,29 @@ export default function SetupFlow() {
         const plan_id = data.plan_id || `${household_id}-${week_start}`;
         const occurrences = data.occurrences ?? 0;
         const fairness = data.fairness ?? 0;
-        localStorage.setItem(
-          "lastPlanResponse",
-          JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
-        );
-        toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
+        
+        // Store plan data - only in localStorage for demo mode
+        if (household_id.startsWith('HH_LOCAL')) {
+          localStorage.setItem(
+            "lastPlanResponse",
+            JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
+          );
+        } else {
+          // For real plans, clear any demo data
+          localStorage.removeItem('lastPlanResponse');
+          localStorage.removeItem('setupDraft');
+        }
+        
+        toast({ 
+          title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", 
+          description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` 
+        });
         track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
         track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
         setGenerating(false);
-        navigate("/setup/done");
+        
+        // Navigate to the appropriate plan URL
+        navigate(`/plan/${plan_id}`);
       };
 
       if (res.status >= 500) {

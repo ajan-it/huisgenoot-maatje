@@ -21,14 +21,25 @@ import { useQuery } from "@tanstack/react-query";
 import { useUnifiedPlanData } from "@/hooks/useUnifiedPlanData";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
+import { DemoBanner } from "@/components/ui/demo-banner";
+import { resolveRealContext } from "@/lib/resolve-real-context";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CalendarMonth = () => {
   const { t, lang } = useI18n();
+  const { session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // State
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Resolve real context
+  const realContext = resolveRealContext({
+    session,
+    route: { planId: null },
+    local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
+  });
   
   // URL state
   const currentDate = useMemo(() => {
@@ -125,6 +136,9 @@ const CalendarMonth = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Demo Banner */}
+      {realContext.isDemo && <DemoBanner className="mb-6" />}
+
       {/* Dev Banner */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">

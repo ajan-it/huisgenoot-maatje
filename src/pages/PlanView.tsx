@@ -20,12 +20,16 @@ import { useDisruptions } from "@/hooks/useDisruptions";
 import { Loader2, Sparkles, Settings } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
+import { resolveRealContext } from "@/lib/resolve-real-context";
+import { DemoBanner } from "@/components/ui/demo-banner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PlanView = () => {
   const { planId } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { lang } = useI18n();
+  const { session } = useAuth();
   const L = lang === "en";
 
   const [plan, setPlan] = useState<any | null>(null);
@@ -37,45 +41,85 @@ const PlanView = () => {
   const [showReflectionForm, setShowReflectionForm] = useState(false);
   const { toast } = useToast();
   
-  // Get current household - try from auth first, fallback to demo
+  // Resolve real context - detect demo vs real mode
+  const realContext = useMemo(() => {
+    return resolveRealContext({
+      session,
+      route: { planId },
+      local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
+    });
+  }, [session, planId]);
+
+  if (import.meta.env.DEV) {
+    console.log('🔍 PlanView context:', realContext);
+  }
+
+  // Get real household if authenticated
   const { data: householdId } = useQuery({
-    queryKey: ['current-household'],
+    queryKey: ['current-household', realContext.userId],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
+      if (realContext.isDemo || !realContext.userId) return null;
       
-      const { data, error } = await supabase
+      const { data: memberships, error } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
+        .eq('user_id', realContext.userId);
       
-      if (error || !data) return "00000000-0000-4000-8000-000000000000"; // Demo fallback
-      return data.household_id;
+      if (error || !memberships?.length) return null;
+      return memberships[0].household_id;
     },
+    enabled: !realContext.isDemo && !!realContext.userId,
   });
+
+  // Redirect authenticated users from demo routes to real routes
+  useEffect(() => {
+    if (!realContext.isDemo && realContext.userId && planId?.startsWith('HH_LOCAL-') && householdId) {
+      const weekStart = planId.split('-').slice(1).join('-'); // Get date part
+      const realPlanId = `${householdId}-${weekStart}`;
+      
+      if (import.meta.env.DEV) {
+        console.log('🔄 Redirecting from demo route to real route:', { from: planId, to: realPlanId });
+      }
+      
+      // Clear demo data
+      localStorage.removeItem('lastPlanResponse');
+      
+      navigate(`/plan/${realPlanId}`, { replace: true });
+      return;
+    }
+  }, [realContext, planId, householdId, navigate]);
   
-  const { disruptions, createDisruptions } = useDisruptions(householdId || "00000000-0000-4000-8000-000000000000", plan?.week_start);
+  const effectiveHouseholdId = realContext.isDemo ? null : householdId;
+  const { disruptions, createDisruptions } = useDisruptions(effectiveHouseholdId, plan?.week_start);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("lastPlanResponse");
-      console.log("Raw localStorage data:", raw);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      console.log("Parsed plan data:", parsed);
-      console.log("Plan assignments:", parsed?.assignments);
-      if (parsed?.plan_id === planId) {
-        setPlan(parsed);
-        // Load fairness details if available
-        if (parsed?.fairness_details) {
-          setFairnessDetails(parsed.fairness_details);
+    // Only load from localStorage in demo mode or as fallback
+    if (realContext.isDemo) {
+      try {
+        const raw = localStorage.getItem("lastPlanResponse");
+        if (import.meta.env.DEV) {
+          console.log("📦 Loading demo data from localStorage:", !!raw);
         }
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed?.plan_id === planId) {
+          setPlan(parsed);
+          if (parsed?.fairness_details) {
+            setFairnessDetails(parsed.fairness_details);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading plan:", error);
       }
-    } catch (error) {
-      console.error("Error loading plan:", error);
+    } else {
+      // In real mode, clear localStorage and fetch from Supabase
+      if (import.meta.env.DEV) {
+        console.log("🗑️ Real mode: clearing localStorage demo data");
+      }
+      localStorage.removeItem('lastPlanResponse');
+      // TODO: Fetch real plan data from Supabase here
     }
-  }, [planId]);
+  }, [planId, realContext.isDemo]);
 
   const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
 
@@ -165,6 +209,8 @@ const PlanView = () => {
         <link rel="canonical" href={`/plan/${planId}`} />
       </Helmet>
 
+      {realContext.isDemo && <DemoBanner className="mb-6" />}
+
       {params.get("invite") === "1" && (
         <Alert>
           <AlertTitle>{L ? "You were invited" : "Je bent uitgenodigd"}</AlertTitle>
@@ -194,9 +240,9 @@ const PlanView = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>{L ? "Overview" : "Overzicht"}</span>
-                {householdId && plan?.week_start && (
+                {effectiveHouseholdId && plan?.week_start && !realContext.isDemo && (
                   <TaskQuickActions
-                    householdId={householdId}
+                    householdId={effectiveHouseholdId}
                     date={new Date(plan.week_start)}
                     onTaskUpdate={() => window.location.reload()}
                   />
@@ -262,12 +308,12 @@ const PlanView = () => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>{L ? "Weekly Schedule" : "Weekplanning"}</span>
-                  {householdId && (
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4 mr-2" />
-                      {L ? "Manage Tasks" : "Taken Beheren"}
-                    </Button>
-                  )}
+                   {effectiveHouseholdId && !realContext.isDemo && (
+                     <Button variant="outline" size="sm">
+                       <Settings className="h-4 w-4 mr-2" />
+                       {L ? "Manage Tasks" : "Taken Beheren"}
+                     </Button>
+                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -300,7 +346,7 @@ const PlanView = () => {
               </p>
               
               {/* Quick access to task management */}
-              {householdId && (
+              {effectiveHouseholdId && !realContext.isDemo && (
                 <Card className="border-dashed">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between">
@@ -311,7 +357,7 @@ const PlanView = () => {
                         </p>
                       </div>
                       <TaskQuickActions
-                        householdId={householdId}
+                        householdId={effectiveHouseholdId}
                         date={new Date(planId?.split('-')[1] || new Date().toISOString().split('T')[0])}
                         onTaskUpdate={() => window.location.reload()}
                       />

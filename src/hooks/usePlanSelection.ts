@@ -14,11 +14,13 @@ interface UsePlanSelectionParams {
     start: Date;
     end: Date;
   };
+  enabled?: boolean;
 }
 
-export function usePlanSelection({ dateRange }: UsePlanSelectionParams) {
+export function usePlanSelection({ dateRange, enabled = true }: UsePlanSelectionParams) {
   return useQuery<PlanSelection>({
     queryKey: ['plan-selection', format(dateRange.start, 'yyyy-MM-dd'), format(dateRange.end, 'yyyy-MM-dd')],
+    enabled,
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       console.log('🔐 Authentication check:', { 

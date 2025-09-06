@@ -18,13 +18,15 @@ interface UseOccurrencesParams {
     end: Date;
   };
   filters?: CalendarFilters;
+  enabled?: boolean;
 }
 
-export function useOccurrences({ householdId, planId, range, filters }: UseOccurrencesParams) {
+export function useOccurrences({ householdId, planId, range, filters, enabled = true }: UseOccurrencesParams) {
   const { toast } = useToast();
   
   return useQuery({
     queryKey: ['occurrences', householdId, planId, format(range.start, 'yyyy-MM-dd'), format(range.end, 'yyyy-MM-dd'), filters],
+    enabled: enabled && !!householdId && !!planId,
     queryFn: async () => {
       if (!householdId || !planId) {
         console.log('❌ Missing required params:', { householdId, planId });
@@ -154,7 +156,6 @@ export function useOccurrences({ householdId, planId, range, filters }: UseOccur
         throw error;
       }
     },
-    enabled: Boolean(householdId && planId),
   });
 }
 

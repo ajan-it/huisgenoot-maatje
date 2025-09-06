@@ -21,6 +21,9 @@ import { useUnifiedPlanData } from "@/hooks/useUnifiedPlanData";
 import { useLongTermFairness } from "@/hooks/useLongTermFairness";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { DemoBanner } from "@/components/ui/demo-banner";
+import { resolveRealContext } from "@/lib/resolve-real-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   format, 
   startOfYear, 
@@ -37,6 +40,7 @@ import { nl, enUS } from "date-fns/locale";
 
 const CalendarYear = () => {
   const { t, lang } = useI18n();
+  const { session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // State
@@ -46,6 +50,13 @@ const CalendarYear = () => {
   const [selectedFrequencies, setSelectedFrequencies] = useState<FrequencyType[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showFairnessChart, setShowFairnessChart] = useState(false);
+
+  // Resolve real context
+  const realContext = resolveRealContext({
+    session,
+    route: { planId: null },
+    local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
+  });
   
   // URL state
   const currentYear = useMemo(() => {
@@ -184,6 +195,9 @@ const CalendarYear = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Demo Banner */}
+      {realContext.isDemo && <DemoBanner className="mb-6" />}
+
       {/* Dev Banner */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">

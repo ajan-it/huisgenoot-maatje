@@ -3,7 +3,9 @@ import { useTaskOverrides, CreateOverrideParams } from './useTaskOverrides';
 import { usePlanGeneration } from './usePlanGeneration';
 import { useToast } from './use-toast';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { isDemoMode } from '@/lib/demo-utils';
+import { resolveRealContext } from '@/lib/resolve-real-context';
+import { useAuth } from '@/contexts/AuthContext';
+import { DemoActionTooltip } from '@/components/ui/demo-banner';
 
 export interface TaskActionState {
   confirmPill: {
@@ -25,6 +27,13 @@ export interface TaskActionOptions {
 export function useTaskActions(householdId: string) {
   const [actionState, setActionState] = useState<TaskActionState>({
     confirmPill: null,
+  });
+  
+  const { session } = useAuth();
+  const realContext = resolveRealContext({
+    session,
+    route: { planId: null },
+    local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
   });
   
   const { createOverride, deleteOverride, isCreating } = useTaskOverrides(householdId);
@@ -83,7 +92,7 @@ export function useTaskActions(householdId: string) {
     const { occurrenceId, taskId, taskName, scope, snoozeUntil, baseDate } = options;
     
     // Check for demo mode
-    if (isDemoMode(householdId)) {
+    if (realContext.isDemo) {
       toast({
         title: "Demo Mode",
         description: "Sign in and open a real plan to change tasks.",
@@ -191,6 +200,6 @@ export function useTaskActions(householdId: string) {
     dismissConfirmPill,
     actionState,
     isProcessing: isCreating || isGenerating,
-    isDemoMode: isDemoMode(householdId),
+    isDemoMode: realContext.isDemo,
   };
 }
