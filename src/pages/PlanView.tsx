@@ -89,8 +89,128 @@ const PlanView = () => {
     }
   }, [realContext, planId, householdId, navigate]);
   
+  // Parse plan parameters
+  const [parsedHouseholdId, parsedWeekStart] = useMemo(() => {
+    if (!planId) return [null, null];
+    const parts = planId.split('-');
+    if (parts.length >= 4) {
+      const householdId = parts[0];
+      const weekStart = parts.slice(1).join('-');
+      return [householdId, weekStart];
+    }
+    return [null, null];
+  }, [planId]);
+
   const effectiveHouseholdId = realContext.isDemo ? null : householdId;
   const { disruptions, createDisruptions } = useDisruptions(effectiveHouseholdId, plan?.week_start);
+
+  // Fetch plan from database for real users
+  const fetchPlanFromDatabase = async () => {
+    if (!parsedHouseholdId || !parsedWeekStart || realContext.isDemo) return;
+    
+    try {
+      if (import.meta.env.DEV) {
+        console.log('🔍 Fetching plan from database:', { parsedHouseholdId, parsedWeekStart });
+      }
+
+      // Fetch plan record
+      const { data: planData, error: planError } = await supabase
+        .from('plans')
+        .select('id, household_id, week_start, fairness_score, status')
+        .eq('household_id', parsedHouseholdId)
+        .eq('week_start', parsedWeekStart)
+        .single();
+
+      if (planError || !planData) {
+        console.log('No plan found in database for:', { parsedHouseholdId, parsedWeekStart });
+        setPlan(null);
+        return;
+      }
+
+      // Fetch occurrences for this plan
+      const { data: occurrences, error: occError } = await supabase
+        .from('occurrences')
+        .select(`
+          id, date, task_id, assigned_person, status, start_time, 
+          duration_min, difficulty_weight, is_critical, reminder_level,
+          rationale
+        `)
+        .eq('plan_id', planData.id)
+        .order('date', { ascending: true });
+
+      if (occError) {
+        console.error('Error fetching occurrences:', occError);
+        return;
+      }
+
+      // Fetch people data
+      const { data: people, error: peopleError } = await supabase
+        .from('people')
+        .select('id, first_name, role, weekly_time_budget')
+        .eq('household_id', parsedHouseholdId);
+
+      if (peopleError) {
+        console.error('Error fetching people:', peopleError);
+        return;
+      }
+
+      // Fetch task templates to enrich occurrence data
+      const taskIds = [...new Set(occurrences?.map(o => o.task_id) || [])];
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id, name, category, tags')
+        .in('id', taskIds);
+
+      // Transform data to match expected format
+      const taskMap = new Map(tasks?.map(t => [t.id, t]) || []);
+      const peopleMap = new Map(people?.map(p => [p.id, p]) || []);
+
+        const assignments = occurrences?.map(occ => {
+        const task = taskMap.get(occ.task_id);
+        const person = occ.assigned_person ? peopleMap.get(occ.assigned_person) : null;
+
+        return {
+          id: occ.id,
+          task_id: occ.task_id,
+          task_name: task?.name || occ.task_id,
+          task_category: task?.category || 'unknown',
+          task_tags: task?.tags || [],
+          task_duration: occ.duration_min,
+          task_difficulty: Math.round(occ.difficulty_weight || 1),
+          date: occ.date,
+          time_slot: {
+            start: occ.start_time,
+            end: occ.start_time // Will be calculated based on duration
+          },
+          assigned_person_id: occ.assigned_person,
+          assigned_person_name: person?.first_name || 'Unassigned',
+          status: occ.status,
+          rationale: occ.rationale ? JSON.parse(String(occ.rationale)) : null
+        };
+      }) || [];
+
+      const planObject = {
+        plan_id: planData.id,
+        household_id: planData.household_id,
+        week_start: planData.week_start,
+        fairness: planData.fairness_score || 0,
+        occurrences: assignments.length,
+        assignments,
+        people: people || [],
+        tasks: tasks || []
+      };
+
+      setPlan(planObject);
+      
+      if (import.meta.env.DEV) {
+        console.log('✅ Plan loaded from database:', planObject);
+      }
+
+    } catch (error) {
+      console.error('Error fetching plan from database:', error);
+      setPlan(null);
+    }
+  };
 
   useEffect(() => {
     // Only load from localStorage in demo mode or as fallback
@@ -117,7 +237,11 @@ const PlanView = () => {
         console.log("🗑️ Real mode: clearing localStorage demo data");
       }
       localStorage.removeItem('lastPlanResponse');
-      // TODO: Fetch real plan data from Supabase here
+      
+      // Fetch real plan data from Supabase
+      if (planId && householdId) {
+        fetchPlanFromDatabase();
+      }
     }
   }, [planId, realContext.isDemo]);
 

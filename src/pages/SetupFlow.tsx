@@ -347,6 +347,7 @@ export default function SetupFlow() {
         localStorage.removeItem('setupDraft');
       } catch {}
       
+      // Navigate to canonical plan URL
       navigate(`/plan/${householdId}-${weekStart}`);
       
     } catch (error) {

@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -909,6 +910,22 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize Supabase clients
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify JWT and get user
+    const authHeader = req.headers.get('authorization')?.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(authHeader);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const input = await req.json().catch(() => ({}));
     console.log("Input received:", JSON.stringify(input, null, 2));
 
@@ -917,6 +934,23 @@ serve(async (req) => {
     const week_start = input?.week_start || new Date().toISOString().slice(0, 10);
     const household_id = input?.household_id || "HH_LOCAL";
     const timezone = input?.timezone || "Europe/Amsterdam";
+
+    // Verify user is household member for real households
+    if (household_id !== "HH_LOCAL") {
+      const { data: membership, error: membershipError } = await supabaseClient
+        .from('household_members')
+        .select('household_id')
+        .eq('household_id', household_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (membershipError || !membership) {
+        return new Response(JSON.stringify({ error: 'Not a member of this household' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
 
     const people = Array.isArray(input?.people) ? input.people : [];
     const tasks = Array.isArray(input?.tasks) ? input.tasks : [];
@@ -1116,6 +1150,81 @@ serve(async (req) => {
       adult_loads,
       ...(rebalancePreview && { rebalance_preview: rebalancePreview })
     };
+
+    // Persist plan to database for real users (not demo mode)
+    if (!mode || mode === 'generate') {
+      if (household_id !== "HH_LOCAL" && assignments?.length > 0) {
+        try {
+          // Upsert plan record
+          const { data: upsertedPlan, error: planError } = await supabaseClient
+            .from('plans')
+            .upsert(
+              {
+                household_id,
+                week_start,
+                fairness_score: fairness || 0,
+                status: 'active'
+              },
+              { onConflict: 'household_id,week_start' }
+            )
+            .select('id, household_id, week_start')
+            .single();
+
+          if (planError) {
+            console.error('Plan upsert error:', planError);
+          } else {
+            const dbPlanId = upsertedPlan.id;
+
+            // Delete existing occurrences for idempotency
+            await supabaseClient
+              .from('occurrences')
+              .delete()
+              .eq('plan_id', dbPlanId);
+
+            // Bulk insert new occurrences
+            const bulkOccurrences = assignments.map((assignment: any) => ({
+              plan_id: dbPlanId,
+              task_id: assignment.task_id,
+              date: assignment.date,
+              assigned_person: assignment.assigned_person_id || null,
+              status: assignment.status === 'backlog' ? 'scheduled' : 'scheduled',
+              start_time: assignment.time_slot?.start || '18:30',
+              duration_min: assignment.task_duration || 30,
+              difficulty_weight: (assignment.task_difficulty || 1) * 1.0,
+              reminder_level: 0,
+              is_critical: false,
+              rationale: assignment.rationale ? JSON.stringify(assignment.rationale) : null
+            }));
+
+            if (bulkOccurrences.length > 0) {
+              const { error: occError } = await supabaseClient
+                .from('occurrences')
+                .insert(bulkOccurrences);
+
+              if (occError) {
+                console.error('Occurrences insert error:', occError);
+              } else {
+                console.log(`✅ Persisted ${bulkOccurrences.length} occurrences to database`);
+              }
+            }
+
+            // Return minimal response for database persistence
+            return new Response(JSON.stringify({
+              plan_id: dbPlanId,
+              household_id,
+              week_start,
+              occurrence_count: bulkOccurrences.length,
+              success: true
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        } catch (dbError) {
+          console.error('Database persistence error:', dbError);
+          // Continue with original response if DB persistence fails
+        }
+      }
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
