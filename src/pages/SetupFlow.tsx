@@ -68,6 +68,7 @@ export default function SetupFlow() {
   const { draft, setDraft, setHousehold, addPerson, updatePerson, removePerson, adultsCount, toggleEmailConsent, toggleSmsConsent } = useSetupDraft();
   const { t, lang } = useI18n();
   const { user, session, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Resolve real context for this setup flow
   const realContext = resolveRealContext({
@@ -229,7 +230,7 @@ export default function SetupFlow() {
         throw new Error('RPC returned no data - authentication may have failed');
       }
 
-      const householdId = result[0].household_id;
+      const householdId = result;
       if (import.meta.env.DEV) {
         console.log('✅ Created household via RPC:', householdId);
       }
@@ -341,236 +342,158 @@ export default function SetupFlow() {
   };
 
   const generatePlan = async () => {
-    const week_start = nextMondayISO();
-    let household_id = "HH_LOCAL"; // fallback for demo mode
-    let requested_by_person_id = draft.people.find((p) => p.role === "adult")?.id || draft.people[0]?.id || "P_LOCAL";
+    if (isSubmitting) return; // prevent double call
+    setIsSubmitting(true);
     
-    // Use session from useAuth() context - no additional auth calls
-    const userId = session?.user?.id;
-    
-    if (import.meta.env.DEV) {
-      console.log('🔄 Auth state from context:', {
-        userId: userId?.slice(0, 8) + '...',
-        hasSession: !!session,
-        sessionLoading: loading
-      });
-      console.log('[Flow] real vs demo branch taken:', !!userId ? 'REAL' : 'DEMO');
-    }
-    
-    // If user is authenticated, ALWAYS create real household - NO demo fallback
-    if (userId && session) {
-      try {
-        const realHousehold = await createRealHousehold(userId);
-        if (realHousehold) {
-          household_id = realHousehold.household.id;
-          requested_by_person_id = realHousehold.people.find(p => p.role === 'adult')?.id || realHousehold.people[0]?.id;
-          
-          // Clear demo data from localStorage after successful real household creation
-          localStorage.removeItem('setupDraft');
-          localStorage.removeItem('lastPlanResponse');
-          
-          if (import.meta.env.DEV) {
-            console.log('✅ Real household created:', household_id);
-          }
-          
-          toast({ 
-            title: lang === "en" ? "Household created" : "Huishouden aangemaakt", 
-            description: lang === "en" ? "Your real household has been created" : "Je echte huishouden is aangemaakt" 
-          });
-        } else {
-          throw new Error('createRealHousehold returned null');
-        }
-      } catch (error) {
-        console.error('🚨 Household creation failed:', error);
-        toast({ 
-          title: "Failed to create household", 
-          description: error instanceof Error ? error.message : "Authentication error. Please refresh the page and try again.",
-          variant: "destructive"
-        });
-        setGenerating(false);
-        return; // STOP - no demo fallback for authenticated users
-      }
-    } else {
-      if (import.meta.env.DEV) {
-        console.log('👻 No user session, using demo mode');
-      }
-    }
-
-    const locale = draft.people[0]?.locale || (lang as any);
-    const payload = {
-      event: "generate_plan",
-      version: "2025-08-11",
-      household_id,
-      week_start,
-      timezone: TIMEZONE,
-      locale,
-      requested_by_person_id,
-      dry_run: false,
-      idempotency_key: `${household_id}-${week_start}`,
-      settings: {
-        lighten_weekdays: !!draft.household.settings?.lighten_weekdays,
-        kids_weekends_only: !!draft.household.settings?.kids_weekends_only,
-      },
-    };
-
-    lastPayloadRef.current = payload;
-    setGenerating(true);
-    setErrorMsg(null);
-    const started = performance.now();
-
-    if (!PLAN_WEBHOOK_URL) {
-      try {
-        const { data, error } = await supabase.functions.invoke("plan-generate", {
-          body: {
-            ...payload,
-            people: draft.people,
-            tasks: draft.tasks,
-            blackouts: draft.blackouts,
-          },
-        });
-        if (error) throw error;
-        const plan_id = (data as any)?.plan_id || `DEV-${Math.random().toString(36).slice(2, 8)}`;
-        const occurrences = (data as any)?.occurrences ?? 0;
-        const fairness = (data as any)?.fairness ?? 0;
-        
-        // Store plan data - only in localStorage for demo mode
-        if (household_id.startsWith('HH_LOCAL')) {
-          localStorage.setItem(
-            "lastPlanResponse",
-            JSON.stringify({ ...(data as any), plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
-          );
-          if (import.meta.env.DEV) {
-            console.log('💾 Demo plan stored in localStorage (supabase function)');
-          }
-        } else {
-          // For real plans, clear any demo data and don't store in localStorage
-          localStorage.removeItem('lastPlanResponse');
-          localStorage.removeItem('setupDraft');
-          if (import.meta.env.DEV) {
-            console.log('🧹 Real plan created via supabase function, cleared localStorage');
-          }
-        }
-        
-        toast({ title: lang === "en" ? "Plan created" : "Weekplan aangemaakt", description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` });
-        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
-        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
-        setGenerating(false);
-        
-        // Navigate to the appropriate plan URL
-        if (household_id.startsWith('HH_LOCAL')) {
-          navigate(`/plan/HH_LOCAL-${week_start}`);
-        } else {
-          navigate(`/plan/${household_id}-${week_start}`);
-        }
-        return;
-      } catch (err: any) {
-        console.error("plan-generate failed, using fallback", err);
-        const fake = { plan_id: `DEV-${Math.random().toString(36).slice(2, 8)}`, occurrences: 42, fairness: 86 };
-        
-        // Store plan data - only in localStorage for demo mode (fallback)
-        if (household_id.startsWith('HH_LOCAL')) {
-          localStorage.setItem(
-            "lastPlanResponse",
-            JSON.stringify({ ...fake, week_start, created_at: new Date().toISOString() })
-          );
-          if (import.meta.env.DEV) {
-            console.log('💾 Demo fallback plan stored in localStorage');
-          }
-        } else {
-          // For real plans, clear any demo data even in fallback
-          localStorage.removeItem('lastPlanResponse');
-          localStorage.removeItem('setupDraft');
-          if (import.meta.env.DEV) {
-            console.log('🧹 Real plan fallback, cleared localStorage');
-          }
-        }
-        
-        toast({ title: lang === "en" ? "Plan created (fallback)" : "Weekplan aangemaakt (fallback)", description: lang === "en" ? `Plan ${fake.plan_id} • tasks: ${fake.occurrences} • fairness: ${fake.fairness}` : `Plan ${fake.plan_id} • taken: ${fake.occurrences} • fairness: ${fake.fairness}` });
-        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences: fake.occurrences, fairness: fake.fairness });
-        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
-        setGenerating(false);
-        
-        // Navigate to the appropriate plan URL
-        if (household_id.startsWith('HH_LOCAL')) {
-          navigate(`/plan/HH_LOCAL-${week_start}`);
-        } else {
-          navigate(`/plan/${household_id}-${week_start}`);
-        }
-        return;
-      }
-    }
-
     try {
-      const body = JSON.stringify(payload);
-      const timestamp = new Date().toISOString();
-      const signature = PLAN_WEBHOOK_SECRET ? await hmacSha256Hex(PLAN_WEBHOOK_SECRET, body) : "";
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "X-Plan-Secret": PLAN_WEBHOOK_SECRET || "",
-        "X-Plan-Signature": signature ? `sha256=${signature}` : "",
-        "X-Plan-Timestamp": timestamp,
-        "Idempotency-Key": payload.idempotency_key,
-      };
+      if (!session?.user?.id) {
+        toast({ 
+          variant: 'destructive', 
+          title: lang === "en" ? "Not signed in" : "Niet ingelogd",
+          description: lang === "en" ? "Please sign in to create a household" : "Log in om een huishouden aan te maken"
+        });
+        return;
+      }
 
-      const res = await fetch(PLAN_WEBHOOK_URL, { method: "POST", headers, body });
+      console.log('📝 Creating real household and plan...');
+      
+      // 1) create household via RPC - returns uuid
+      const { data: householdId, error: rpcErr } = await supabase
+        .rpc('rpc_create_household', {
+          p_name: draft.household?.name ?? null,
+          p_timezone: 'Europe/Amsterdam',
+          p_postcode: draft.household?.postcode ?? null,
+        });
 
-      const handleOk = async (response: Response) => {
-        let data: any = {};
-        try { data = await response.json(); } catch {}
-        const plan_id = data.plan_id || `${household_id}-${week_start}`;
-        const occurrences = data.occurrences ?? 0;
-        const fairness = data.fairness ?? 0;
+      if (rpcErr || !householdId) {
+        console.error('rpc_create_household error:', rpcErr);
+        toast({
+          variant: 'destructive',
+          title: lang === "en" ? "Failed to create household" : "Huishouden aanmaken mislukt",
+          description: rpcErr?.message ?? (lang === "en" ? "Please try again." : "Probeer opnieuw."),
+        });
+        return;
+      }
+
+      console.log('✅ Household created:', householdId);
+
+      // 2) Create people
+      if (draft.people && draft.people.length > 0) {
+        console.log('👥 Creating people...');
+        const peopleData = draft.people.map(person => ({
+          household_id: householdId,
+          first_name: person.first_name,
+          role: person.role,
+          weekly_time_budget: person.weekly_time_budget || 0,
+          contact: {
+            email: person.email || '',
+            phone: person.phone || ''
+          },
+          locale: person.locale || 'nl',
+          disliked_tasks: person.disliked_tags || [],
+          no_go_tasks: person.no_go_tasks || []
+        }));
+
+        const { error: peopleError } = await supabase
+          .from('people')
+          .insert(peopleData);
+
+        if (peopleError) {
+          console.error('❌ People creation failed:', peopleError);
+          toast({
+            variant: 'destructive',
+            title: lang === "en" ? "Failed to create people" : "Personen aanmaken mislukt",
+            description: peopleError.message
+          });
+          return;
+        }
+        console.log('✅ People created');
+      }
+
+      // 3) Create blackouts if any
+      if (draft.blackouts && draft.blackouts.length > 0) {
+        console.log('🚫 Creating blackouts...');
         
-        // Store plan data - only in localStorage for demo mode
-        if (household_id.startsWith('HH_LOCAL')) {
-          localStorage.setItem(
-            "lastPlanResponse",
-            JSON.stringify({ ...data, plan_id, occurrences, fairness, week_start, created_at: new Date().toISOString() })
-          );
-          if (import.meta.env.DEV) {
-            console.log('💾 Demo plan stored in localStorage');
-          }
-        } else {
-          // For real plans, clear any demo data and don't store in localStorage
-          localStorage.removeItem('lastPlanResponse');
-          localStorage.removeItem('setupDraft');
-          if (import.meta.env.DEV) {
-            console.log('🧹 Real plan created, cleared localStorage');
+        const { data: createdPeople } = await supabase
+          .from('people')
+          .select('id, first_name')
+          .eq('household_id', householdId);
+
+        if (createdPeople) {
+          const blackoutData: any[] = [];
+          
+          draft.blackouts.forEach(blackout => {
+            const person = createdPeople.find(p => p.first_name === (blackout as any).person_name);
+            if (person) {
+              blackoutData.push({
+                person_id: person.id,
+                days: blackout.days,
+                start: blackout.start,
+                end: blackout.end,
+                label: blackout.label || 'Blackout',
+                description: blackout.note
+              });
+            }
+          });
+
+          if (blackoutData.length > 0) {
+            const { error: blackoutError } = await supabase
+              .from('blackout_slots')
+              .insert(blackoutData);
+
+            if (blackoutError) {
+              console.error('❌ Blackout creation failed:', blackoutError);
+            } else {
+              console.log('✅ Blackouts created');
+            }
           }
         }
-        
-        toast({ 
-          title: lang === "en" ? "Plan created" : "Weekplan aangemaakt",
-          description: lang === "en" ? `Plan ${plan_id} • tasks: ${occurrences} • fairness: ${fairness}` : `Plan ${plan_id} • taken: ${occurrences} • fairness: ${fairness}` 
+      }
+
+      // 4) Generate plan for REAL household
+      console.log('📅 Generating plan...');
+      const weekStart = nextMondayISO();
+      
+      const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate', {
+        body: {
+          household_id: householdId,
+          week_start: weekStart,
+          people: draft.people || [],
+          tasks: draft.tasks || [],
+          blackouts: draft.blackouts || []
+        }
+      });
+
+      if (planError) {
+        console.error('❌ Plan generation failed:', planError);
+        toast({
+          variant: 'destructive',
+          title: lang === "en" ? "Failed to generate plan" : "Plan genereren mislukt",
+          description: planError.message
         });
-        track("webhook_success", { duration_ms: Math.round(performance.now() - started), occurrences, fairness });
-        track("wizard_done", { household_id, adults: adultsCount, active_tasks_count: draft.tasks.filter((t) => t.active).length });
-        setGenerating(false);
-        
-        // Navigate to the appropriate plan URL
-        navigate(`/plan/${plan_id}`);
-      };
-
-      if (res.status >= 500) {
-        await new Promise((r) => setTimeout(r, 300 + Math.random() * 500));
-        const res2 = await fetch(PLAN_WEBHOOK_URL, { method: "POST", headers: { ...headers, "X-Plan-Timestamp": new Date().toISOString() }, body });
-        if (res2.ok || res2.status === 409) return handleOk(res2);
-        throw new Error(`Webhook error ${res2.status}`);
+        return;
       }
 
-      if (res.ok || res.status === 409) {
-        return handleOk(res);
-      }
-
-      const text = await res.text();
-      setErrorMsg(text || `Webhook error ${res.status}`);
-      track("webhook_fail", { duration_ms: Math.round(performance.now() - started), error_code: res.status });
-      setGenerating(false);
-    } catch (e: any) {
-      const msg = e?.message || "Er ging iets mis";
-      setErrorMsg(msg);
-      track("webhook_fail", { duration_ms: Math.round(performance.now() - started), error_code: "exception" });
-      setGenerating(false);
+      console.log('✅ Plan generated successfully');
+      
+      // 5) Clean demo residue, route to REAL plan
+      try {
+        localStorage.removeItem('lastPlanResponse');
+        localStorage.removeItem('demo:lastPlanResponse');
+        localStorage.removeItem('setupDraft');
+      } catch {}
+      
+      navigate(`/plan/${householdId}-${weekStart}`);
+      
+    } catch (error) {
+      console.error('❌ Unexpected error:', error);
+      toast({
+        variant: 'destructive',
+        title: lang === "en" ? "Something went wrong" : "Er ging iets mis",
+        description: lang === "en" ? "Please try again." : "Probeer opnieuw."
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -912,8 +835,8 @@ export default function SetupFlow() {
                 <Button variant="outline" onClick={onBack} disabled={generating}>
                   {t("setupFlow.household.back")}
                 </Button>
-                <Button onClick={generatePlan} disabled={!privacyAccepted || generating || loading}>
-                  {generating ? "Bezig..." : loading ? "Authenticatie laden..." : "Genereer weekplan"}
+                <Button onClick={generatePlan} disabled={!privacyAccepted || generating || loading || isSubmitting}>
+                  {isSubmitting ? "Bezig…" : generating ? "Bezig..." : loading ? "Authenticatie laden..." : "Genereer weekplan"}
                 </Button>
               </div>
             </CardContent>

@@ -603,16 +603,15 @@ export type Database = {
         Returns: string
       }
       rpc_create_household: {
-        Args: {
-          household_name: string
-          household_postcode?: string
-          household_settings?: Json
-          household_timezone?: string
-        }
-        Returns: {
-          household_id: string
-          user_id: string
-        }[]
+        Args:
+          | {
+              household_name: string
+              household_postcode?: string
+              household_settings?: Json
+              household_timezone?: string
+            }
+          | { p_name: string; p_postcode?: string; p_timezone?: string }
+        Returns: string
       }
     }
     Enums: {
