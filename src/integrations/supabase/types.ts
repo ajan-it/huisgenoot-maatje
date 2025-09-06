@@ -602,6 +602,18 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_create_household: {
+        Args: {
+          household_name: string
+          household_postcode?: string
+          household_settings?: Json
+          household_timezone?: string
+        }
+        Returns: {
+          household_id: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       boost_channel: "push" | "email" | "whatsapp" | "sms"
