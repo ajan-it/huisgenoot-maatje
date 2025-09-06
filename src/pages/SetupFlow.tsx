@@ -204,15 +204,29 @@ export default function SetupFlow() {
   };
 
   const createRealHousehold = async () => {
-    if (!user) return null;
+    // Verify session and user authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.user?.id) {
+      console.error('No valid session for household creation');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to create a household",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const userId = sessionData.session.user.id;
+    console.log('Creating household for user:', userId.slice(0, 8) + '...');
 
     try {
-      // Create household
+      // Create household with explicit created_by to satisfy RLS
       const { data: household, error: householdError } = await supabase
         .from('households')
         .insert({
           postcode: draft.household.postcode || null,
           timezone: TIMEZONE,
+          created_by: userId, // Explicit to satisfy RLS policy
           settings: {
             lighten_weekdays: !!draft.household.settings?.lighten_weekdays,
             kids_weekends_only: !!draft.household.settings?.kids_weekends_only,
