@@ -203,21 +203,10 @@ export default function SetupFlow() {
     return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
   };
 
-  const createRealHousehold = async () => {
-    // Verify session and user authentication
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session?.user?.id) {
-      console.error('No valid session for household creation');
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to create a household",
-        variant: "destructive",
-      });
-      return null;
+  const createRealHousehold = async (userId: string) => {
+    if (import.meta.env.DEV) {
+      console.log('Creating household for user:', userId.slice(0, 8) + '...');
     }
-
-    const userId = sessionData.session.user.id;
-    console.log('Creating household for user:', userId.slice(0, 8) + '...');
 
     try {
       // Create household with explicit created_by to satisfy RLS
@@ -343,16 +332,14 @@ export default function SetupFlow() {
     const userId = session?.user?.id;
     
     if (import.meta.env.DEV) {
-      console.log('🔄 SetupFlow generatePlan:', {
-        userId: userId?.slice(0, 8) + '...',
-        hasSession: !!session
-      });
+      console.log('[Auth] session?.user?.id', session?.user?.id);
+      console.log('[Flow] real vs demo branch taken:', !!session?.user?.id ? 'REAL' : 'DEMO');
     }
     
     // If user is authenticated, ALWAYS create real household
     if (userId) {
       try {
-        const realHousehold = await createRealHousehold();
+        const realHousehold = await createRealHousehold(userId);
         if (realHousehold) {
           household_id = realHousehold.household.id;
           requested_by_person_id = realHousehold.people.find(p => p.role === 'adult')?.id || realHousehold.people[0]?.id;
@@ -371,14 +358,14 @@ export default function SetupFlow() {
           });
         }
       } catch (error) {
-        console.error('❌ Failed to create real household:', error);
+        console.error('[Household RLS]', error);
         toast({ 
-          title: lang === "en" ? "Failed to create household" : "Kon huishouden niet aanmaken", 
-          description: lang === "en" ? "Please try again or contact support" : "Probeer het opnieuw of neem contact op",
+          title: "Failed to create household", 
+          description: error instanceof Error ? error.message : "Authentication or permission error",
           variant: "destructive"
         });
         setGenerating(false);
-        return;
+        return; // ❗ do NOT fall back to demo here
       }
     } else {
       if (import.meta.env.DEV) {
@@ -447,7 +434,11 @@ export default function SetupFlow() {
         setGenerating(false);
         
         // Navigate to the appropriate plan URL
-        navigate(`/plan/${plan_id}`);
+        if (household_id.startsWith('HH_LOCAL')) {
+          navigate(`/plan/HH_LOCAL-${week_start}`);
+        } else {
+          navigate(`/plan/${household_id}-${week_start}`);
+        }
         return;
       } catch (err: any) {
         console.error("plan-generate failed, using fallback", err);
@@ -477,7 +468,11 @@ export default function SetupFlow() {
         setGenerating(false);
         
         // Navigate to the appropriate plan URL
-        navigate(`/plan/${fake.plan_id}`);
+        if (household_id.startsWith('HH_LOCAL')) {
+          navigate(`/plan/HH_LOCAL-${week_start}`);
+        } else {
+          navigate(`/plan/${household_id}-${week_start}`);
+        }
         return;
       }
     }
