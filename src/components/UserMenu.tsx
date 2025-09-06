@@ -15,9 +15,16 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 export const UserMenu = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const { t, lang } = useI18n();
   const navigate = useNavigate();
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+    );
+  }
 
   if (!user) {
     return (
@@ -25,6 +32,7 @@ export const UserMenu = () => {
         variant="outline"
         size="sm"
         onClick={() => navigate('/auth')}
+        className="border-border hover:bg-accent hover:text-accent-foreground"
       >
         {lang === 'nl' ? 'Inloggen' : 'Sign In'}
       </Button>
