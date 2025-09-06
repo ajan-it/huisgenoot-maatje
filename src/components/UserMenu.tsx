@@ -19,6 +19,9 @@ export const UserMenu = () => {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
 
+  // Debug logging
+  console.log('UserMenu render:', { user: !!user, loading, email: user?.email });
+
   // Show loading state while auth is initializing
   if (loading) {
     return (
@@ -32,7 +35,7 @@ export const UserMenu = () => {
         variant="outline"
         size="sm"
         onClick={() => navigate('/auth')}
-        className="border-border hover:bg-accent hover:text-accent-foreground"
+        className="border-border hover:bg-accent hover:text-accent-foreground min-w-[80px]"
       >
         {lang === 'nl' ? 'Inloggen' : 'Sign In'}
       </Button>
@@ -61,16 +64,17 @@ export const UserMenu = () => {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">
-              {getInitials(user.email || 'U')}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
+    <div className="flex items-center">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                {getInitials(user.email || 'U')}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
@@ -88,6 +92,7 @@ export const UserMenu = () => {
           <span>{lang === 'nl' ? 'Uitloggen' : 'Sign out'}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+    </div>
   );
 };
