@@ -263,8 +263,10 @@ const AppNavigation = () => {
           </Button>
         )}
 
-        {/* User Menu */}
-        <UserMenu />
+        {/* User Menu - positioned with margin to avoid language toggle */}
+        <div className="mr-16">
+          <UserMenu />
+        </div>
       </div>
     </nav>
   );

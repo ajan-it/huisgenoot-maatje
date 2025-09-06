@@ -73,13 +73,15 @@ export const UserMenu = () => {
 
   return (
     <div 
-      className="flex items-center z-50" 
+      className="flex items-center"
       style={{ 
         backgroundColor: 'red', 
         border: '3px solid blue', 
         padding: '4px',
         minWidth: '50px',
-        minHeight: '40px'
+        minHeight: '40px',
+        zIndex: 9999,
+        position: 'relative'
       }}
     >
       <DropdownMenu>
@@ -90,7 +92,8 @@ export const UserMenu = () => {
             style={{ 
               backgroundColor: '#FFD700 !important',
               border: '2px solid black',
-              zIndex: 9999
+              zIndex: 9999,
+              position: 'relative'
             }}
           >
             <Avatar className="h-8 w-8">
@@ -114,7 +117,8 @@ export const UserMenu = () => {
         style={{ 
           backgroundColor: '#FFFFFF !important',
           border: '2px solid black !important',
-          zIndex: 9999
+          zIndex: 9999,
+          position: 'relative'
         }}
       >
         <DropdownMenuLabel className="font-normal">
