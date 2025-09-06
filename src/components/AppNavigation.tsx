@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { useI18n } from "@/i18n/I18nProvider";
 import { cn } from "@/lib/utils";
+import { UserMenu } from "@/components/UserMenu";
 import React, { useState } from "react";
 
 const AppNavigation = () => {
@@ -261,6 +262,9 @@ const AppNavigation = () => {
             {lang === 'nl' ? 'Start Wizard' : 'Start Wizard'}
           </Button>
         )}
+
+        {/* User Menu */}
+        <UserMenu />
       </div>
     </nav>
   );
