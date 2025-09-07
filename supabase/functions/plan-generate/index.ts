@@ -970,27 +970,26 @@ serve(async (req) => {
     return fail(500, 'tasks_load_failed', 'Failed to load household tasks', { rid, details: tasksErr });
   }
 
-  // Re-check the DB has active tasks
-  const { data: countRows, error: cntErr } = await userClient
+  // Count active tasks *correctly*
+  const { count: activeCount, error: cntErr } = await userClient
     .from('household_tasks')
-    .select('task_id', { count: 'exact', head: true })
+    .select('*', { head: true, count: 'exact' })
     .eq('household_id', household_id)
     .eq('active', true);
 
   if (cntErr) return fail(500, 'ht_count_failed', cntErr.message, { rid, cntErr });
-  if ((countRows as any) === null || (countRows as any) === undefined || (countRows as any) < 1) {
+
+  if ((activeCount ?? 0) < 1) {
     return fail(400, 'no_tasks_for_household', 'No active tasks found for this household', { rid, household_id });
   }
-  console.log('[plan] tasks_count', { rid, count: (countRows as any) });
+
+  console.log('[plan] tasks_count', { rid, count: activeCount });
 
   const activeTasks = (householdTasks ?? []).filter(t => t.active && t.tasks);
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[plan-generate] tasks_count', { rid, household_id, count: activeTasks.length });
-  }
+  console.log('[plan] load_active_tasks', { rid, rows: activeTasks.length });
   
-  if (activeTasks.length === 0) {
-    console.warn('[plan-generate] no tasks for household:', { rid, household_id });
-    return fail(400, 'no_tasks_for_household', 'No active tasks found for this household. Please select some tasks first.', { rid, household_id });
+  if (!activeTasks.length) {
+    return fail(400, 'no_active_tasks_loaded', 'No active tasks loaded from database', { rid, household_id });
   }
 
   // Convert to format expected by generator

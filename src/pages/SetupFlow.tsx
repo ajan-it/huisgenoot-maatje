@@ -370,13 +370,27 @@ export default function SetupFlow() {
       });
 
       if (error) {
-        // show server message if present
-        const msg = (error as any)?.context?.message ?? (error as any)?.message ?? 'Unknown';
-        console.error('[setup] plan-generate failed', { rid, msg, error });
-        toast({ 
-          variant: 'destructive', 
-          title: 'Failed to generate plan', 
-          description: `rid ${rid}: ${msg}` 
+        // Try to surface the JSON error body we return from the Edge Function
+        // supabase-js puts the Response object in error.context
+        let serverMsg = '';
+        try {
+          const resp = (error as any)?.context;
+          if (resp && typeof resp.json === 'function') {
+            const body = await resp.json();
+            serverMsg = body?.message || body?.error || JSON.stringify(body);
+          }
+        } catch (_) {}
+
+        const finalMsg =
+          serverMsg ||
+          (error as any)?.message ||
+          'Unknown error';
+
+        console.error('[setup] plan-generate failed', { rid, finalMsg, error });
+        toast({
+          variant: 'destructive',
+          title: 'Failed to generate plan',
+          description: `rid ${rid}: ${finalMsg}`,
         });
         return;
       }
