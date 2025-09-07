@@ -334,10 +334,13 @@ export default function SetupFlow() {
 
       if (planError) {
         console.error('❌ Plan generation failed:', planError);
+        const serverMsg = (planError as any)?.context?.error?.message || 
+                         (planError as any)?.message || 
+                         'Unknown error';
         toast({
           variant: 'destructive',
           title: lang === "en" ? "Failed to generate plan" : "Plan genereren mislukt",
-          description: planError.message
+          description: `${serverMsg} (rid ${rid})`
         });
         return;
       }

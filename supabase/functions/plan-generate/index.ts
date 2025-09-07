@@ -8,6 +8,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Structured response helpers
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
+  });
+
+const fail = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
+  json(status, { error: { code, message, ...extra } });
+
 // Full task definitions with all required properties
 const SEED_TASKS = [
   // Keuken & maaltijden
@@ -906,7 +916,7 @@ function generateRebalancePreview(tasks: any[], people: any[], currentAssignment
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { status: 200, headers: corsHeaders });
+    return json(200, "ok");
   }
 
   // Extract request ID for observability
@@ -929,10 +939,7 @@ serve(async (req) => {
     
     if (authError || !user) {
       console.error(`[plan-generate] auth failed`, { rid, authError });
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return fail(401, 'unauthorized', authError?.message || 'Invalid JWT', { rid });
     }
 
     const input = await req.json().catch(() => ({}));
@@ -955,10 +962,7 @@ serve(async (req) => {
 
       if (membershipError || !membership) {
         console.error(`[plan-generate] membership check failed`, { rid, household_id, userId: user.id, membershipError });
-        return new Response(JSON.stringify({ error: 'Not a member of this household' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        return fail(403, 'forbidden', 'User is not a member of this household', { rid, household_id, userId: user.id });
       }
     }
 
@@ -1177,7 +1181,7 @@ serve(async (req) => {
                 week_start,
                 fairness_score: fairness || 0,
                 status: 'confirmed', // Use valid enum value
-                created_by: user.id
+                
               },
               { onConflict: 'household_id,week_start' }
             )
@@ -1186,9 +1190,10 @@ serve(async (req) => {
 
           if (planError) {
             console.error(`[plan-generate] plan upsert failed`, { rid, planError });
-            return new Response(JSON.stringify({ error: 'plan_upsert_failed', details: planError }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            return fail(500, 'plan_upsert_failed', planError.message, { 
+              rid, 
+              details: planError.details, 
+              hint: planError.hint 
             });
           }
 
@@ -1226,9 +1231,10 @@ serve(async (req) => {
 
             if (occError) {
               console.error(`[plan-generate] occurrences insert failed`, { rid, occError });
-              return new Response(JSON.stringify({ error: 'occurrences_insert_failed', details: occError }), {
-                status: 500,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              return fail(500, 'occ_insert_failed', occError.message, { 
+                rid, 
+                details: occError.details, 
+                hint: occError.hint 
               });
             }
           }
@@ -1236,35 +1242,24 @@ serve(async (req) => {
           console.log(`[plan-generate] persisted`, { rid, userId: user.id, household_id, week_start, plan_id: dbPlanId, count: bulkOccurrences.length });
 
           // Return minimal response for database persistence
-          return new Response(JSON.stringify({
+          return json(200, {
             plan_id: dbPlanId,
             household_id,
             week_start,
             occurrence_count: bulkOccurrences.length,
-            success: true
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            success: true,
+            rid
           });
         } catch (dbError) {
           console.error(`[plan-generate] database persistence error`, { rid, dbError });
-          return new Response(JSON.stringify({ error: 'database_persistence_failed', details: dbError }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          return fail(500, 'database_persistence_failed', String(dbError), { rid });
         }
       }
     }
 
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(200, data);
   } catch (error: any) {
     console.error(`[plan-generate] error`, { rid, error: error?.message || error });
-    return new Response(JSON.stringify({ error: error?.message || "Bad request" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return fail(500, 'unhandled', error?.message || String(error), { rid });
   }
 });
