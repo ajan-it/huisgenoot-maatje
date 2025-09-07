@@ -915,59 +915,49 @@ function generateRebalancePreview(tasks: any[], people: any[], currentAssignment
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return json(200, "ok");
+  if (req.method === 'OPTIONS') return json(200, 'ok');
+
+  const rid = req.headers.get('x-request-id') ?? crypto.randomUUID();
+  const authHeader = req.headers.get('Authorization') ?? '';
+
+  // User client (auth / RLS reads)
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+  const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+  
+  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: { user }, error: userErr } = await userClient.auth.getUser();
+  if (!user || userErr) return fail(401, 'no_auth', 'Missing or invalid JWT', { rid });
+
+  let payload: any = {};
+  try { payload = await req.json(); } catch {}
+  const { household_id, week_start } = payload ?? {};
+  if (!household_id || !/^\d{4}-\d{2}-\d{2}$/.test(week_start || '')) {
+    return fail(400, 'bad_request', 'household_id and week_start (YYYY-MM-DD) are required', { rid });
   }
 
-  // Extract request ID for observability
-  const rid = req.headers.get('x-request-id') || crypto.randomUUID();
+  // Membership check with user client
+  const { data: _, error: memErr } = await userClient
+    .from('household_members')
+    .select('user_id', { head: true, count: 'exact' })
+    .eq('household_id', household_id)
+    .eq('user_id', user.id);
+  if (memErr) return fail(500, 'membership_check_failed', memErr.message, { rid });
+
+  // Service role for writes
+  const SRK = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!SRK) return fail(500, 'service_role_missing', 'SUPABASE_SERVICE_ROLE_KEY not set', { rid });
+  const svc = createClient(SUPABASE_URL, SRK);
 
   try {
-    // Initialize user client for auth and membership checks
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: req.headers.get('authorization') || '' }
-      }
-    });
+    const mode = payload?.mode || 'generate';
+    const currentAssignments = payload?.current_assignments || [];
+    const timezone = payload?.timezone || "Europe/Amsterdam";
 
-    // Verify JWT and get user
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    
-    if (authError || !user) {
-      console.error(`[plan-generate] auth failed`, { rid, authError });
-      return fail(401, 'unauthorized', authError?.message || 'Invalid JWT', { rid });
-    }
-
-    const input = await req.json().catch(() => ({}));
-    console.log(`[plan-generate] input received`, { rid, userId: user.id });
-
-    const mode = input?.mode || 'generate';
-    const currentAssignments = input?.current_assignments || [];
-    const week_start = input?.week_start || new Date().toISOString().slice(0, 10);
-    const household_id = input?.household_id || "HH_LOCAL";
-    const timezone = input?.timezone || "Europe/Amsterdam";
-
-    // Verify user is household member for real households
-    if (household_id !== "HH_LOCAL") {
-      const { data: membership, error: membershipError } = await userClient
-        .from('household_members')
-        .select('household_id')
-        .eq('household_id', household_id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (membershipError || !membership) {
-        console.error(`[plan-generate] membership check failed`, { rid, household_id, userId: user.id, membershipError });
-        return fail(403, 'forbidden', 'User is not a member of this household', { rid, household_id, userId: user.id });
-      }
-    }
-
-    const people = Array.isArray(input?.people) ? input.people : [];
-    const tasks = Array.isArray(input?.tasks) ? input.tasks : [];
+    const people = Array.isArray(payload?.people) ? payload.people : [];
+    const tasks = Array.isArray(payload?.tasks) ? payload.tasks : [];
     
     console.log("Raw people:", people.length, people);
     console.log("Raw tasks:", tasks.length, tasks);
@@ -981,7 +971,7 @@ serve(async (req) => {
     console.log("Full active tasks:", fullActiveTasks.length, fullActiveTasks);
     console.log("Filtered adults:", adults.length, adults);
     
-    const plan_id = input?.idempotency_key || `${household_id}-${week_start}`;
+    const plan_id = payload?.idempotency_key || `${household_id}-${week_start}`;
 
     // Generate task assignments or rebalance existing ones
     let assignments, rebalancePreview = null;
@@ -1165,91 +1155,45 @@ serve(async (req) => {
       ...(rebalancePreview && { rebalance_preview: rebalancePreview })
     };
 
-    // Persist plan to database for real users (not demo mode)
+    // Persist plan to database for real users (not demo mode)  
     if (!mode || mode === 'generate') {
       if (household_id !== "HH_LOCAL" && assignments?.length > 0) {
         try {
-          // Create service client for writes (bypass RLS)
-          const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
-          
-          // Upsert plan record with correct enum value
-          const { data: upsertedPlan, error: planError } = await serviceClient
+          // UPSERT plan – only columns that certainly exist
+          const { data: planRow, error: upsertErr } = await svc
             .from('plans')
-            .upsert(
-              {
-                household_id,
-                week_start,
-                fairness_score: fairness || 0,
-                status: 'confirmed', // Use valid enum value
-                
-              },
-              { onConflict: 'household_id,week_start' }
-            )
-            .select('id, household_id, week_start')
+            .upsert({ household_id, week_start }, { onConflict: 'household_id,week_start' })
+            .select('id')
             .single();
 
-          if (planError) {
-            console.error(`[plan-generate] plan upsert failed`, { rid, planError });
-            return fail(500, 'plan_upsert_failed', planError.message, { 
-              rid, 
-              details: planError.details, 
-              hint: planError.hint 
-            });
-          }
+          if (upsertErr) return fail(500, 'plan_upsert_failed', upsertErr.message, { rid, details: upsertErr.details, hint: upsertErr.hint });
 
-          const dbPlanId = upsertedPlan.id;
+          const planId = planRow.id;
 
-          // Delete existing occurrences for idempotency
-          const { error: deleteError } = await serviceClient
-            .from('occurrences')
-            .delete()
-            .eq('plan_id', dbPlanId);
+          // Replace occurrences (adjust column names to your schema!)
+          const del = await svc.from('occurrences').delete().eq('plan_id', planId);
+          if (del.error) return fail(500, 'occ_delete_failed', del.error.message, { rid });
 
-          if (deleteError) {
-            console.error(`[plan-generate] occurrences delete failed`, { rid, deleteError });
-          }
-
-          // Bulk insert new occurrences
-          const bulkOccurrences = assignments.map((assignment: any) => ({
-            plan_id: dbPlanId,
-            task_id: assignment.task_id,
-            date: assignment.date,
-            assigned_person: assignment.assigned_person_id || null,
+          const rows = assignments.map((o: any) => ({
+            plan_id: planId,
+            date: o.date,                          // 'YYYY-MM-DD' (DATE)
+            task_id: o.task_id,                    // confirm this is UUID and column name is exactly 'task_id'
+            assigned_person: o.assigned_person_id ?? null,  // confirm actual column name, e.g. 'assigned_person' or 'assignee_id'
             status: 'scheduled',
-            start_time: assignment.time_slot?.start || '18:30',
-            duration_min: assignment.task_duration || 30,
-            difficulty_weight: (assignment.task_difficulty || 1) * 1.0,
-            reminder_level: 0,
-            is_critical: false,
-            rationale: assignment.rationale ? JSON.stringify(assignment.rationale) : null
+            start_time: o.time_slot?.start ?? null,      // TIME or null
+            duration_min: o.task_duration ?? null,
+            difficulty_weight: o.task_difficulty ?? null,
+            is_critical: !!o.is_critical,
+            reminder_level: o.reminder_level ?? 0,
           }));
 
-          if (bulkOccurrences.length > 0) {
-            const { error: occError } = await serviceClient
-              .from('occurrences')
-              .insert(bulkOccurrences);
-
-            if (occError) {
-              console.error(`[plan-generate] occurrences insert failed`, { rid, occError });
-              return fail(500, 'occ_insert_failed', occError.message, { 
-                rid, 
-                details: occError.details, 
-                hint: occError.hint 
-              });
-            }
+          if (rows.length) {
+            const ins = await svc.from('occurrences').insert(rows);
+            if (ins.error) return fail(500, 'occ_insert_failed', ins.error.message, { rid, details: ins.error.details, hint: ins.error.hint });
           }
 
-          console.log(`[plan-generate] persisted`, { rid, userId: user.id, household_id, week_start, plan_id: dbPlanId, count: bulkOccurrences.length });
-
-          // Return minimal response for database persistence
-          return json(200, {
-            plan_id: dbPlanId,
-            household_id,
-            week_start,
-            occurrence_count: bulkOccurrences.length,
-            success: true,
-            rid
-          });
+          console.log('[plan-generate] persisted', { rid, userId: user.id, household_id, week_start, plan_id: planId, count: rows.length });
+          return json(200, { rid, household_id, week_start, plan_id: planId, occurrence_count: rows.length });
         } catch (dbError) {
           console.error(`[plan-generate] database persistence error`, { rid, dbError });
           return fail(500, 'database_persistence_failed', String(dbError), { rid });

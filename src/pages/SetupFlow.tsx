@@ -318,10 +318,19 @@ export default function SetupFlow() {
       console.log('📅 Generating plan...');
       const weekStart = nextMondayISO();
       const rid = crypto.randomUUID();
+
+      if (!session?.access_token) {
+        toast({ 
+          variant: 'destructive', 
+          title: lang === "en" ? "Not signed in" : "Niet ingelogd" 
+        });
+        return;
+      }
       
       const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate', {
         headers: {
-          'x-request-id': rid
+          'x-request-id': rid,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: {
           household_id: householdId,
@@ -334,9 +343,15 @@ export default function SetupFlow() {
 
       if (planError) {
         console.error('❌ Plan generation failed:', planError);
-        const serverMsg = (planError as any)?.context?.error?.message || 
-                         (planError as any)?.message || 
-                         'Unknown error';
+        let serverMsg = planError.message;
+        try {
+          const res = (planError as any).context?.response;
+          if (res?.json) {
+            const j = await res.json();
+            serverMsg = j?.error?.message || serverMsg;
+            if (j?.rid) console.warn('RID', j.rid);
+          }
+        } catch {}
         toast({
           variant: 'destructive',
           title: lang === "en" ? "Failed to generate plan" : "Plan genereren mislukt",
