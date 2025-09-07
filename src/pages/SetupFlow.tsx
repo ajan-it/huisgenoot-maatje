@@ -252,35 +252,28 @@ export default function SetupFlow() {
         
         if (selectedTasks.length > 0) {
           // Build payload with proper slug/UUID handling
-          const taskPayload = selectedTasks.map((t: { id: string; active: boolean }) => {
-            const val = t.id;
-            return isUuid(val) ? { id: val, active: true } : { slug: val, active: true };
+          const taskPayload = selectedTasks.map((val) => {
+            const slugOrId = val.id; // task id from the selection (e.g., "t15", "t16", etc.)
+            return isUuid(slugOrId) ? { id: slugOrId } : { slug: slugOrId };
           });
 
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('[setup] rpc_upsert_household_tasks payload', { 
-              count: taskPayload.length, 
-              sample: taskPayload.slice(0, 3) 
-            });
-          }
+          console.log('[setup] saving tasks', { count: taskPayload.length, sample: taskPayload.slice(0, 3) });
 
-          console.log('[setup] saving tasks', { householdId, selected: taskPayload.length });
-
-          const { data: taskCount, error: taskError } = await supabase.rpc('rpc_upsert_household_tasks', {
+          const { data: saved, error: saveErr } = await supabase.rpc('rpc_upsert_household_tasks', {
             p_household_id: householdId,
-            p_tasks: taskPayload,
+            p_tasks: taskPayload
           });
-
-          if (taskError) {
-            console.error('rpc_upsert_household_tasks error', taskError);
-            toast({ variant: 'destructive', title: 'Failed to save tasks', description: taskError.message });
+          
+          if (saveErr) {
+            console.error('[setup] save tasks failed', saveErr);
+            toast({ variant: 'destructive', title: 'Failed to save tasks', description: saveErr.message });
             return;
           }
 
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[setup] tasks saved successfully', { householdId, count: taskCount });
+            console.log('[setup] tasks saved successfully', { householdId, count: saved });
           }
-          console.log('✅ Tasks saved:', taskCount);
+          console.log('✅ Tasks saved:', saved);
         }
       }
 
