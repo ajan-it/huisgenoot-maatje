@@ -396,7 +396,15 @@ export default function SetupFlow() {
       }
 
       console.log('[setup] REAL branch', { rid, resp: data });
-      localStorage.removeItem('lastPlanResponse');
+      
+      // Store plan response in localStorage so navigation can show Planning section
+      localStorage.setItem('lastPlanResponse', JSON.stringify({
+        plan_id: `${data.household_id}-${data.week_start}`,
+        household_id: data.household_id,
+        week_start: data.week_start,
+        occurrence_count: data.occurrence_count
+      }));
+      
       navigate(`/plan/${data.household_id}-${data.week_start}`);
       
     } catch (error) {
