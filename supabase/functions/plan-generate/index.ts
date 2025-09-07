@@ -945,12 +945,65 @@ serve(async (req) => {
     .eq("user_id", user.id);
   if (mem.error) return fail(500, "membership_check_failed", mem.error.message, { rid });
 
-  // 2) service-role client for writes (bypass RLS after verifying membership)
+  // 2) Load active tasks for the household from database
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[plan-generate] input', { rid, household_id, week_start });
+  }
+
+  const { data: householdTasks, error: tasksErr } = await userClient
+    .from('household_tasks')
+    .select(`
+      task_id,
+      active,
+      tasks:task_id ( id, name, category, default_duration, difficulty, frequency, seasonal_months, tags )
+    `)
+    .eq('household_id', household_id)
+    .eq('active', true);
+
+  if (tasksErr) {
+    console.error('[plan-generate] tasks load failed:', tasksErr);
+    return fail(500, 'tasks_load_failed', 'Failed to load household tasks', { rid, details: tasksErr });
+  }
+
+  const activeTasks = (householdTasks ?? []).filter(t => t.active && t.tasks);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[plan-generate] tasks_count', { rid, household_id, count: activeTasks.length });
+  }
+  
+  if (activeTasks.length === 0) {
+    console.warn('[plan-generate] no tasks for household:', { rid, household_id });
+    return fail(400, 'no_tasks_for_household', 'No active tasks found for this household. Please select some tasks first.', { rid, household_id });
+  }
+
+  // Convert to format expected by generator
+  const tasks = activeTasks.map(ht => ht.tasks).filter(Boolean);
+
+  // 3) Load people for the household
+  const { data: people, error: peopleErr } = await userClient
+    .from('people')
+    .select('id, first_name, role, weekly_time_budget')
+    .eq('household_id', household_id);
+
+  if (peopleErr) {
+    console.error('[plan-generate] people load failed:', peopleErr);
+    return fail(500, 'people_load_failed', 'Failed to load household people', { rid, details: peopleErr });
+  }
+
+  if (!people || people.length === 0) {
+    console.warn('[plan-generate] no people for household:', { rid, household_id });
+    return fail(400, 'no_people_for_household', 'No people found for this household', { rid, household_id });
+  }
+
+  // 4) Run generateTaskAssignments with database tasks and people
+  console.log(`[plan-generate] running generator with ${tasks.length} tasks and ${people.length} people`);
+  const assignments = generateTaskAssignments(tasks, people, week_start, rid);
+
+  // 5) service-role client for writes (bypass RLS after verifying membership)
   const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!SRK) return fail(500, "service_role_missing", "SUPABASE_SERVICE_ROLE_KEY not set", { rid });
   const svc = createClient(SUPABASE_URL, SRK);
 
-  // 3) UPSERT the plan using only safe, existing columns
+  // 6) UPSERT the plan using only safe, existing columns
   const up = await svc
     .from("plans")
     .upsert({ household_id, week_start }, { onConflict: "household_id,week_start" })
@@ -963,29 +1016,32 @@ serve(async (req) => {
 
   const planId = up.data.id;
 
-  // 4) (Optional) Replace occurrences here if you already compute them on the server.
-  // For now it's fine to persist only the plan row: the Week view will no longer say "not found".
-  // Uncomment & align column names if you already have occurrences ready:
-  /*
+  // 7) Create occurrences from assignments
   await svc.from("occurrences").delete().eq("plan_id", planId);
-  const rows = occurrences.map(o => ({
-    plan_id: planId,
-    date: o.date,                   // YYYY-MM-DD
-    task_id: o.task_id,             // UUID
-    assigned_person: o.person_id ?? null,  // or your actual column (assignee_id)
-    status: "scheduled",
-    start_time: o.start_time ?? null,
-    duration_min: o.duration_min ?? null,
-    difficulty_weight: o.weight ?? null,
-    is_critical: !!o.is_critical,
-    reminder_level: o.reminder_level ?? 0,
-  }));
-  if (rows.length) {
+  
+  if (assignments && assignments.length > 0) {
+    const rows = assignments.map(a => ({
+      plan_id: planId,
+      date: a.date,
+      task_id: a.task_id,
+      assigned_person: a.assigned_person_id || null,
+      status: a.status || "scheduled",
+      start_time: a.start_time || "18:30",
+      duration_min: a.task_duration || 30,
+      difficulty_weight: a.difficulty_weight || 1.0,
+      is_critical: !!a.is_critical,
+      reminder_level: a.reminder_level || 0,
+    }));
+    
     const ins = await svc.from("occurrences").insert(rows);
-    if (ins.error) return fail(500, "occ_insert_failed", ins.error.message, { rid, details: ins.error.details, hint: ins.error.hint });
+    if (ins.error) {
+      console.error('[plan-generate] occurrence insert failed:', ins.error);
+      return fail(500, "occ_insert_failed", ins.error.message, { rid, details: ins.error.details, hint: ins.error.hint });
+    }
+    
+    console.log(`[plan-generate] created ${rows.length} occurrences`);
   }
-  */
 
   console.log("[plan-generate] persisted", { rid, userId: user.id, household_id, week_start, plan_id: planId });
-  return json(200, { rid, household_id, week_start, plan_id: planId, occurrence_count: 0 });
+  return json(200, { rid, household_id, week_start, plan_id: planId, occurrences_count: assignments?.length || 0 });
 });

@@ -201,6 +201,48 @@ export type Database = {
           },
         ]
       }
+      household_tasks: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          household_id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          household_id: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          household_id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_tasks_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           boost_settings: Json | null
@@ -612,6 +654,10 @@ export type Database = {
             }
           | { p_name?: string; p_postcode?: string; p_timezone?: string }
         Returns: string
+      }
+      rpc_upsert_household_tasks: {
+        Args: { p_household_id: string; p_tasks: Json }
+        Returns: number
       }
     }
     Enums: {

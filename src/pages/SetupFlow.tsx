@@ -100,7 +100,7 @@ export default function SetupFlow() {
 
   const go = (next: number) => navigate(`/setup/${Math.max(1, Math.min(TOTAL_STEPS, next))}`);
 
-  const onNext = () => {
+  const onNext = async () => {
     // Per-step minimale validatie
     if (step === 2) {
       if (adultsCount < 1) {
@@ -241,7 +241,40 @@ export default function SetupFlow() {
 
       console.log('✅ Household created:', householdId);
 
-      // 2) Create people
+      // 2) Save selected tasks to household_tasks table
+      if (draft.tasks && draft.tasks.length > 0) {
+        console.log('📋 Saving selected tasks...');
+        const selectedTasks = draft.tasks.filter(t => t.active);
+        
+        if (selectedTasks.length > 0) {
+          const payload = selectedTasks.map(t => ({
+            id: t.id,
+            active: true
+          }));
+
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[setup] saving tasks', { householdId, selected: payload.length });
+          }
+
+          const { data: taskCount, error: taskError } = await supabase.rpc('rpc_upsert_household_tasks', {
+            p_household_id: householdId,
+            p_tasks: payload,
+          });
+
+          if (taskError) {
+            console.error('rpc_upsert_household_tasks error', taskError);
+            toast({ variant: 'destructive', title: 'Failed to save tasks', description: taskError.message });
+            return;
+          }
+
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[setup] tasks saved successfully', { householdId, count: taskCount });
+          }
+          console.log('✅ Tasks saved:', taskCount);
+        }
+      }
+
+      // 3) Create people
       if (draft.people && draft.people.length > 0) {
         console.log('👥 Creating people...');
         const peopleData = draft.people.map(person => ({
@@ -327,6 +360,10 @@ export default function SetupFlow() {
         return;
       }
       
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[plan-generate] input', { rid, household_id: householdId, week_start: weekStart });
+      }
+
       const { data, error } = await supabase.functions.invoke('plan-generate', {
         headers: {
           'x-request-id': rid,
