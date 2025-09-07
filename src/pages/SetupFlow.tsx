@@ -397,12 +397,26 @@ export default function SetupFlow() {
 
       console.log('[setup] REAL branch', { rid, resp: data });
       
+      // Log metrics for debugging task count discrepancy
+      if (data?.metrics) {
+        console.log('[setup] Task Count Metrics:', {
+          rid,
+          householdId,
+          weekStart,
+          metrics: data.metrics,
+          'A (selected_active_tasks)': data.metrics.selected_active_tasks,
+          'B (occurrences)': data.metrics.occurrences,
+          'C (unique_tasks)': data.metrics.unique_tasks
+        });
+      }
+      
       // Store plan response in localStorage so navigation can show Planning section
       localStorage.setItem('lastPlanResponse', JSON.stringify({
         plan_id: `${data.household_id}-${data.week_start}`,
         household_id: data.household_id,
         week_start: data.week_start,
-        occurrence_count: data.occurrence_count
+        occurrence_count: data.occurrence_count,
+        metrics: data.metrics
       }));
       
       navigate(`/plan/${data.household_id}-${data.week_start}`);

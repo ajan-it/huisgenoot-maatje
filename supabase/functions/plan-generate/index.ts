@@ -970,7 +970,7 @@ serve(async (req) => {
     return fail(500, 'tasks_load_failed', 'Failed to load household tasks', { rid, details: tasksErr });
   }
 
-  // Count active tasks *correctly*
+  // Count active tasks *correctly* - Definition A
   const { count: activeCount, error: cntErr } = await userClient
     .from('household_tasks')
     .select('*', { head: true, count: 'exact' })
@@ -979,11 +979,13 @@ serve(async (req) => {
 
   if (cntErr) return fail(500, 'ht_count_failed', cntErr.message, { rid, cntErr });
 
-  if ((activeCount ?? 0) < 1) {
+  const A = activeCount ?? 0; // Active tasks selected
+
+  if (A < 1) {
     return fail(400, 'no_tasks_for_household', 'No active tasks found for this household', { rid, household_id });
   }
 
-  console.log('[plan] tasks_count', { rid, count: activeCount });
+  console.log('[plan] instrumentation_A', { rid, household_id, selected_active_tasks: A });
 
   const activeTasks = (householdTasks ?? []).filter(t => t.active && t.tasks);
   console.log('[plan] load_active_tasks', { rid, rows: activeTasks.length });
@@ -1057,8 +1059,37 @@ serve(async (req) => {
     }
     
     console.log(`[plan-generate] created ${rows.length} occurrences`);
+    
+    // Compute metrics B and C for instrumentation
+    const B = rows.length; // Total occurrences
+    const uniqueTaskIds = new Set(rows.map(r => r.task_id));
+    const C = uniqueTaskIds.size; // Unique tasks actually scheduled
+    
+    // Guardrail: ensure we created occurrences
+    if (B < 1) {
+      return fail(500, 'no_occurrences_created', 'No occurrences were created', { rid, A, household_id });
+    }
+    
+    console.log('[plan] instrumentation_metrics', { 
+      rid, 
+      household_id, 
+      selected_active_tasks: A, 
+      occurrences: B, 
+      unique_tasks: C 
+    });
+    
+    const metrics = { selected_active_tasks: A, occurrences: B, unique_tasks: C };
+    
+    console.log('[plan] persisted', { rid, plan_id: planId, occurrence_count: B });
+    return json({ 
+      plan_id: planId, 
+      household_id, 
+      week_start, 
+      occurrence_count: B,
+      metrics 
+    }, 200);
+  } else {
+    // No assignments generated - still a failure case
+    return fail(500, 'no_occurrences_created', 'No occurrences were created', { rid, A, household_id });
   }
-
-  console.log('[plan] persisted', { rid, plan_id: planId, occurrence_count: assignments?.length || 0 });
-  return json(200, { plan_id: planId, household_id, week_start, occurrence_count: assignments?.length || 0 });
 });
