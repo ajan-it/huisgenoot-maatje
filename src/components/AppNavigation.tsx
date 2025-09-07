@@ -22,15 +22,37 @@ const AppNavigation = () => {
   const getCurrentPlanId = () => {
     try {
       const raw = localStorage.getItem("lastPlanResponse");
+      console.log('[AppNavigation] localStorage check:', { raw });
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      return parsed?.plan_id;
-    } catch {
+      console.log('[AppNavigation] parsed data:', parsed);
+      const planId = parsed?.plan_id;
+      console.log('[AppNavigation] extracted plan_id:', planId);
+      return planId;
+    } catch (error) {
+      console.error('[AppNavigation] localStorage error:', error);
       return null;
     }
   };
 
-  const currentPlanId = getCurrentPlanId();
+  let currentPlanId = getCurrentPlanId();
+  
+  // Fallback: if we're on a plan page but don't have localStorage data, extract from URL
+  if (!currentPlanId && location.pathname.startsWith('/plan/')) {
+    const planIdFromUrl = location.pathname.replace('/plan/', '');
+    if (planIdFromUrl) {
+      console.log('[AppNavigation] No localStorage data but on plan page, using URL:', planIdFromUrl);
+      currentPlanId = planIdFromUrl;
+      
+      // Store it in localStorage for next time
+      localStorage.setItem('lastPlanResponse', JSON.stringify({
+        plan_id: planIdFromUrl
+      }));
+      console.log('[AppNavigation] Stored plan data in localStorage');
+    }
+  }
+  
+  console.log('[AppNavigation] Final currentPlanId:', currentPlanId);
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
 
   const handleNavigation = (path: string) => {
