@@ -918,17 +918,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return json(200, "ok");
 
   const rid = req.headers.get("x-request-id") ?? crypto.randomUUID();
-  const authHeader = req.headers.get("Authorization") ?? "";
+  const authz = req.headers.get('authorization') ?? '';
+  console.log('[plan] start', { rid, hasAuth: !!authz });
 
   // 1) user client (auth + membership check)
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
   const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
+    global: { headers: { Authorization: authz } },
   });
 
   const { data: { user }, error: userErr } = await userClient.auth.getUser();
   if (!user || userErr) return fail(401, "no_auth", "Missing or invalid JWT", { rid });
+  console.log('[plan] user', { rid, userId: user.id });
 
   let payload = {};
   try { payload = await req.json(); } catch {}
@@ -937,13 +939,16 @@ serve(async (req) => {
     return fail(400, "bad_request", "household_id and week_start (YYYY-MM-DD) are required", { rid });
   }
 
-  // Optional: membership check (lightweight; RLS will still protect reads)
-  const mem = await userClient
-    .from("household_members")
-    .select("user_id", { head: true, count: "exact" })
-    .eq("household_id", household_id)
-    .eq("user_id", user.id);
-  if (mem.error) return fail(500, "membership_check_failed", mem.error.message, { rid });
+  // Check household membership
+  const { data: mm, error: mmErr } = await userClient
+    .from('household_members')
+    .select('user_id')
+    .eq('household_id', household_id)
+    .eq('user_id', user.id)
+    .limit(1);
+  if (mmErr) return fail(500, 'membership_query_failed', mmErr.message, { rid, mmErr });
+  if (!mm?.length) return fail(403, 'forbidden_not_member', 'Not a member of this household', { rid, household_id, userId: user.id });
+  console.log('[plan] membership ok', { rid, household_id });
 
   // 2) Load active tasks for the household from database
   if (process.env.NODE_ENV !== 'production') {
@@ -964,6 +969,19 @@ serve(async (req) => {
     console.error('[plan-generate] tasks load failed:', tasksErr);
     return fail(500, 'tasks_load_failed', 'Failed to load household tasks', { rid, details: tasksErr });
   }
+
+  // Re-check the DB has active tasks
+  const { data: countRows, error: cntErr } = await userClient
+    .from('household_tasks')
+    .select('task_id', { count: 'exact', head: true })
+    .eq('household_id', household_id)
+    .eq('active', true);
+
+  if (cntErr) return fail(500, 'ht_count_failed', cntErr.message, { rid, cntErr });
+  if ((countRows as any) === null || (countRows as any) === undefined || (countRows as any) < 1) {
+    return fail(400, 'no_tasks_for_household', 'No active tasks found for this household', { rid, household_id });
+  }
+  console.log('[plan] tasks_count', { rid, count: (countRows as any) });
 
   const activeTasks = (householdTasks ?? []).filter(t => t.active && t.tasks);
   if (process.env.NODE_ENV !== 'production') {
@@ -1042,6 +1060,6 @@ serve(async (req) => {
     console.log(`[plan-generate] created ${rows.length} occurrences`);
   }
 
-  console.log("[plan-generate] persisted", { rid, userId: user.id, household_id, week_start, plan_id: planId });
-  return json(200, { rid, household_id, week_start, plan_id: planId, occurrences_count: assignments?.length || 0 });
+  console.log('[plan] persisted', { rid, plan_id: planId, occurrence_count: assignments?.length || 0 });
+  return json(200, { plan_id: planId, household_id, week_start, occurrence_count: assignments?.length || 0 });
 });

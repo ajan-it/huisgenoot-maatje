@@ -361,36 +361,30 @@ export default function SetupFlow() {
       console.log('📅 Generating plan...');
       const weekStart = nextMondayISO();
       const rid = crypto.randomUUID();
-
-      if (!session?.access_token) {
-        toast({ 
-          variant: 'destructive', 
-          title: lang === "en" ? "Not signed in" : "Niet ingelogd" 
-        });
-        return;
-      }
-      
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[plan-generate] input', { rid, household_id: householdId, week_start: weekStart });
-      }
+      console.log('[setup] REAL branch', {
+        rid,
+        userId: session?.user?.id,
+        householdId,
+        weekStart
+      });
 
       const { data, error } = await supabase.functions.invoke('plan-generate', {
         headers: {
           'x-request-id': rid,
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`
         },
-        body: { household_id: householdId, week_start: weekStart },
+        body: { household_id: householdId, week_start: weekStart }
       });
 
       if (error) {
-        // Try to extract the server JSON body for a helpful message
-        let message = error.message;
-        try {
-          const res = (error as any).context?.response;
-          const j = res && (await res.json?.());
-          if (j?.error?.message) message = j.error.message;
-        } catch {}
-        toast({ variant: 'destructive', title: 'Failed to generate plan', description: `${message} (rid ${rid})` });
+        // show server message if present
+        const msg = (error as any)?.context?.message ?? (error as any)?.message ?? 'Unknown';
+        console.error('[setup] plan-generate failed', { rid, msg, error });
+        toast({ 
+          variant: 'destructive', 
+          title: 'Failed to generate plan', 
+          description: `rid ${rid}: ${msg}` 
+        });
         return;
       }
 
