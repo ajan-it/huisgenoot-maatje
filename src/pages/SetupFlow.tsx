@@ -327,52 +327,29 @@ export default function SetupFlow() {
         return;
       }
       
-      const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate', {
+      const { data, error } = await supabase.functions.invoke('plan-generate', {
         headers: {
           'x-request-id': rid,
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: {
-          household_id: householdId,
-          week_start: weekStart,
-          people: draft.people || [],
-          tasks: draft.tasks || [],
-          blackouts: draft.blackouts || []
-        }
+        body: { household_id: householdId, week_start: weekStart }, // nothing else required for now
       });
 
-      if (planError) {
-        console.error('❌ Plan generation failed:', planError);
-        let serverMsg = planError.message;
+      if (error) {
+        // Try to extract the server JSON body for a helpful message
+        let message = error.message;
         try {
-          const res = (planError as any).context?.response;
-          if (res?.json) {
-            const j = await res.json();
-            serverMsg = j?.error?.message || serverMsg;
-            if (j?.rid) console.warn('RID', j.rid);
-          }
+          const res = (error as any).context?.response;
+          const j = res && (await res.json?.());
+          if (j?.error?.message) message = j.error.message;
         } catch {}
-        toast({
-          variant: 'destructive',
-          title: lang === "en" ? "Failed to generate plan" : "Plan genereren mislukt",
-          description: `${serverMsg} (rid ${rid})`
-        });
+        toast({ variant: 'destructive', title: 'Failed to generate plan', description: `${message} (rid ${rid})` });
         return;
       }
 
-      console.log('✅ Plan generated successfully:', { planData });
-      
-      // 5) Clean demo residue, route to REAL plan
-      try {
-        localStorage.removeItem('lastPlanResponse');
-        localStorage.removeItem('demo:lastPlanResponse');
-        localStorage.removeItem('setupDraft');
-      } catch {}
-      
-      // Navigate to canonical plan URL using returned data
-      const finalHouseholdId = planData.household_id || householdId;
-      const finalWeekStart = planData.week_start || weekStart;
-      navigate(`/plan/${finalHouseholdId}-${finalWeekStart}`);
+      // success
+      localStorage.removeItem('lastPlanResponse');
+      navigate(`/plan/${data.household_id}-${data.week_start}`);
       
     } catch (error) {
       console.error('❌ Unexpected error:', error);
