@@ -241,24 +241,34 @@ export default function SetupFlow() {
 
       console.log('✅ Household created:', householdId);
 
+      // Utility function to check if a string is a UUID
+      const isUuid = (s: string) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+
       // 2) Save selected tasks to household_tasks table
       if (draft.tasks && draft.tasks.length > 0) {
         console.log('📋 Saving selected tasks...');
         const selectedTasks = draft.tasks.filter(t => t.active);
         
         if (selectedTasks.length > 0) {
-          const payload = selectedTasks.map(t => ({
-            id: t.id,
-            active: true
-          }));
+          // Build payload with proper slug/UUID handling
+          const taskPayload = selectedTasks.map((t: { id: string; active: boolean }) => {
+            const val = t.id;
+            return isUuid(val) ? { id: val, active: true } : { slug: val, active: true };
+          });
 
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[setup] saving tasks', { householdId, selected: payload.length });
+            console.log('[setup] rpc_upsert_household_tasks payload', { 
+              count: taskPayload.length, 
+              sample: taskPayload.slice(0, 3) 
+            });
           }
+
+          console.log('[setup] saving tasks', { householdId, selected: taskPayload.length });
 
           const { data: taskCount, error: taskError } = await supabase.rpc('rpc_upsert_household_tasks', {
             p_household_id: householdId,
-            p_tasks: payload,
+            p_tasks: taskPayload,
           });
 
           if (taskError) {
