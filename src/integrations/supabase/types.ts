@@ -371,6 +371,13 @@ export type Database = {
             foreignKeyName: "occurrences_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "plan_integrity"
+            referencedColumns: ["plan_id"]
+          },
+          {
+            foreignKeyName: "occurrences_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "plans"
             referencedColumns: ["id"]
           },
@@ -619,7 +626,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      plan_integrity: {
+        Row: {
+          duplicate_occ_span: number | null
+          household_id: string | null
+          missing_from_selection: number | null
+          not_scheduled: number | null
+          occurrences: number | null
+          plan_id: string | null
+          selected_active: number | null
+          unique_tasks: number | null
+          week_start: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_boost_needed: {
