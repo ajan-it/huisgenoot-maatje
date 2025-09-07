@@ -1081,13 +1081,13 @@ serve(async (req) => {
     const metrics = { selected_active_tasks: A, occurrences: B, unique_tasks: C };
     
     console.log('[plan] persisted', { rid, plan_id: planId, occurrence_count: B });
-    return json({ 
+    return json(200, { 
       plan_id: planId, 
       household_id, 
       week_start, 
       occurrence_count: B,
       metrics 
-    }, 200);
+    });
   } else {
     // No assignments generated - still a failure case
     return fail(500, 'no_occurrences_created', 'No occurrences were created', { rid, A, household_id });
