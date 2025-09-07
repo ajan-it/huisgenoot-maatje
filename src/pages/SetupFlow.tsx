@@ -332,7 +332,7 @@ export default function SetupFlow() {
           'x-request-id': rid,
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: { household_id: householdId, week_start: weekStart }, // nothing else required for now
+        body: { household_id: householdId, week_start: weekStart },
       });
 
       if (error) {
@@ -347,7 +347,7 @@ export default function SetupFlow() {
         return;
       }
 
-      // success
+      console.log('[setup] REAL branch', { rid, resp: data });
       localStorage.removeItem('lastPlanResponse');
       navigate(`/plan/${data.household_id}-${data.week_start}`);
       
