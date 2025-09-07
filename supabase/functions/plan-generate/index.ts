@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-request-id",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
@@ -906,7 +906,7 @@ function generateRebalancePreview(tasks: any[], people: any[], currentAssignment
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   // Extract request ID for observability
@@ -1243,6 +1243,7 @@ serve(async (req) => {
             occurrence_count: bulkOccurrences.length,
             success: true
           }), {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         } catch (dbError) {
@@ -1256,6 +1257,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify(data), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
