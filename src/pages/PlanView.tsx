@@ -408,9 +408,14 @@ const PlanView = () => {
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <div className="font-medium text-foreground">{plan.occurrences ?? 0}</div>
-                  <div className="text-xs">{L ? "Tasks" : "Taken"}</div>
+                <div className="space-y-1">
+                  <div className="font-medium text-foreground">{plan.assignments?.length ?? 0}</div>
+                  <div className="text-xs">{L ? "Occurrences" : "Uitvoeringen"}</div>
+                  {plan.assignments && (
+                    <div className="text-xs text-muted-foreground">
+                      {new Set(plan.assignments.map((a: any) => a.task_id)).size} {L ? "unique tasks" : "unieke taken"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="font-medium text-foreground">{plan.fairness ?? 0}/100</div>
