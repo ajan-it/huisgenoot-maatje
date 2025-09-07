@@ -89,16 +89,19 @@ const PlanView = () => {
     }
   }, [realContext, planId, householdId, navigate]);
   
+  // Robust slug parser
+  function parsePlanSlug(slug: string) {
+    const m = slug.match(/^([0-9a-fA-F-]{36})-(\d{4}-\d{2}-\d{2})$/);
+    if (!m) return null;
+    return { householdId: m[1], weekStart: m[2] };
+  }
+
   // Parse plan parameters
   const [parsedHouseholdId, parsedWeekStart] = useMemo(() => {
     if (!planId) return [null, null];
-    const parts = planId.split('-');
-    if (parts.length >= 4) {
-      const householdId = parts[0];
-      const weekStart = parts.slice(1).join('-');
-      return [householdId, weekStart];
-    }
-    return [null, null];
+    const parsed = parsePlanSlug(planId);
+    if (!parsed) return [null, null];
+    return [parsed.householdId, parsed.weekStart];
   }, [planId]);
 
   const effectiveHouseholdId = realContext.isDemo ? null : householdId;
@@ -106,23 +109,25 @@ const PlanView = () => {
 
   // Fetch plan from database for real users
   const fetchPlanFromDatabase = async () => {
-    if (!parsedHouseholdId || !parsedWeekStart || realContext.isDemo) return;
-    
-    try {
-      if (import.meta.env.DEV) {
-        console.log('🔍 Fetching plan from database:', { parsedHouseholdId, parsedWeekStart });
-      }
+    const parsed = parsePlanSlug(planId || '');
+    if (!parsed) {
+      setPlan(null);
+      return;
+    }
 
-      // Fetch plan record
-      const { data: planData, error: planError } = await supabase
+    const { householdId, weekStart } = parsed;
+
+    if (session?.user) {
+      console.debug('[week] querying', { householdId, weekStart });
+      const { data: plan, error: pErr } = await supabase
         .from('plans')
         .select('id, household_id, week_start, fairness_score, status')
-        .eq('household_id', parsedHouseholdId)
-        .eq('week_start', parsedWeekStart)
-        .single();
+        .eq('household_id', householdId)
+        .eq('week_start', weekStart)
+        .maybeSingle();
 
-      if (planError || !planData) {
-        console.log('No plan found in database for:', { parsedHouseholdId, parsedWeekStart });
+      if (pErr || !plan) {
+        console.warn('[week] plan not found', { pErr, householdId, weekStart });
         setPlan(null);
         return;
       }
@@ -135,7 +140,7 @@ const PlanView = () => {
           duration_min, difficulty_weight, is_critical, reminder_level,
           rationale
         `)
-        .eq('plan_id', planData.id)
+        .eq('plan_id', plan.id)
         .order('date', { ascending: true });
 
       if (occError) {
@@ -147,7 +152,7 @@ const PlanView = () => {
       const { data: people, error: peopleError } = await supabase
         .from('people')
         .select('id, first_name, role, weekly_time_budget')
-        .eq('household_id', parsedHouseholdId);
+        .eq('household_id', householdId);
 
       if (peopleError) {
         console.error('Error fetching people:', peopleError);
@@ -165,7 +170,7 @@ const PlanView = () => {
       const taskMap = new Map(tasks?.map(t => [t.id, t]) || []);
       const peopleMap = new Map(people?.map(p => [p.id, p]) || []);
 
-        const assignments = occurrences?.map(occ => {
+      const assignments = occurrences?.map(occ => {
         const task = taskMap.get(occ.task_id);
         const person = occ.assigned_person ? peopleMap.get(occ.assigned_person) : null;
 
@@ -190,10 +195,10 @@ const PlanView = () => {
       }) || [];
 
       const planObject = {
-        plan_id: planData.id,
-        household_id: planData.household_id,
-        week_start: planData.week_start,
-        fairness: planData.fairness_score || 0,
+        plan_id: plan.id,
+        household_id: plan.household_id,
+        week_start: plan.week_start,
+        fairness: plan.fairness_score || 0,
         occurrences: assignments.length,
         assignments,
         people: people || [],
@@ -205,15 +210,15 @@ const PlanView = () => {
       if (import.meta.env.DEV) {
         console.log('✅ Plan loaded from database:', planObject);
       }
-
-    } catch (error) {
-      console.error('Error fetching plan from database:', error);
-      setPlan(null);
+      return;
     }
+    
+    // guest flow fallback
+    setPlan(null);
   };
 
   useEffect(() => {
-    // Only load from localStorage in demo mode or as fallback
+    // Only load from localStorage in demo mode
     if (realContext.isDemo) {
       try {
         const raw = localStorage.getItem("lastPlanResponse");
@@ -239,11 +244,9 @@ const PlanView = () => {
       localStorage.removeItem('lastPlanResponse');
       
       // Fetch real plan data from Supabase
-      if (planId && householdId) {
-        fetchPlanFromDatabase();
-      }
+      fetchPlanFromDatabase();
     }
-  }, [planId, realContext.isDemo]);
+  }, [planId, realContext.isDemo, session?.user]);
 
   const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
 
