@@ -317,8 +317,12 @@ export default function SetupFlow() {
       // 4) Generate plan for REAL household
       console.log('📅 Generating plan...');
       const weekStart = nextMondayISO();
+      const rid = crypto.randomUUID();
       
       const { data: planData, error: planError } = await supabase.functions.invoke('plan-generate', {
+        headers: {
+          'x-request-id': rid
+        },
         body: {
           household_id: householdId,
           week_start: weekStart,
@@ -338,7 +342,7 @@ export default function SetupFlow() {
         return;
       }
 
-      console.log('✅ Plan generated successfully');
+      console.log('✅ Plan generated successfully:', { planData });
       
       // 5) Clean demo residue, route to REAL plan
       try {
@@ -347,8 +351,10 @@ export default function SetupFlow() {
         localStorage.removeItem('setupDraft');
       } catch {}
       
-      // Navigate to canonical plan URL
-      navigate(`/plan/${householdId}-${weekStart}`);
+      // Navigate to canonical plan URL using returned data
+      const finalHouseholdId = planData.household_id || householdId;
+      const finalWeekStart = planData.week_start || weekStart;
+      navigate(`/plan/${finalHouseholdId}-${finalWeekStart}`);
       
     } catch (error) {
       console.error('❌ Unexpected error:', error);

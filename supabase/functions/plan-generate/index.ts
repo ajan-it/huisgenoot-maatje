@@ -909,17 +909,26 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Extract request ID for observability
+  const rid = req.headers.get('x-request-id') || crypto.randomUUID();
+
   try {
-    // Initialize Supabase clients
+    // Initialize user client for auth and membership checks
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: req.headers.get('authorization') || '' }
+      }
+    });
 
     // Verify JWT and get user
-    const authHeader = req.headers.get('authorization')?.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(authHeader);
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
     
     if (authError || !user) {
+      console.error(`[plan-generate] auth failed`, { rid, authError });
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -927,7 +936,7 @@ serve(async (req) => {
     }
 
     const input = await req.json().catch(() => ({}));
-    console.log("Input received:", JSON.stringify(input, null, 2));
+    console.log(`[plan-generate] input received`, { rid, userId: user.id });
 
     const mode = input?.mode || 'generate';
     const currentAssignments = input?.current_assignments || [];
@@ -937,7 +946,7 @@ serve(async (req) => {
 
     // Verify user is household member for real households
     if (household_id !== "HH_LOCAL") {
-      const { data: membership, error: membershipError } = await supabaseClient
+      const { data: membership, error: membershipError } = await userClient
         .from('household_members')
         .select('household_id')
         .eq('household_id', household_id)
@@ -945,6 +954,7 @@ serve(async (req) => {
         .single();
 
       if (membershipError || !membership) {
+        console.error(`[plan-generate] membership check failed`, { rid, household_id, userId: user.id, membershipError });
         return new Response(JSON.stringify({ error: 'Not a member of this household' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1155,15 +1165,19 @@ serve(async (req) => {
     if (!mode || mode === 'generate') {
       if (household_id !== "HH_LOCAL" && assignments?.length > 0) {
         try {
-          // Upsert plan record
-          const { data: upsertedPlan, error: planError } = await supabaseClient
+          // Create service client for writes (bypass RLS)
+          const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+          
+          // Upsert plan record with correct enum value
+          const { data: upsertedPlan, error: planError } = await serviceClient
             .from('plans')
             .upsert(
               {
                 household_id,
                 week_start,
                 fairness_score: fairness || 0,
-                status: 'active'
+                status: 'confirmed', // Use valid enum value
+                created_by: user.id
               },
               { onConflict: 'household_id,week_start' }
             )
@@ -1171,57 +1185,72 @@ serve(async (req) => {
             .single();
 
           if (planError) {
-            console.error('Plan upsert error:', planError);
-          } else {
-            const dbPlanId = upsertedPlan.id;
-
-            // Delete existing occurrences for idempotency
-            await supabaseClient
-              .from('occurrences')
-              .delete()
-              .eq('plan_id', dbPlanId);
-
-            // Bulk insert new occurrences
-            const bulkOccurrences = assignments.map((assignment: any) => ({
-              plan_id: dbPlanId,
-              task_id: assignment.task_id,
-              date: assignment.date,
-              assigned_person: assignment.assigned_person_id || null,
-              status: assignment.status === 'backlog' ? 'scheduled' : 'scheduled',
-              start_time: assignment.time_slot?.start || '18:30',
-              duration_min: assignment.task_duration || 30,
-              difficulty_weight: (assignment.task_difficulty || 1) * 1.0,
-              reminder_level: 0,
-              is_critical: false,
-              rationale: assignment.rationale ? JSON.stringify(assignment.rationale) : null
-            }));
-
-            if (bulkOccurrences.length > 0) {
-              const { error: occError } = await supabaseClient
-                .from('occurrences')
-                .insert(bulkOccurrences);
-
-              if (occError) {
-                console.error('Occurrences insert error:', occError);
-              } else {
-                console.log(`✅ Persisted ${bulkOccurrences.length} occurrences to database`);
-              }
-            }
-
-            // Return minimal response for database persistence
-            return new Response(JSON.stringify({
-              plan_id: dbPlanId,
-              household_id,
-              week_start,
-              occurrence_count: bulkOccurrences.length,
-              success: true
-            }), {
+            console.error(`[plan-generate] plan upsert failed`, { rid, planError });
+            return new Response(JSON.stringify({ error: 'plan_upsert_failed', details: planError }), {
+              status: 500,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
+
+          const dbPlanId = upsertedPlan.id;
+
+          // Delete existing occurrences for idempotency
+          const { error: deleteError } = await serviceClient
+            .from('occurrences')
+            .delete()
+            .eq('plan_id', dbPlanId);
+
+          if (deleteError) {
+            console.error(`[plan-generate] occurrences delete failed`, { rid, deleteError });
+          }
+
+          // Bulk insert new occurrences
+          const bulkOccurrences = assignments.map((assignment: any) => ({
+            plan_id: dbPlanId,
+            task_id: assignment.task_id,
+            date: assignment.date,
+            assigned_person: assignment.assigned_person_id || null,
+            status: 'scheduled',
+            start_time: assignment.time_slot?.start || '18:30',
+            duration_min: assignment.task_duration || 30,
+            difficulty_weight: (assignment.task_difficulty || 1) * 1.0,
+            reminder_level: 0,
+            is_critical: false,
+            rationale: assignment.rationale ? JSON.stringify(assignment.rationale) : null
+          }));
+
+          if (bulkOccurrences.length > 0) {
+            const { error: occError } = await serviceClient
+              .from('occurrences')
+              .insert(bulkOccurrences);
+
+            if (occError) {
+              console.error(`[plan-generate] occurrences insert failed`, { rid, occError });
+              return new Response(JSON.stringify({ error: 'occurrences_insert_failed', details: occError }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+          }
+
+          console.log(`[plan-generate] persisted`, { rid, userId: user.id, household_id, week_start, plan_id: dbPlanId, count: bulkOccurrences.length });
+
+          // Return minimal response for database persistence
+          return new Response(JSON.stringify({
+            plan_id: dbPlanId,
+            household_id,
+            week_start,
+            occurrence_count: bulkOccurrences.length,
+            success: true
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
         } catch (dbError) {
-          console.error('Database persistence error:', dbError);
-          // Continue with original response if DB persistence fails
+          console.error(`[plan-generate] database persistence error`, { rid, dbError });
+          return new Response(JSON.stringify({ error: 'database_persistence_failed', details: dbError }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
         }
       }
     }
@@ -1230,7 +1259,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("plan-generate error", error);
+    console.error(`[plan-generate] error`, { rid, error: error?.message || error });
     return new Response(JSON.stringify({ error: error?.message || "Bad request" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
