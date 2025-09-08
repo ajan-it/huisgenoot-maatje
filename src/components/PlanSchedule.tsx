@@ -27,6 +27,7 @@ interface PlanScheduleProps {
   assignments: Assignment[];
   people: any[];
   weekStart: string;
+  planId?: string; // Add planId prop
 }
 
 const categoryColors: Record<string, string> = {
@@ -42,7 +43,7 @@ const categoryColors: Record<string, string> = {
   garden: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
 };
 
-export default function PlanSchedule({ assignments, people, weekStart }: PlanScheduleProps) {
+export default function PlanSchedule({ assignments, people, weekStart, planId }: PlanScheduleProps) {
   const { lang } = useI18n();
   const L = lang === "en";
 
@@ -67,7 +68,7 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
   const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing, isDemoMode } = useTaskActions(householdId || "");
 
   const handleRemoveTask = async (assignment: Assignment, options: ScopeOptions) => {
-    if (!householdId) return;
+    if (!householdId || !planId) return;
     
     await removeTask({
       occurrenceId: assignment.id || assignment.task_id, // Use assignment id as occurrence ID
@@ -75,7 +76,8 @@ export default function PlanSchedule({ assignments, people, weekStart }: PlanSch
       taskName: assignment.task_name,
       scope: options.scope,
       snoozeUntil: options.snoozeUntil,
-      baseDate: new Date(assignment.date)
+      baseDate: new Date(assignment.date),
+      planId: planId // Pass the plan ID
     });
   };
 

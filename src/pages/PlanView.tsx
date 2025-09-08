@@ -372,6 +372,7 @@ const PlanView = () => {
                     householdId={effectiveHouseholdId}
                     date={new Date(plan.week_start)}
                     onTaskUpdate={() => window.location.reload()}
+                    planId={plan.plan_id}
                   />
                 )}
               </CardTitle>
@@ -453,6 +454,7 @@ const PlanView = () => {
                   assignments={plan.assignments} 
                   people={plan.people || []} 
                   weekStart={plan.week_start} 
+                  planId={plan.plan_id}
                 />
               </CardContent>
             </Card>

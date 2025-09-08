@@ -12,21 +12,23 @@ interface TaskQuickActionsProps {
   date: Date;
   taskId?: string;
   onTaskUpdate?: () => void;
+  planId?: string; // Add planId prop
 }
 
-export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate }: TaskQuickActionsProps) {
+export function TaskQuickActions({ householdId, date, taskId, onTaskUpdate, planId }: TaskQuickActionsProps) {
   const [showTaskPicker, setShowTaskPicker] = useState(false);
   const { removeTask, isDemoMode } = useTaskActions(householdId);
 
   const handleScopeSelect = async (options: ScopeOptions) => {
-    if (taskId) {
+    if (taskId && planId) {
       await removeTask({
         occurrenceId: taskId, // taskId should be the occurrence ID in this context
         taskId: taskId,
         taskName: 'Task',
         scope: options.scope,
         snoozeUntil: options.snoozeUntil,
-        baseDate: date
+        baseDate: date,
+        planId: planId // Pass the plan ID
       });
       onTaskUpdate?.();
     }

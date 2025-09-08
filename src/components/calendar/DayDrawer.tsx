@@ -33,9 +33,10 @@ interface DayDrawerProps {
   open: boolean;
   onClose: () => void;
   occurrences: any[];
+  planId?: string; // Add planId prop
 }
 
-export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) {
+export function DayDrawer({ date, open, onClose, occurrences, planId }: DayDrawerProps) {
   const { t, lang } = useI18n();
   const locale = lang === 'nl' ? nl : enUS;
 
@@ -60,7 +61,7 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
   const { removeTask, undoRemove, dismissConfirmPill, actionState, isProcessing, isDemoMode } = useTaskActions(householdId || "");
 
   const handleRemoveTask = async (occurrence: any, options: ScopeOptions) => {
-    if (!householdId) return;
+    if (!householdId || !planId) return;
     
     await removeTask({
       occurrenceId: occurrence.id,
@@ -68,7 +69,8 @@ export function DayDrawer({ date, open, onClose, occurrences }: DayDrawerProps) 
       taskName: occurrence.tasks?.name || 'Unknown Task',
       scope: options.scope,
       snoozeUntil: options.snoozeUntil,
-      baseDate: date
+      baseDate: date,
+      planId: planId // Pass the plan ID
     });
   };
 

@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useTaskOverrides, CreateOverrideParams } from './useTaskOverrides';
-import { usePlanGeneration } from './usePlanGeneration';
 import { useToast } from './use-toast';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { resolveRealContext } from '@/lib/resolve-real-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { DemoActionTooltip } from '@/components/ui/demo-banner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
 export interface TaskActionState {
   confirmPill: {
@@ -22,23 +21,24 @@ export interface TaskActionOptions {
   scope: 'once' | 'week' | 'month' | 'always' | 'snooze';
   snoozeUntil?: Date;
   baseDate: Date;
+  planId?: string; // Add plan ID for direct RPC calls
 }
 
 export function useTaskActions(householdId: string) {
   const [actionState, setActionState] = useState<TaskActionState>({
     confirmPill: null,
   });
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const { session } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const realContext = resolveRealContext({
     session,
     route: { planId: null },
     local: { lastPlanResponse: localStorage.getItem('lastPlanResponse') }
   });
-  
-  const { createOverride, deleteOverride, isCreating } = useTaskOverrides(householdId);
-  const { generatePlan, isGenerating } = usePlanGeneration();
-  const { toast } = useToast();
 
   const getEffectiveDates = (scope: 'once' | 'week' | 'month' | 'always' | 'snooze', baseDate: Date, snoozeUntil?: Date) => {
     const baseDateStr = baseDate.toISOString().split('T')[0];
@@ -89,7 +89,7 @@ export function useTaskActions(householdId: string) {
   };
 
   const removeTask = async (options: TaskActionOptions) => {
-    const { occurrenceId, taskId, taskName, scope, snoozeUntil, baseDate } = options;
+    const { occurrenceId, taskId, taskName, scope, snoozeUntil, baseDate, planId } = options;
     
     // Check for demo mode
     if (realContext.isDemo) {
@@ -101,43 +101,49 @@ export function useTaskActions(householdId: string) {
       return;
     }
     
+    // Generate request ID for tracking
+    const rid = crypto.randomUUID();
+    console.log('[plan/remove] click', {
+      rid,
+      planId,
+      taskId,
+      occurrenceId,
+      scope,
+      taskName
+    });
+    
+    setIsProcessing(true);
+    
     try {
-      // Create the override via edge function
-      const override = await createOverride({
-        occurrence_id: occurrenceId,
-        action: 'exclude',
-        scope,
-        snooze_until: snoozeUntil?.toISOString().split('T')[0] || null
-      });
-
-      // Generate new plan
-      const result = await generatePlan({
-        household_id: householdId,
-        date_range: {
-          start: new Date().toISOString().split('T')[0],
-          end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        },
-        context: 'week'
-      });
+      // Determine mode based on scope
+      const mode = scope === 'always' ? 'week-and-future' : 'week-only';
       
-      if (!result.success) {
-        throw new Error('Failed to regenerate plan');
-      }
+      // Call the new RPC function directly
+      const { data, error } = await supabase.rpc('rpc_remove_task_from_plan', {
+        p_plan_id: planId,
+        p_task_id: taskId,
+        p_mode: mode
+      });
 
-      // Calculate points difference from server response
-      const pointsDiff = override.diff_summary?.shifted_points_by_person || {};
-      const shiftedPoints = Math.abs(
-        Object.values(pointsDiff)
-          .map(points => Number(points) || 0)
-          .reduce((total, points) => total + Math.abs(points), 0)
-      );
+      if (error) throw error;
+
+      console.log('[plan/remove] ok', { rid, data });
+      
+      // Type the response data
+      const responseData = data as any;
+      
+      // Show success toast
+      toast({
+        title: "Task removed",
+        description: responseData?.summary || `Removed ${taskName} ${getScopeDescription(scope)}.`
+      });
 
       // Show confirmation pill
       setActionState({
         confirmPill: {
-          message: `Removed ${taskName} ${getScopeDescription(scope)}.`,
-          overrideId: override.override_id,
-          shiftedPoints
+          message: responseData?.summary || `Removed ${taskName} ${getScopeDescription(scope)}.`,
+          overrideId: rid, // Use request ID as temporary override ID
+          shiftedPoints: (responseData?.deleted_occurrences || 0) * 10 // Rough estimate
         }
       });
 
@@ -146,48 +152,44 @@ export function useTaskActions(householdId: string) {
         setActionState({ confirmPill: null });
       }, 30000);
 
-      return result;
-    } catch (error) {
-      console.error('Remove task error:', error);
+      // Invalidate queries to refresh the plan view
+      queryClient.invalidateQueries({ queryKey: ['occurrences'] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+
+      return data;
+    } catch (error: any) {
+      const msg = error?.message ?? 'remove failed';
+      console.error('[plan/remove] FAILED', { rid, msg, error });
+      
+      let errorMessage = "Failed to remove task";
+      if (error.message?.includes('not authenticated')) {
+        errorMessage = "Please log in to remove tasks";
+      } else if (error.message?.includes('not a member')) {
+        errorMessage = "You don't have permission to modify this household's tasks";
+      } else if (error.message?.includes('Unknown plan')) {
+        errorMessage = "Plan not found";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to remove task",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const undoRemove = async () => {
-    if (!actionState.confirmPill) return;
+    // For now, undo is not supported with direct task removal
+    // TODO: Implement undo functionality by restoring occurrences
+    setActionState({ confirmPill: null });
     
-    try {
-      await deleteOverride(actionState.confirmPill.overrideId);
-      
-      // Regenerate plan
-      await generatePlan({
-        household_id: householdId,
-        date_range: {
-          start: new Date().toISOString().split('T')[0],
-          end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        },
-        context: 'week'
-      });
-
-      setActionState({ confirmPill: null });
-      
-      toast({
-        title: "Undone",
-        description: "Task has been restored",
-      });
-    } catch (error) {
-      console.error('Undo error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to undo action",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Undo not available",
+      description: "Please refresh the page to see the current state",
+    });
   };
 
   const dismissConfirmPill = () => {
@@ -199,7 +201,7 @@ export function useTaskActions(householdId: string) {
     undoRemove,
     dismissConfirmPill,
     actionState,
-    isProcessing: isCreating || isGenerating,
+    isProcessing,
     isDemoMode: realContext.isDemo,
   };
 }
