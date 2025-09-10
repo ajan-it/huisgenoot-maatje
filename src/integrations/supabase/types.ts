@@ -673,14 +673,7 @@ export type Database = {
         Returns: string
       }
       rpc_create_household: {
-        Args:
-          | {
-              household_name: string
-              household_postcode?: string
-              household_settings?: Json
-              household_timezone?: string
-            }
-          | { p_name?: string; p_postcode?: string; p_timezone?: string }
+        Args: { p_name?: string; p_postcode?: string; p_timezone?: string }
         Returns: string
       }
       rpc_remove_task_from_plan: {
