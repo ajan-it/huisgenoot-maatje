@@ -116,10 +116,10 @@ export function useTaskActions(householdId: string) {
     
     try {
       // Determine mode based on scope
-      const mode = scope === 'always' ? 'week-and-future' : 'week-only';
+      const mode = scope === 'always' ? 'future' : 'week';
       
-      // Call the new RPC function directly
-      const { data, error } = await supabase.rpc('rpc_remove_task_from_plan', {
+      // Call the new transactional RPC function
+      const { data, error } = await supabase.rpc('rpc_remove_task_transactional', {
         p_plan_id: planId,
         p_task_id: taskId,
         p_mode: mode
@@ -152,9 +152,9 @@ export function useTaskActions(householdId: string) {
         setActionState({ confirmPill: null });
       }, 30000);
 
-      // Invalidate queries to refresh the plan view
-      queryClient.invalidateQueries({ queryKey: ['occurrences'] });
-      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      // B. Invalidate plan-scoped cache keys
+      queryClient.invalidateQueries({ queryKey: ['occurrences', planId] });
+      queryClient.invalidateQueries({ queryKey: ['plan', planId] });
 
       return data;
     } catch (error: any) {
@@ -162,9 +162,9 @@ export function useTaskActions(householdId: string) {
       console.error('[plan/remove] FAILED', { rid, msg, error });
       
       let errorMessage = "Failed to remove task";
-      if (error.message?.includes('not authenticated')) {
+      if (error.message?.includes('Not authenticated')) {
         errorMessage = "Please log in to remove tasks";
-      } else if (error.message?.includes('not a member')) {
+      } else if (error.message?.includes('not a household member')) {
         errorMessage = "You don't have permission to modify this household's tasks";
       } else if (error.message?.includes('Unknown plan')) {
         errorMessage = "Plan not found";
@@ -172,7 +172,7 @@ export function useTaskActions(householdId: string) {
       
       toast({
         title: "Error",
-        description: errorMessage,
+        description: `${errorMessage} (${rid})`,
         variant: "destructive",
       });
       throw error;

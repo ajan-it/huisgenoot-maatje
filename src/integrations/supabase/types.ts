@@ -680,6 +680,10 @@ export type Database = {
         Args: { p_mode?: string; p_plan_id: string; p_task_id: string }
         Returns: Json
       }
+      rpc_remove_task_transactional: {
+        Args: { p_mode?: string; p_plan_id: string; p_task_id: string }
+        Returns: Json
+      }
       rpc_upsert_household_tasks: {
         Args: { p_household_id: string; p_tasks: Json }
         Returns: number

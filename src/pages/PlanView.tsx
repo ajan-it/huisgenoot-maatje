@@ -17,7 +17,7 @@ import type { FairnessDetails } from "@/types/plan";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useDisruptions } from "@/hooks/useDisruptions";
-import { Loader2, Sparkles, Settings } from "lucide-react";
+import { Loader2, Sparkles, Settings, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { resolveRealContext } from "@/lib/resolve-real-context";
@@ -32,7 +32,6 @@ const PlanView = () => {
   const { session } = useAuth();
   const L = lang === "en";
 
-  const [plan, setPlan] = useState<any | null>(null);
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [showRebalancePreview, setShowRebalancePreview] = useState(false);
   const [rebalanceData, setRebalanceData] = useState<any>(null);
@@ -53,6 +52,14 @@ const PlanView = () => {
   if (import.meta.env.DEV) {
     console.log('🔍 PlanView context:', realContext);
   }
+
+  // Parse plan parameters from route
+  const [parsedHouseholdId, parsedWeekStart] = useMemo(() => {
+    if (!planId || realContext.isDemo) return [null, null];
+    const match = planId.match(/^([0-9a-fA-F-]{36})-(\d{4}-\d{2}-\d{2})$/);
+    if (!match) return [null, null];
+    return [match[1], match[2]];
+  }, [planId, realContext.isDemo]);
 
   // Get real household if authenticated
   const { data: householdId } = useQuery({
@@ -88,51 +95,53 @@ const PlanView = () => {
       return;
     }
   }, [realContext, planId, householdId, navigate]);
-  
-  // Robust slug parser
-  function parsePlanSlug(slug: string) {
-    const m = slug.match(/^([0-9a-fA-F-]{36})-(\d{4}-\d{2}-\d{2})$/);
-    if (!m) return null;
-    return { householdId: m[1], weekStart: m[2] };
-  }
 
-  // Parse plan parameters
-  const [parsedHouseholdId, parsedWeekStart] = useMemo(() => {
-    if (!planId) return [null, null];
-    const parsed = parsePlanSlug(planId);
-    if (!parsed) return [null, null];
-    return [parsed.householdId, parsed.weekStart];
-  }, [planId]);
-
-  const effectiveHouseholdId = realContext.isDemo ? null : householdId;
-  const { disruptions, createDisruptions } = useDisruptions(effectiveHouseholdId, plan?.week_start);
-
-  // Fetch plan from database for real users
-  const fetchPlanFromDatabase = async () => {
-    const parsed = parsePlanSlug(planId || '');
-    if (!parsed) {
-      setPlan(null);
-      return;
-    }
-
-    const { householdId, weekStart } = parsed;
-
-    if (session?.user) {
-      console.debug('[week] querying', { householdId, weekStart });
-      const { data: plan, error: pErr } = await supabase
-        .from('plans')
-        .select('id, household_id, week_start, fairness_score, status')
-        .eq('household_id', householdId)
-        .eq('week_start', weekStart)
-        .maybeSingle();
-
-      if (pErr || !plan) {
-        console.warn('[week] plan not found', { pErr, householdId, weekStart });
-        setPlan(null);
-        return;
+  // A. Week View - Single source of truth with React Query
+  const { data: plan, isLoading: planLoading, error: planError, refetch: refetchPlan } = useQuery({
+    queryKey: ['plan', planId],
+    queryFn: async () => {
+      if (realContext.isDemo) {
+        // Demo mode: only use localStorage
+        const raw = localStorage.getItem("lastPlanResponse");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed?.plan_id === planId ? parsed : null;
       }
 
-      // Fetch occurrences for this plan
+      // Real mode: fetch from database only
+      if (!parsedHouseholdId || !parsedWeekStart) return null;
+
+      console.debug('[plan] querying', { householdId: parsedHouseholdId, weekStart: parsedWeekStart });
+      
+      const { data: planData, error: pErr } = await supabase
+        .from('plans')
+        .select('id, household_id, week_start, fairness_score, status')
+        .eq('household_id', parsedHouseholdId)
+        .eq('week_start', parsedWeekStart)
+        .maybeSingle();
+
+      if (pErr || !planData) {
+        console.warn('[plan] plan not found', { pErr, householdId: parsedHouseholdId, weekStart: parsedWeekStart });
+        return null;
+      }
+
+      return {
+        plan_id: planData.id,
+        household_id: planData.household_id,
+        week_start: planData.week_start,
+        fairness: planData.fairness_score || 0,
+      };
+    },
+    enabled: !!planId && (realContext.isDemo || (!!parsedHouseholdId && !!parsedWeekStart)),
+    staleTime: 30000, // 30 seconds
+  });
+
+  // B. Occurrences with plan-scoped cache key
+  const { data: occurrences = [], isLoading: occurrencesLoading, refetch: refetchOccurrences } = useQuery({
+    queryKey: ['occurrences', planId],
+    queryFn: async () => {
+      if (realContext.isDemo || !plan?.plan_id) return [];
+
       const { data: occurrences, error: occError } = await supabase
         .from('occurrences')
         .select(`
@@ -140,118 +149,116 @@ const PlanView = () => {
           duration_min, difficulty_weight, is_critical, reminder_level,
           rationale
         `)
-        .eq('plan_id', plan.id)
+        .eq('plan_id', plan.plan_id)
         .order('date', { ascending: true });
 
       if (occError) {
         console.error('Error fetching occurrences:', occError);
-        return;
+        throw occError;
       }
 
-      // Fetch people data
+      return occurrences || [];
+    },
+    enabled: !!plan?.plan_id && !realContext.isDemo,
+    staleTime: 30000,
+  });
+
+  // C. People data
+  const { data: people = [] } = useQuery({
+    queryKey: ['people', parsedHouseholdId],
+    queryFn: async () => {
+      if (realContext.isDemo || !parsedHouseholdId) return [];
+
       const { data: people, error: peopleError } = await supabase
         .from('people')
         .select('id, first_name, role, weekly_time_budget')
-        .eq('household_id', householdId);
+        .eq('household_id', parsedHouseholdId);
 
       if (peopleError) {
         console.error('Error fetching people:', peopleError);
-        return;
+        throw peopleError;
       }
 
-      // Fetch task templates to enrich occurrence data
-      const taskIds = [...new Set(occurrences?.map(o => o.task_id) || [])];
+      return people || [];
+    },
+    enabled: !!parsedHouseholdId && !realContext.isDemo,
+    staleTime: 60000,
+  });
+
+  // D. Tasks data for enrichment
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks', occurrences],
+    queryFn: async () => {
+      if (realContext.isDemo || !occurrences.length) return [];
+
+      const taskIds = [...new Set(occurrences.map(o => o.task_id))];
+      if (!taskIds.length) return [];
+
       const { data: tasks, error: tasksError } = await supabase
         .from('tasks')
         .select('id, name, category, tags')
         .in('id', taskIds);
 
-      // Transform data to match expected format
-      const taskMap = new Map(tasks?.map(t => [t.id, t]) || []);
-      const peopleMap = new Map(people?.map(p => [p.id, p]) || []);
+      if (tasksError) {
+        console.error('Error fetching tasks:', tasksError);
+        throw tasksError;
+      }
 
-      const assignments = occurrences?.map(occ => {
-        const task = taskMap.get(occ.task_id);
-        const person = occ.assigned_person ? peopleMap.get(occ.assigned_person) : null;
+      return tasks || [];
+    },
+    enabled: occurrences.length > 0 && !realContext.isDemo,
+    staleTime: 300000, // 5 minutes
+  });
 
-        return {
-          id: occ.id,
-          task_id: occ.task_id,
-          task_name: task?.name || occ.task_id,
-          task_category: task?.category || 'unknown',
-          task_tags: task?.tags || [],
-          task_duration: occ.duration_min,
-          task_difficulty: Math.round(occ.difficulty_weight || 1),
-          date: occ.date,
-          time_slot: {
-            start: occ.start_time,
-            end: occ.start_time // Will be calculated based on duration
-          },
-          assigned_person_id: occ.assigned_person,
-          assigned_person_name: person?.first_name || 'Unassigned',
-          status: occ.status,
-          rationale: occ.rationale ? JSON.parse(String(occ.rationale)) : null
-        };
-      }) || [];
+  // Transform data for UI components - derive counts from fetched rows
+  const enrichedPlan = useMemo(() => {
+    if (!plan) return null;
 
-      const planObject = {
-        plan_id: plan.id,
-        household_id: plan.household_id,
-        week_start: plan.week_start,
-        fairness: plan.fairness_score || 0,
-        occurrences: assignments.length,
-        assignments,
-        people: people || [],
-        tasks: tasks || []
+    const taskMap = new Map(tasks.map(t => [t.id, t]));
+    const peopleMap = new Map(people.map(p => [p.id, p]));
+
+    const assignments = occurrences.map(occ => {
+      const task = taskMap.get(occ.task_id);
+      const person = occ.assigned_person ? peopleMap.get(occ.assigned_person) : null;
+
+      return {
+        id: occ.id,
+        task_id: occ.task_id,
+        task_name: task?.name || occ.task_id,
+        task_category: task?.category || 'unknown',
+        task_tags: task?.tags || [],
+        task_duration: occ.duration_min,
+        task_difficulty: Math.round(occ.difficulty_weight || 1),
+        date: occ.date,
+        time_slot: {
+          start: occ.start_time,
+          end: occ.start_time // Will be calculated based on duration
+        },
+        assigned_person_id: occ.assigned_person,
+        assigned_person_name: person?.first_name || 'Unassigned',
+        status: occ.status,
+        rationale: occ.rationale ? JSON.parse(String(occ.rationale)) : null
       };
+    });
 
-      setPlan(planObject);
-      
-      if (import.meta.env.DEV) {
-        console.log('✅ Plan loaded from database:', planObject);
-      }
-      return;
-    }
-    
-    // guest flow fallback
-    setPlan(null);
-  };
+    return {
+      ...plan,
+      // B = occurrences.length, C = unique tasks
+      occurrences: occurrences.length,
+      unique_tasks: new Set(occurrences.map(o => o.task_id)).size,
+      assignments,
+      people,
+      tasks
+    };
+  }, [plan, occurrences, tasks, people]);
 
-  useEffect(() => {
-    // Only load from localStorage in demo mode
-    if (realContext.isDemo) {
-      try {
-        const raw = localStorage.getItem("lastPlanResponse");
-        if (import.meta.env.DEV) {
-          console.log("📦 Loading demo data from localStorage:", !!raw);
-        }
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (parsed?.plan_id === planId) {
-          setPlan(parsed);
-          if (parsed?.fairness_details) {
-            setFairnessDetails(parsed.fairness_details);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading plan:", error);
-      }
-    } else {
-      // In real mode, clear localStorage and fetch from Supabase
-      if (import.meta.env.DEV) {
-        console.log("🗑️ Real mode: clearing localStorage demo data");
-      }
-      localStorage.removeItem('lastPlanResponse');
-      
-      // Fetch real plan data from Supabase
-      fetchPlanFromDatabase();
-    }
-  }, [planId, realContext.isDemo, session?.user]);
+  const effectiveHouseholdId = realContext.isDemo ? null : parsedHouseholdId;
+  const { disruptions, createDisruptions } = useDisruptions(effectiveHouseholdId, plan?.week_start);
 
   const title = useMemo(() => (L ? `Week plan | ${planId}` : `Weekplan | ${planId}`), [L, planId]);
 
   const handleMakeItFairer = async () => {
-    if (!plan?.assignments || !plan?.people || !plan?.tasks) return;
+    if (!enrichedPlan?.assignments || !enrichedPlan?.people || !enrichedPlan?.tasks) return;
     
     setIsRebalancing(true);
     try {
@@ -259,12 +266,12 @@ const PlanView = () => {
         body: {
           household_id: planId?.split('-')[0] || 'HH_LOCAL',
           date_range: {
-            start: plan.week_start,
-            end: new Date(new Date(plan.week_start).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            start: enrichedPlan.week_start,
+            end: new Date(new Date(enrichedPlan.week_start).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
           },
           context: 'week',
           mode: 'rebalance_soft',
-          current_assignments: plan.assignments
+          current_assignments: enrichedPlan.assignments
         }
       });
 
@@ -294,11 +301,10 @@ const PlanView = () => {
   const handleApplyRebalance = async () => {
     if (!rebalanceData) return;
     
-    // Update localStorage with new plan data
-    localStorage.setItem("lastPlanResponse", JSON.stringify(rebalanceData));
-    
-    // Update the current plan state
-    setPlan(rebalanceData);
+    // Update localStorage with new plan data for demo mode
+    if (realContext.isDemo) {
+      localStorage.setItem("lastPlanResponse", JSON.stringify(rebalanceData));
+    }
     
     // Update fairness details if available
     if (rebalanceData?.fairness_details) {
@@ -312,9 +318,13 @@ const PlanView = () => {
       description: L ? `Fairness improved by ${improvement} points.` : `Eerlijkheid verbeterd met ${improvement} punten.`,
     });
     
-    // Close preview
+    // Close preview and refetch data
     setShowRebalancePreview(false);
     setRebalanceData(null);
+    
+    // Refetch to get updated data
+    refetchPlan();
+    refetchOccurrences();
   };
 
   const handleReflectionSubmit = async (disruptionsData: any[]) => {
@@ -327,6 +337,36 @@ const PlanView = () => {
       });
     }
   };
+
+  const handleRefresh = () => {
+    refetchPlan();
+    refetchOccurrences();
+  };
+
+  const isLoading = planLoading || occurrencesLoading;
+
+  if (isLoading) {
+    return (
+      <main className="container py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </main>
+    );
+  }
+
+  if (planError) {
+    return (
+      <main className="container py-8">
+        <Alert variant="destructive">
+          <AlertTitle>{L ? "Error loading plan" : "Fout bij laden plan"}</AlertTitle>
+          <AlertDescription>
+            {planError.message || (L ? "Failed to load plan data" : "Kan plangegevens niet laden")}
+          </AlertDescription>
+        </Alert>
+      </main>
+    );
+  }
 
   return (
     <main className="container py-8 space-y-6">
@@ -348,9 +388,9 @@ const PlanView = () => {
       )}
 
       {/* Weekly Reflection Banner */}
-      {plan && (
+      {enrichedPlan && (
         <WeeklyReflectionBanner
-          weekStart={plan.week_start}
+          weekStart={enrichedPlan.week_start}
           onStartReflection={() => setShowReflectionForm(true)}
           hasReflection={disruptions.length > 0}
         />
@@ -361,29 +401,34 @@ const PlanView = () => {
         <p className="text-muted-foreground">{L ? "Plan ID" : "Plan-ID"}: {planId}</p>
       </header>
 
-      {plan ? (
+      {enrichedPlan ? (
         <section className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>{L ? "Overview" : "Overzicht"}</span>
-                {effectiveHouseholdId && plan?.week_start && !realContext.isDemo && (
-                  <TaskQuickActions
-                    householdId={effectiveHouseholdId}
-                    date={new Date(plan.week_start)}
-                    onTaskUpdate={() => window.location.reload()}
-                    planId={plan.plan_id}
-                  />
-                )}
+                <div className="flex items-center gap-2">
+                  {effectiveHouseholdId && enrichedPlan?.week_start && !realContext.isDemo && (
+                    <TaskQuickActions
+                      householdId={effectiveHouseholdId}
+                      date={new Date(enrichedPlan.week_start)}
+                      onTaskUpdate={handleRefresh}
+                      planId={enrichedPlan.plan_id}
+                    />
+                  )}
+                  <Button variant="outline" size="sm" onClick={handleRefresh}>
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardTitle>
               <div className="flex items-center gap-3">
                  <div className="flex items-center gap-2">
                     <FairnessBadge 
-                      score={plan.fairness ?? 0}
+                      score={enrichedPlan.fairness ?? 0}
                       onClick={() => setFairnessDrawerOpen(true)}
                     />
                    
-                   {(plan.fairness ?? 0) < 85 && (
+                   {(enrichedPlan.fairness ?? 0) < 85 && (
                      <Button
                        variant="outline"
                        size="sm"
@@ -410,25 +455,23 @@ const PlanView = () => {
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
-                  <div className="font-medium text-foreground">{plan.assignments?.length ?? 0}</div>
+                  <div className="font-medium text-foreground">{enrichedPlan.occurrences}</div>
                   <div className="text-xs">{L ? "Occurrences" : "Uitvoeringen"}</div>
-                  {plan.assignments && (
-                    <div className="text-xs text-muted-foreground">
-                      {new Set(plan.assignments.map((a: any) => a.task_id)).size} {L ? "unique tasks" : "unieke taken"}
-                    </div>
-                  )}
+                  <div className="text-xs text-muted-foreground">
+                    {enrichedPlan.unique_tasks} {L ? "unique tasks" : "unieke taken"}
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium text-foreground">{plan.fairness ?? 0}/100</div>
+                  <div className="font-medium text-foreground">{enrichedPlan.fairness ?? 0}/100</div>
                   <div className="text-xs">{L ? "Fairness" : "Eerlijkheid"}</div>
                 </div>
                 <div>
-                  <div className="font-medium text-foreground">{plan.people?.length ?? 0}</div>
+                  <div className="font-medium text-foreground">{enrichedPlan.people?.length ?? 0}</div>
                   <div className="text-xs">{L ? "People" : "Personen"}</div>
                 </div>
                 <div>
                   <div className="font-medium text-foreground">
-                    {new Date(plan.week_start).toLocaleDateString(L ? "en-GB" : "nl-NL", { day: "numeric", month: "short" })}
+                    {new Date(enrichedPlan.week_start).toLocaleDateString(L ? "en-GB" : "nl-NL", { day: "numeric", month: "short" })}
                   </div>
                   <div className="text-xs">{L ? "Week start" : "Week start"}</div>
                 </div>
@@ -436,7 +479,7 @@ const PlanView = () => {
             </CardContent>
           </Card>
 
-          {plan.assignments && plan.assignments.length > 0 && (
+          {enrichedPlan.assignments && enrichedPlan.assignments.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -451,109 +494,86 @@ const PlanView = () => {
               </CardHeader>
               <CardContent>
                 <PlanSchedule 
-                  assignments={plan.assignments} 
-                  people={plan.people || []} 
-                  weekStart={plan.week_start} 
-                  planId={plan.plan_id}
+                  assignments={enrichedPlan.assignments} 
+                  people={enrichedPlan.people || []} 
+                  weekStart={enrichedPlan.week_start} 
+                  planId={enrichedPlan.plan_id}
                 />
               </CardContent>
             </Card>
           )}
 
            <div className="flex flex-wrap gap-2">
-             <Button onClick={() => navigate("/my")}>{L ? "My Tasks" : "Mijn Taken"}</Button>
-             <Button variant="outline" onClick={() => navigate("/compare")}>{L ? "Compare" : "Vergelijk"}</Button>
-             <Button variant="secondary" onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
+            {realContext.isDemo && (
+              <Badge variant="secondary">{L ? "Demo Mode" : "Demo Modus"}</Badge>
+            )}
+            <Badge variant="outline">{L ? "Generated Plan" : "Gegenereerd Plan"}</Badge>
            </div>
-         </section>
-       ) : (
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle>{L ? "Plan not found" : "Plan niet gevonden"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-muted-foreground">
-              <p>
-                {L
-                  ? "We couldn't find this plan on this device. You can create a new plan or manage tasks."
-                  : "We konden dit plan niet vinden op dit apparaat. Je kunt een nieuw plan maken of taken beheren."}
-              </p>
-              
-              {/* Quick access to task management */}
-              {effectiveHouseholdId && !realContext.isDemo && (
-                <Card className="border-dashed">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-foreground">{L ? "Quick Task Management" : "Snel Taken Beheren"}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {L ? "Add or remove tasks for this week" : "Taken toevoegen of verwijderen voor deze week"}
-                        </p>
-                      </div>
-                      <TaskQuickActions
-                        householdId={effectiveHouseholdId}
-                        date={new Date(planId?.split('-')[1] || new Date().toISOString().split('T')[0])}
-                        onTaskUpdate={() => window.location.reload()}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              <div className="flex gap-2">
-                <Button onClick={() => navigate("/setup/1")}>{L ? "Start wizard" : "Start wizard"}</Button>
-                <Button variant="outline" onClick={() => navigate("/calendar/week")}>{L ? "View Calendar" : "Bekijk Kalender"}</Button>
-                <Button variant="secondary" onClick={() => navigate("/")}>{L ? "Back to start" : "Terug naar start"}</Button>
-              </div>
-            </CardContent>
-          </Card>
-         </section>
-        )}
+        </section>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center space-y-4">
+            <h2 className="text-xl font-semibold">{L ? "Plan not found" : "Plan niet gevonden"}</h2>
+            <p className="text-muted-foreground">
+              {L ? "This plan doesn't exist or you don't have access to it." : "Dit plan bestaat niet of je hebt er geen toegang toe."}
+            </p>
+            <div className="flex justify-center gap-2">
+              <Button onClick={() => navigate('/')} variant="outline">
+                {L ? "Back to Home" : "Terug naar Home"}
+              </Button>
+              <Button onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {L ? "Reload" : "Opnieuw laden"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Enhanced Fairness Drawer */}
-        <EnhancedFairnessDrawer
-          open={fairnessDrawerOpen}
-          onClose={() => setFairnessDrawerOpen(false)}
-          score={plan?.fairness ?? 0}
-          details={fairnessDetails}
-          peopleById={Object.fromEntries((plan?.people || []).map((p: any) => [p.id, { first_name: p.first_name }]))}
-          assignments={plan?.assignments || []}
-          weekStart={plan?.week_start}
-          onMakeFairer={handleMakeItFairer}
-        />
+      {/* Modals and Drawers */}
+      <EnhancedFairnessDrawer
+        open={fairnessDrawerOpen}
+        onClose={() => setFairnessDrawerOpen(false)}
+        score={enrichedPlan?.fairness ?? 0}
+        details={fairnessDetails}
+        peopleById={people.reduce((acc, p) => ({ ...acc, [p.id]: { first_name: p.first_name } }), {})}
+        assignments={enrichedPlan?.assignments || []}
+        weekStart={enrichedPlan?.week_start}
+      />
 
-        {/* Rebalance Preview Dialog */}
-        {showRebalancePreview && rebalanceData?.rebalance_preview && (
+      <Dialog open={showRebalancePreview} onOpenChange={setShowRebalancePreview}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <RebalancePreview
             open={showRebalancePreview}
             onOpenChange={setShowRebalancePreview}
-            currentFairness={rebalanceData.rebalance_preview.currentFairness}
-            projectedFairness={rebalanceData.rebalance_preview.projectedFairness}
-            changes={rebalanceData.rebalance_preview.changes}
-            adults={rebalanceData.rebalance_preview.adults}
+            currentFairness={rebalanceData?.rebalance_preview?.currentFairness || 0}
+            projectedFairness={rebalanceData?.rebalance_preview?.projectedFairness || 0}
+            changes={rebalanceData?.rebalance_preview?.changes || []}
+            adults={people.map(p => ({
+              id: p.id,
+              name: p.first_name,
+              currentMinutes: 0,
+              projectedMinutes: 0,
+              targetMinutes: p.weekly_time_budget || 0
+            }))}
             onApply={handleApplyRebalance}
-            onCancel={() => {
-              setShowRebalancePreview(false);
-              setRebalanceData(null);
-            }}
+            onCancel={() => setShowRebalancePreview(false)}
           />
-        )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Reflection Form Dialog */}
-        {showReflectionForm && plan && (
-          <Dialog open={showReflectionForm} onOpenChange={setShowReflectionForm}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DisruptionForm
-                weekStart={plan.week_start}
-                people={plan.people || []}
-                onSubmit={handleReflectionSubmit}
-                onCancel={() => setShowReflectionForm(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-      </main>
-   );
- };
+      <Dialog open={showReflectionForm} onOpenChange={setShowReflectionForm}>
+        <DialogContent className="max-w-2xl">
+          <DisruptionForm
+            weekStart={enrichedPlan?.week_start || ''}
+            people={people}
+            onSubmit={handleReflectionSubmit}
+            onCancel={() => setShowReflectionForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+};
 
 export default PlanView;

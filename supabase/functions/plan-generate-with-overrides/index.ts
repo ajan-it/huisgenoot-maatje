@@ -41,6 +41,10 @@ serve(async (req) => {
   }
 
   try {
+    // C. Get request ID for tracking
+    const rid = req.headers.get('x-request-id') || crypto.randomUUID()
+    console.log('[plan-generate-with-overrides] rid:', rid)
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -48,7 +52,7 @@ serve(async (req) => {
 
     const { household_id, date_range, context, selected_tasks } = await req.json() as GenerateRequest
 
-    console.log('Generating plan with overrides:', { household_id, date_range, context })
+    console.log('Generating plan with overrides:', { rid, household_id, date_range, context })
 
     // Get household people
     const { data: people, error: peopleError } = await supabase
@@ -68,7 +72,7 @@ serve(async (req) => {
 
     if (overridesError) throw overridesError
 
-    console.log('Found overrides:', overrides)
+    console.log('Found overrides:', overrides.length)
 
     // Get available tasks (templates + household tasks)
     const { data: allTasks, error: tasksError } = await supabase
@@ -86,7 +90,24 @@ serve(async (req) => {
       date_range
     )
 
-    console.log('Effective tasks after overrides:', effectiveTasks.length)
+    console.log('Effective tasks after overrides (A):', effectiveTasks.length)
+
+    // C. Guardrail: A<1 → 400 no_tasks_for_household
+    if (effectiveTasks.length < 1) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: { code: 'no_tasks_for_household', message: 'No active tasks found for household', rid }
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
 
     // Generate occurrences for the filtered tasks
     const occurrences = generateOccurrencesWithOverrides(
@@ -97,16 +118,43 @@ serve(async (req) => {
       context
     )
 
-    console.log('Generated occurrences:', occurrences.length)
+    console.log('Generated occurrences (B):', occurrences.length)
+
+    // C. Guardrail: B<1 → 500 no_occurrences_created
+    if (occurrences.length < 1) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: { code: 'no_occurrences_created', message: 'No occurrences were generated', rid }
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
 
     // Calculate fairness impact and diff summary
     const fairnessImpact = calculateFairnessImpact(occurrences, people)
     const diffSummary = calculateDiffSummary(effectiveTasks, allTasks, overrides as TaskOverride[], people)
 
+    // C. Calculate metrics: A/B/C
+    const A = effectiveTasks.length
+    const B = occurrences.length
+    const C = new Set(occurrences.map(o => o.task_id)).size
+
     return new Response(
       JSON.stringify({
         success: true,
-        occurrences_count: occurrences.length,
+        occurrence_count: B,
+        metrics: {
+          selected_active_tasks: A,
+          occurrences: B,
+          unique_tasks: C
+        },
         fairness_impact: fairnessImpact,
         overrides_applied: overrides.length,
         diff_summary: diffSummary,
@@ -114,7 +162,8 @@ serve(async (req) => {
           occurrences,
           fairness_impact: fairnessImpact,
           diff_summary: diffSummary
-        }
+        },
+        rid
       }),
       { 
         headers: { 
@@ -125,14 +174,15 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    const rid = req.headers.get('x-request-id') || 'unknown'
     console.error('Plan generation error:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: { code: 'server_error', message: error.message, rid }
       }),
       { 
-        status: 400, 
+        status: 500, 
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json' 
