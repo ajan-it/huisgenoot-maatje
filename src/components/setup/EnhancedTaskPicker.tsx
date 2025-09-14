@@ -456,27 +456,105 @@ export function EnhancedTaskPicker({
         </Button>
       </div>
 
-      {/* Summary */}
-      <Card className="bg-accent/20">
+      {/* Enhanced Summary */}
+      <Card className="bg-gradient-to-r from-background to-accent/10">
         <CardContent className="p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-lg font-semibold">{activeTasks.length}</div>
-              <div className="text-xs text-muted-foreground">Active Tasks</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Selected Tasks */}
+            <div className="text-center p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="p-1.5 rounded-full bg-primary/10">
+                  📋
+                </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {t("tasks.picker.selectedTasks")}
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-primary">{activeTasks.length}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t("tasks.picker.selectedTasksHelp")}
+              </div>
             </div>
-            <div>
-              <div className="text-lg font-semibold">{Math.round(minutesPerAdult)}min</div>
-              <div className="text-xs text-muted-foreground">Per Person/Week</div>
+
+            {/* Weekly Time Per Person */}
+            <div className="text-center p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="p-1.5 rounded-full bg-primary/10">
+                  ⏰
+                </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {t("tasks.picker.weeklyTimePerPerson")}
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-primary">
+                <div className="flex items-center justify-center gap-1 flex-wrap">
+                  <span>{Math.round(minutesPerAdult)}min</span>
+                  <span className="text-base text-muted-foreground">
+                    ({(minutesPerAdult / 60).toFixed(1)}h)
+                  </span>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {minutesPerAdult < 90 ? t("tasks.picker.timeLight") : 
+                 minutesPerAdult < 150 ? t("tasks.picker.timeNormal") : 
+                 t("tasks.picker.timeBusy")}
+              </div>
             </div>
-            <div>
-              <div className={`text-lg font-semibold ${
-                fairnessScore > 100 ? 'text-red-500' : fairnessScore > 80 ? 'text-amber-500' : 'text-green-500'
+
+            {/* Budget Usage with overflow handling */}
+            <div className="text-center p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="p-1.5 rounded-full bg-primary/10">
+                  📊
+                </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {t("tasks.picker.budgetUsage")}
+                </div>
+              </div>
+              <div className={`text-2xl font-bold ${
+                fairnessScore > 100 ? 'text-red-500' : 
+                fairnessScore > 80 ? 'text-amber-500' : 
+                'text-green-500'
               }`}>
                 {fairnessScore}%
               </div>
-              <div className="text-xs text-muted-foreground">Of Time Budget</div>
+              
+              {/* Progress bar for budget usage */}
+              <div className="w-full bg-muted rounded-full h-2 mt-2 overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-300 ${
+                    fairnessScore > 100 ? 'bg-red-500' : 
+                    fairnessScore > 80 ? 'bg-amber-500' : 
+                    'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min(100, fairnessScore)}%` }}
+                />
+                {fairnessScore > 100 && (
+                  <div className="h-full bg-red-500/30 animate-pulse" style={{ width: '100%', marginTop: '-8px' }} />
+                )}
+              </div>
+
+              {/* Overflow warning */}
+              {fairnessScore > 100 && (
+                <div className="text-xs text-red-600 mt-2 font-medium">
+                  ⚠️ Overcommitted by {((minutesPerAdult - totalMinutesBudget) / 60).toFixed(1)}h - consider reducing tasks
+                </div>
+              )}
+              
+              <div className="text-xs text-muted-foreground mt-1">
+                {t("tasks.picker.budgetUsageHelp")}
+              </div>
             </div>
           </div>
+
+          {/* Helpful suggestions for overcommitment */}
+          {fairnessScore > 100 && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="text-sm text-red-800 dark:text-red-200 text-center">
+                💡 Remove some tasks or increase your time budget in step 3
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
